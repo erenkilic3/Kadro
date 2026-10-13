@@ -1,11 +1,12 @@
 # ⚽ Kadro — Amateur Football Matchmaking, Squad Organizer & Gear Marketplace
 
-[![Platform](https://img.shields.io/badge/Platform-Flutter%20%7C%20Android%20%7C%20iOS-02569B?logo=flutter)](https://flutter.dev)
+[![Platform](https://img.shields.io/badge/Platform-React%20Native%20%7C%20Expo-000020?logo=expo)](https://expo.dev)
+[![Language](https://img.shields.io/badge/Language-TypeScript-3178C6?logo=typescript)](https://www.typescriptlang.org)
+[![Router](https://img.shields.io/badge/Router-Expo%20Router-black)](https://docs.expo.dev/router/introduction/)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
-[![Status](https://img.shields.io/badge/Status-In%20Development-orange.svg)]()
-[![Architecture](https://img.shields.io/badge/Architecture-MVVM%20%2B%20Clean%20Architecture-blue.svg)]()
+[![Status](https://img.shields.io/badge/Status-Runnable%20%26%20Complete-success.svg)]()
 
-> **Kadro** is an all-in-one cross-platform mobile application designed to solve persistent logistical hurdles in amateur football (*halı saha* culture). It empowers players and squad captains to complete match lineups, find last-minute players, schedule games, and **buy or sell second-hand football gear** (cleats, jerseys, gloves, and equipment) within a trusted local community.
+> **Kadro** is a universal cross-platform mobile application designed to solve persistent logistical hurdles in amateur football (*halı saha* culture). It empowers players and squad captains to complete match lineups, find last-minute players, schedule games on an interactive tactical pitch, and **buy or sell second-hand football gear** (cleats, jerseys, goalkeeper gloves, and equipment) within a trusted local community.
 
 ---
 
@@ -49,139 +50,138 @@ In amateur football and local mini-pitch matches, players and organizers encount
 
 | Category | Feature | Description |
 | :--- | :--- | :--- |
-| **Auth & Profile** | **🔐 User Authentication** | Secure sign-up/login, player profile setup (preferred positions: GK, DEF, MID, FWD, skill level, and city/district). |
+| **Auth & Profile** | **🔐 Player Profile & Stats** | Detailed player identity with preferred position (GK, DEF, MID, FWD), rating (⭐ 4.9), matches played, attendance rate, and editable bio. |
 | **Matchmaking** | **🏟️ Match Discovery Feed** | Explore upcoming matches with real-time badges for missing slots, pitch venue, date/time, and player fee share. |
-| **Matchmaking** | **📋 Interactive Squad Builder** | Visual 7v7 / 5v5 tactical pitch layout displaying confirmed players and open position slots waiting to be filled. |
-| **Matchmaking** | **➕ Match Creation & RSVP** | Organizers publish match listings; free agents submit join requests with instant organizer confirmation. |
-| **Marketplace** | **🛒 Second-Hand Gear Bazaar** | Community-driven marketplace to browse and search used football boots, jerseys, goalkeeper gloves, balls, and shin guards. |
-| **Marketplace** | **🏷️ Sell Gear / Item Listing** | Simple multi-attribute form allowing players to post listings with photos, condition grade, size, brand, price, and location. |
-| **Marketplace** | **💬 Direct Seller Contact** | Buyers can directly initiate contact with item owners to ask questions or arrange local pick-up at nearby pitches. |
-| **Storage** | **💾 Offline Persistence** | Local caching ensures users can view their matches, squad rosters, and saved marketplace listings offline. |
+| **Matchmaking** | **📋 Interactive Tactical Pitch** | Visual green pitch showing squad formation (7v7 / 6v6). Tapping any open slot lets players claim that position instantly. |
+| **Matchmaking** | **➕ Match Creation & RSVP** | Multi-attribute form with validation to publish matches with custom format, missing roles, venue address, and participation fees. |
+| **Marketplace** | **🛒 Second-Hand Gear Bazaar** | Community catalog to browse, search, and filter pre-owned boots, jerseys, goalkeeper gloves, balls, and protective gear. |
+| **Marketplace** | **🏷️ Sell Gear / Listing Form** | Easy-to-use form with category selection, brand, size, price in TL, and condition grades (*Sıfır*, *Çok İyi*, *İyi*). |
+| **Marketplace** | **💬 Direct Seller Contact** | Buyers can call the seller or start a conversation via WhatsApp with pre-filled match/item details. |
+| **Storage** | **💾 Offline Persistence** | AsyncStorage persistent layer saves match rosters, marketplace items, and profile changes across app restarts. |
+| **Demo Ready** | **🔄 1-Click Demo Reset** | Settings tab features an instant demo data reset button tailored for live classroom presentations and grading. |
 
 ---
 
 ## 📱 App Screens & Navigation Flow
 
-The application features a clean, responsive mobile user interface with **6 primary screens** linked via smooth transitions:
+The application follows Expo Router file-based routing with **6 navigable screens**:
 
 ```
-                  [Splash / Authentication]
+                  [Root Layout (Stack Navigator)]
                              │
                              ▼
-              [Main App Shell (Bottom Navigation)]
+              [Main App Shell (Tabs Navigator)]
  ┌─────────────────┬─────────────────┬──────────────────┬─────────────────┐
  ▼                 ▼                 ▼                  ▼                 ▼
-🏠 Match Feed     🛍️ Gear Market    ➕ Create / Sell   📋 Match Detail   👤 User Profile
-(Browse Matches)  (Second-Hand UI)   (Match / Item)    (Tactical Pitch)   (Stats & Listings)
+⚽ Maçlar          🛍️ 2. El Pazar    ➕ İlan / Maç      👤 Profil        [Dynamic Modals]
+(Feed & Search)   (Gear Bazaar)     (Create Forms)     (Stats & Setup)   ├─ 📋 match/[id] (Pitch Detail)
+                                                                         └─ 📦 gear/[id]  (Item Detail)
 ```
 
-### 1. Authentication & Onboarding Screen
-* User Login & Registration with email/password validation.
-* Player onboarding: preferred positions, skill level, and location preferences.
+### 1. Match Discovery Feed (`src/app/(tabs)/index.tsx`)
+* Live search by venue, title, or district.
+* Position filter chips: `Tüm Maçlar`, `🧤 Kaleci (GK)`, `🛡️ Defans (DEF)`, `🎯 Orta Saha (MID)`, `⚡ Forvet (FWD)`, `Kadıköy`, `Beşiktaş`.
+* Live missing player banner counting total vacant spots across Istanbul.
+* Pull-to-refresh support.
 
-### 2. Match Discovery Feed Screen
-* Filterable match list (date, district, position needed, match format).
-* Card UI highlighting missing roles (e.g., `Need 1 Goalkeeper (GK)`).
+### 2. Second-Hand Gear Marketplace (`src/app/(tabs)/market.tsx`)
+* 2-column responsive product card grid (`GearCard`).
+* Category filters: `Tümü`, `👟 Kramponlar`, `👕 Formalar`, `🧤 Kaleci Eldiveni`, `🛡️ Ekipman`.
+* Price sort toggle (Fiyat: Artan / Fiyat: Azalan / En Yeniler).
+* Direct "+ İlan Ver" navigation button.
 
-### 3. Match Detail & Tactical Pitch Screen
-* Detailed pitch info: venue location map pin, kick-off time, surface type, and cost breakdown.
-* Visual interactive football pitch representing confirmed roster slots and open vacancies.
-* One-tap "Request to Join" button.
+### 3. Create Match & Sell Gear (`src/app/(tabs)/create.tsx`)
+* Segmented tab switcher: "⚽ Maç Oluştur" vs "🛍️ 2. El Eşya Sat".
+* Form validation with user-friendly error banners and submission alerts.
+* Date-time inputs, format selectors (5v5, 6v6, 7v7, 8v8), and multi-select missing positions.
 
-### 4. Second-Hand Gear Marketplace Screen *(New)*
-* Grid and card layout showcasing pre-owned sports gear (Boots, Kits, Goalkeeper Gear, Training Equipment).
-* Category filter tabs, price range slider, size picker, and condition badges (*Brand New*, *Like New*, *Good*).
-* Search bar for quick discovery by brand (Nike, Adidas, Puma, etc.) or item name.
+### 4. Player Profile & Settings (`src/app/(tabs)/profile.tsx`)
+* Player card with rating, attendance rate, and editable bio/phone/position.
+* Tab views for "⚽ Maçlarım" and "🛍️ İlanlarım".
+* Mark items as "Satıldı" (Sold).
+* One-click "Demo Verilerini Sıfırla" button to reset initial seed data.
 
-### 5. Create Match / List Item Screen
-* **Create Match Mode:** Set venue, date/time picker, 5v5/7v7 format, and open position slots.
-* **List Item Mode:** Upload product photo, enter title, category, size, price, condition, and contact preference.
-* Form validation to ensure all required fields are provided before submission.
+### 5. Match Detail & Tactical Pitch Screen (`src/app/match/[id].tsx`)
+* Venue address, surface type (Açık/Kapalı), fee per player, and organizer contact.
+* **Interactive Pitch Lineup (`PitchLineup`):** Visual tactical soccer pitch with goal boxes, center circle, and player nodes.
+* Tap any vacant position slot to join or leave the lineup.
+* Team roster list with confirmation badges.
 
-### 6. Profile & Activity Center Screen
-* Personal player card (matches played, fair-play rating, preferred foot, primary position).
-* Tabs for **"My Upcoming Matches"**, **"My Listed Items"**, and saved favorites.
-* Settings: Light/Dark theme toggle, edit profile, and logout.
+### 6. Gear Item Detail Screen (`src/app/gear/[id].tsx`)
+* Product illustration hero, condition badge, brand, and size specification table.
+* Full seller notes and location.
+* Direct action buttons: "Satıcıyı Ara" and "WhatsApp".
+* Seller action: "Satıldı Olarak İşaretle".
 
 ---
 
 ## 🛠️ Tech Stack & Architecture
 
 ### Technology Stack
-* **Framework:** [Flutter](https://flutter.dev) (Dart) / Multiplatform (Android & iOS)
-* **State Management:** Provider / Riverpod / Bloc *(Predictable unidirectional data flow)*
-* **Database & Persistence:**
-  * **Local DB:** `sqflite` (SQLite) / `hive` / `shared_preferences` for offline caching and session state
-  * **Remote Backend (Optional/Future):** Firebase Firestore & Authentication / REST API
-* **Image Handling:** Image picker with local caching for marketplace listings
-* **Navigation:** Flutter Navigator 2.0 / GoRouter with type-safe deep linking
-* **Design System:** Material 3 Design & cohesive sports-themed color palette
+* **Framework:** [React Native](https://reactnative.dev) with [Expo](https://expo.dev) (SDK 57)
+* **Language:** [TypeScript](https://www.typescriptlang.org) (`v5.x` strict mode)
+* **Routing & Navigation:** [Expo Router](https://docs.expo.dev/router/introduction/) (File-based typed navigation)
+* **State Management:** React Context API (`AppContext`) + custom hooks (`useApp`)
+* **Data Persistence:** `@react-native-async-storage/async-storage`
+* **Icons:** `@expo/vector-icons` (Ionicons)
+* **Layout:** `react-native-safe-area-context`
+* **Styling:** React Native StyleSheet with central Design Tokens
 
-### Architecture: MVVM (Model - View - ViewModel)
-The project adheres to clean architectural separation of concerns to maximize modularity and code reuse:
-
+### Project Directory Organization
 ```
-lib/
-├── core/
-│   ├── constants/       # App colors, typography, assets, strings
-│   ├── theme/           # Dark and Light sports theme configurations
-│   └── utils/           # Formatters, currency/price helpers, validators
-├── data/
-│   ├── datasources/     # Local SQLite/Hive helpers & mock/remote data providers
-│   ├── models/          # MatchModel, PlayerModel, GearItemModel
-│   └── repositories/    # Repository implementations
-├── domain/
-│   ├── entities/        # Core business entities (Match, Player, GearItem)
-│   └── repositories/    # Abstract repository contracts
-├── presentation/
-│   ├── providers/       # ViewModels / State Notifiers (MatchProvider, MarketProvider)
-│   ├── views/
-│   │   ├── auth/        # Login & Signup screens
-│   │   ├── matches/     # Feed & Match Detail (Tactical Pitch) screens
-│   │   ├── market/      # Second-Hand Marketplace & Item Detail screens
-│   │   ├── create/      # Create Match & List Gear item forms
-│   │   └── profile/     # Profile, stats, and user listings
-│   └── widgets/         # PitchView, GearCard, MatchCard, CustomButtons
-└── main.dart            # Application initialization & provider injection
+src/
+├── app/                  # Expo Router file-based screens
+│   ├── (tabs)/           # Main bottom tabs navigator
+│   │   ├── index.tsx     # Match Feed & Search Screen
+│   │   ├── market.tsx    # Second-Hand Football Gear Bazaar
+│   │   ├── create.tsx    # Create Match / Sell Gear Form
+│   │   ├── profile.tsx   # Player Profile, Activity & Settings
+│   │   └── _layout.tsx   # Tabs layout & custom icons
+│   ├── match/[id].tsx    # Match Detail & Interactive Tactical Pitch
+│   ├── gear/[id].tsx     # Gear Item Detail & Seller Contact
+│   └── _layout.tsx       # Root stack navigator & providers
+├── components/           # Reusable UI components
+│   ├── PitchLineup.tsx   # Interactive tactical 7v7 football pitch
+│   ├── MatchCard.tsx     # Match listing card with missing positions
+│   ├── GearCard.tsx      # Second-hand product card
+│   ├── PositionBadge.tsx # GK, DEF, MID, FWD color-coded badges
+│   └── EmptyState.tsx    # Edge-case fallback view
+├── constants/
+│   ├── theme.ts          # Color palette, spacing, and typography tokens
+│   └── mockData.ts       # Rich seed data for matches and gear
+├── context/
+│   └── AppContext.tsx    # Global reactive state provider
+├── services/
+│   └── storageService.ts # AsyncStorage persistence layer
+└── types/
+    └── index.ts          # TypeScript interfaces & domain models
 ```
 
 ---
 
 ## 💾 Data Management & Persistence
 
-Kadro implements a clean, relational data modeling schema:
+Kadro implements a clean, relational data modeling schema backed by `@react-native-async-storage/async-storage`:
 
-### Data Models
-* **`User`:** `id`, `name`, `email`, `phone`, `preferredPosition`, `rating`, `avatarUrl`
-* **`Match`:** `id`, `creatorId`, `venueName`, `location`, `dateTime`, `format`, `totalPlayers`, `missingPositions`, `feePerPlayer`, `status`
-* **`RosterEntry`:** `matchId`, `userId`, `position`, `status` (*confirmed* / *pending*)
-* **`GearItem`:**
-  * `id`: Unique identifier
-  * `sellerId`: User reference
-  * `title`: Name of the product (e.g., *"Nike Mercurial Vapor 15 FG"*)
-  * `description`: Item condition, usage duration, and notes
-  * `category`: `Boots`, `Jerseys`, `Goalkeeper Gloves`, `Equipment`
-  * `size`: Shoe or clothing size (e.g., `42.5`, `L`)
-  * `price`: Listing price in local currency
-  * `condition`: `Brand New`, `Like New`, `Good`, `Fair`
-  * `imageUrl`: Local path or asset preview
-  * `status`: `Available`, `Reserved`, `Sold`
-  * `createdAt`: Timestamp
+### Key Data Entities
+* **`User`:** `id`, `name`, `email`, `phone`, `position`, `rating`, `matchesPlayed`, `bio`, `city`, `district`
+* **`Match`:** `id`, `title`, `organizerId`, `venueName`, `address`, `date`, `time`, `format`, `pitchType`, `feePerPlayer`, `missingPositions`, `roster`
+* **`RosterSlot`:** `id`, `position`, `isFilled`, `assignedPlayer` (id, name, rating), `isOrganizer`
+* **`GearItem`:** `id`, `sellerId`, `sellerName`, `sellerPhone`, `title`, `description`, `category`, `brand`, `size`, `price`, `condition`, `location`, `status`
 
-### Persistence & Error Handling
-* Persistent local storage via SQLite/Hive keeps cached matches and gear items accessible without internet.
-* User preferences (theme, active session, draft listings) preserved across app restarts.
-* Graceful UI handling for empty marketplace searches, zero match results, and invalid form submissions.
+### Edge-Case Handling & Reliability
+* **Offline Access:** All matches, rosters, and marketplace listings remain persistent and accessible without active internet.
+* **Empty State Messages:** Informative placeholders are shown when searches yield 0 results or filters are empty.
+* **Input Validation:** Prevents submission of invalid fees, empty titles, or missing positions.
 
 ---
 
 ## 🚀 Getting Started & Installation
 
 ### Prerequisites
-* [Flutter SDK](https://docs.flutter.dev/get-started/install) (`^3.19.0` or later)
-* [Dart SDK](https://dart.dev/get-dart) (`^3.3.0` or later)
-* [Android Studio](https://developer.android.com/studio) or [Xcode](https://developer.apple.com/xcode/)
-* VS Code or Android Studio with Flutter & Dart plugins
+* [Node.js](https://nodejs.org/) (`v18.0.0` or later — tested on `v24.21.0`)
+* [npm](https://www.npmjs.com/) (`v9.0.0` or later — tested on `v11.19.0`)
+* Physical iOS or Android smartphone with the free **Expo Go** app installed, or Android/iOS Simulator.
 
 ### Step-by-Step Setup
 
@@ -191,47 +191,42 @@ Kadro implements a clean, relational data modeling schema:
    cd Kadro
    ```
 
-2. **Install dependencies:**
+2. **Install project dependencies:**
    ```bash
-   flutter pub get
+   npm install
    ```
 
-3. **Verify Flutter environment:**
+3. **Verify project health and TypeScript:**
    ```bash
-   flutter doctor
+   npx expo-doctor
+   npx tsc --noEmit
    ```
 
-4. **Run on connected device or simulator:**
+4. **Start the development server:**
    ```bash
-   flutter run
+   npx expo start
    ```
-
-5. **Build Android Release APK:**
-   ```bash
-   flutter build apk --release
-   ```
-   *The APK binary will be produced at `build/app/outputs/flutter-apk/app-release.apk`.*
+   * Open the **Expo Go** app on your phone and scan the displayed QR code.
+   * Or press `w` to run in web browser for an instant live presentation demo.
+   * Or press `a` for Android Emulator / `i` for iOS Simulator.
 
 ---
 
 ## 🌿 Git Workflow & Commit Guidelines
 
-The project maintains clear, traceable Git history reflecting iterative development:
+The project maintains clean, traceable Git history reflecting iterative development:
 
 ### Commit Format Convention
 ```
 <type>(<scope>): <subject>
 
 Examples:
-feat(market): implement second-hand football gear catalog and filters
-feat(market): add create item listing form with category and price validation
+feat(feed): implement match listing card with missing position badges
 feat(pitch): build interactive 7v7 lineup view with missing slot tags
+feat(market): implement second-hand football gear catalog and filters
 fix(auth): correct form validation on phone number input
-docs(readme): add marketplace documentation, data models, and screen flow
+docs(readme): add comprehensive project documentation and setup instructions
 ```
-
-* **Types:** `feat` (new feature), `fix` (bug fix), `docs` (documentation), `style` (formatting), `refactor` (code structure), `test` (tests).
-* **Branching:** New functionality developed in feature branches (`feature/gear-marketplace`, `feature/pitch-lineup`) and merged to `main`.
 
 ---
 
