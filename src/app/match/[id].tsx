@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import {
   View,
   Text,
@@ -10,27 +10,34 @@ import {
 import { useLocalSearchParams, router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useApp } from '../../context/AppContext';
+import { useTheme } from '../../context/ThemeContext';
 import { PitchLineup } from '../../components/PitchLineup';
 import { PositionBadge } from '../../components/PositionBadge';
+import { MatchPredictionCard } from '../../components/MatchPredictionCard';
+import { PostMatchEvaluationSection } from '../../components/PostMatchEvaluationSection';
 import { EmptyState } from '../../components/EmptyState';
-import { COLORS, FONT_SIZE, SPACING } from '../../constants/theme';
-import { RosterSlot, PlayerPosition } from '../../types';
+import { FONT_SIZE, SPACING } from '../../constants/theme';
+import { RosterSlot } from '../../types';
 
 export default function MatchDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { matches, currentUser, joinMatchSlot, leaveMatch } = useApp();
+  const { matches, currentUser, joinMatchSlot, leaveMatch, votePrediction } = useApp();
+  const { colors, isDark } = useTheme();
 
   const match = matches.find((m) => m.id === id);
 
   if (!match) {
     return (
-      <View style={styles.notFoundContainer}>
+      <View style={[styles.notFoundContainer, { backgroundColor: colors.background }]}>
         <EmptyState
           icon="alert-circle-outline"
           title="Maç Bulunamadı"
           description="Aradığınız halı saha maçı kaldırılmış veya süresi dolmuş olabilir."
         />
-        <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+        <TouchableOpacity
+          style={[styles.backButton, { backgroundColor: colors.primary }]}
+          onPress={() => router.back()}
+        >
           <Text style={styles.backButtonText}>Geri Dön</Text>
         </TouchableOpacity>
       </View>
@@ -79,7 +86,6 @@ export default function MatchDetailScreen() {
       return;
     }
 
-    // Try to find matching user preferred position first, otherwise first available
     const preferredSlot = vacantSlots.find((s) => s.position === currentUser.position) || vacantSlots[0];
 
     Alert.alert(
@@ -117,66 +123,120 @@ export default function MatchDetailScreen() {
   };
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+    <ScrollView
+      style={[styles.container, { backgroundColor: colors.background }]}
+      contentContainerStyle={styles.content}
+    >
       {/* Top Banner Card */}
-      <View style={styles.heroCard}>
+      <View
+        style={[
+          styles.heroCard,
+          {
+            backgroundColor: isDark ? colors.surface : '#FFFFFF',
+            borderColor: colors.surfaceBorder,
+            shadowColor: colors.cardShadow,
+          },
+        ]}
+      >
         <View style={styles.badgeRow}>
-          <View style={styles.formatPill}>
-            <Text style={styles.formatText}>{match.format}</Text>
+          <View
+            style={[
+              styles.formatPill,
+              { backgroundColor: isDark ? colors.surfaceLight : '#F1F5F9' },
+            ]}
+          >
+            <Text style={[styles.formatText, { color: colors.primary }]}>{match.format}</Text>
           </View>
-          <View style={styles.pitchPill}>
-            <Text style={styles.pitchText}>{match.pitchType}</Text>
+          <View
+            style={[
+              styles.pitchPill,
+              { backgroundColor: isDark ? colors.surfaceLight : '#F1F5F9' },
+            ]}
+          >
+            <Text style={[styles.pitchText, { color: colors.textSecondary }]}>{match.pitchType}</Text>
           </View>
           <View style={{ flex: 1 }} />
           <View style={styles.feeBadge}>
-            <Text style={styles.feeNumber}>₺{match.feePerPlayer}</Text>
-            <Text style={styles.feePer}>/kişi</Text>
+            <Text style={[styles.feeNumber, { color: colors.accent }]}>₺{match.feePerPlayer}</Text>
+            <Text style={[styles.feePer, { color: colors.textSecondary }]}>/kişi</Text>
           </View>
         </View>
 
-        <Text style={styles.title}>{match.title}</Text>
+        <Text style={[styles.title, { color: colors.text }]}>{match.title}</Text>
 
         <View style={styles.metaRow}>
-          <Ionicons name="calendar" size={16} color={COLORS.primaryLight} />
-          <Text style={styles.metaText}>{match.date}</Text>
-          <Text style={styles.metaDot}>•</Text>
-          <Ionicons name="time" size={16} color={COLORS.textSecondary} />
-          <Text style={styles.metaText}>{match.time}</Text>
+          <Ionicons name="calendar" size={16} color={colors.primary} />
+          <Text style={[styles.metaText, { color: colors.textSecondary }]}>{match.date}</Text>
+          <Text style={[styles.metaDot, { color: colors.textTertiary }]}>•</Text>
+          <Ionicons name="time" size={16} color={colors.textSecondary} />
+          <Text style={[styles.metaText, { color: colors.textSecondary }]}>{match.time}</Text>
         </View>
 
         <View style={styles.metaRow}>
-          <Ionicons name="location" size={16} color={COLORS.danger} />
-          <Text style={styles.metaText}>
+          <Ionicons name="location" size={16} color={colors.danger} />
+          <Text style={[styles.metaText, { color: colors.textSecondary }]}>
             {match.venueName} ({match.address})
           </Text>
         </View>
       </View>
 
-      {/* Organizer Info Box */}
-      <View style={styles.organizerBox}>
-        <View style={styles.orgAvatar}>
-          <Ionicons name="person-circle" size={32} color={COLORS.accent} />
+      {/* Match Prediction Widget Section */}
+      {match.prediction && (
+        <View style={styles.sectionWrap}>
+          <View style={styles.sectionHeaderRow}>
+            <Ionicons name="trophy" size={18} color={colors.warning} />
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>Topluluk Maç Tahmini</Text>
+          </View>
+          <MatchPredictionCard
+            prediction={match.prediction}
+            matchId={match.id}
+            onVote={(choice) => votePrediction(match.id, choice)}
+          />
         </View>
-        <View style={{ flex: 1, marginLeft: 8 }}>
-          <Text style={styles.orgLabel}>Kadro Kaptanı / Organizatör</Text>
-          <Text style={styles.orgName}>{match.organizerName}</Text>
+      )}
+
+      {/* Organizer Info Box */}
+      <View
+        style={[
+          styles.organizerBox,
+          {
+            backgroundColor: isDark ? colors.surface : '#FFFFFF',
+            borderColor: colors.surfaceBorder,
+          },
+        ]}
+      >
+        <View style={[styles.orgAvatar, { backgroundColor: isDark ? colors.surfaceLight : '#EDF2F7' }]}>
+          <Ionicons name="person" size={20} color={colors.primary} />
+        </View>
+        <View style={{ flex: 1, marginLeft: 10 }}>
+          <Text style={[styles.orgLabel, { color: colors.textTertiary }]}>Kadro Kaptanı / Organizatör</Text>
+          <Text style={[styles.orgName, { color: colors.text }]}>{match.organizerName}</Text>
         </View>
         <TouchableOpacity
-          style={styles.callBtn}
+          style={[styles.callBtn, { backgroundColor: colors.accent }]}
           onPress={() => Alert.alert('İletişim', `Organizatör Tel: ${match.organizerPhone}`)}
+          activeOpacity={0.8}
         >
-          <Ionicons name="call" size={16} color={COLORS.black} />
-          <Text style={styles.callBtnText}>Ara</Text>
+          <Ionicons name="call" size={15} color="#FFFFFF" />
+          <Text style={styles.callBtnText}>İletişim</Text>
         </TouchableOpacity>
       </View>
 
       {/* Missing Positions Banner */}
       {vacantSlots.length > 0 ? (
-        <View style={styles.missingBanner}>
+        <View
+          style={[
+            styles.missingBanner,
+            {
+              backgroundColor: isDark ? 'rgba(245, 158, 11, 0.08)' : '#FFFBEB',
+              borderColor: isDark ? 'rgba(245, 158, 11, 0.25)' : '#FDE68A',
+            },
+          ]}
+        >
           <View style={styles.missingBannerLeft}>
-            <Ionicons name="alert-circle" size={20} color={COLORS.warning} />
-            <Text style={styles.missingBannerTitle}>
-              {vacantSlots.length} Oyuncu Aranıyor:
+            <Ionicons name="alert-circle" size={18} color={colors.warning} />
+            <Text style={[styles.missingBannerTitle, { color: colors.warning }]}>
+              {vacantSlots.length} Boş Mevki:
             </Text>
           </View>
           <View style={styles.posChips}>
@@ -188,9 +248,17 @@ export default function MatchDetailScreen() {
           </View>
         </View>
       ) : (
-        <View style={[styles.missingBanner, { borderColor: COLORS.success, backgroundColor: 'rgba(16, 185, 129, 0.1)' }]}>
-          <Ionicons name="checkmark-circle" size={20} color={COLORS.success} />
-          <Text style={[styles.missingBannerTitle, { color: COLORS.success, marginLeft: 6 }]}>
+        <View
+          style={[
+            styles.missingBanner,
+            {
+              borderColor: colors.success,
+              backgroundColor: isDark ? 'rgba(16, 185, 129, 0.1)' : '#F0FDF4',
+            },
+          ]}
+        >
+          <Ionicons name="checkmark-circle" size={20} color={colors.success} />
+          <Text style={[styles.missingBannerTitle, { color: colors.success, marginLeft: 6 }]}>
             Kadro Tamamlandı! Maça Hazır.
           </Text>
         </View>
@@ -198,9 +266,11 @@ export default function MatchDetailScreen() {
 
       {/* Tactical Pitch View Section */}
       <View style={styles.sectionHeaderRow}>
-        <Ionicons name="football" size={18} color={COLORS.accent} />
-        <Text style={styles.sectionTitle}>İnteraktif Saha Dizilimi</Text>
-        <Text style={styles.sectionHint}>(Boş mevkiye dokunarak katıl)</Text>
+        <Ionicons name="football" size={18} color={colors.primary} />
+        <Text style={[styles.sectionTitle, { color: colors.text }]}>İnteraktif Saha Dizilimi</Text>
+        <Text style={[styles.sectionHint, { color: colors.textTertiary }]}>
+          (Boş mevkiye dokunarak katıl)
+        </Text>
       </View>
 
       <PitchLineup
@@ -210,29 +280,60 @@ export default function MatchDetailScreen() {
       />
 
       {/* Roster Table Summary */}
-      <View style={styles.rosterCard}>
-        <View style={styles.rosterHeader}>
-          <Text style={styles.rosterTitle}>Oyuncu Listesi</Text>
-          <Text style={styles.rosterCount}>{filledCount}/{match.totalSlots} Dolu</Text>
+      <View
+        style={[
+          styles.rosterCard,
+          {
+            backgroundColor: isDark ? colors.surface : '#FFFFFF',
+            borderColor: colors.surfaceBorder,
+          },
+        ]}
+      >
+        <View
+          style={[
+            styles.rosterHeader,
+            {
+              borderBottomColor: isDark ? 'rgba(255, 255, 255, 0.08)' : '#E2E8F0',
+            },
+          ]}
+        >
+          <Text style={[styles.rosterTitle, { color: colors.text }]}>Oyuncu Listesi</Text>
+          <Text style={[styles.rosterCount, { color: colors.primary }]}>
+            {filledCount}/{match.totalSlots} Dolu
+          </Text>
         </View>
 
-        {match.roster.slice(0, Math.ceil(match.totalSlots / 2)).map((slot, index) => (
-          <View key={slot.id} style={styles.rosterRow}>
+        {match.roster.slice(0, Math.ceil(match.totalSlots / 2)).map((slot) => (
+          <View
+            key={slot.id}
+            style={[
+              styles.rosterRow,
+              {
+                borderBottomColor: isDark ? 'rgba(255, 255, 255, 0.04)' : '#F1F5F9',
+              },
+            ]}
+          >
             <View style={styles.slotPos}>
               <PositionBadge position={slot.position} size="sm" />
             </View>
             <View style={{ flex: 1, marginLeft: 8 }}>
-              <Text style={[styles.slotName, !slot.isFilled && styles.slotVacantText]}>
+              <Text
+                style={[
+                  styles.slotName,
+                  { color: slot.isFilled ? colors.text : colors.danger },
+                  !slot.isFilled && styles.slotVacantText,
+                ]}
+              >
                 {slot.isFilled
                   ? slot.assignedPlayer?.name
                   : '— Boş Mevki (Oyuncu Bekleniyor)'}
               </Text>
             </View>
             {slot.isFilled ? (
-              <Ionicons name="checkmark-circle" size={18} color={COLORS.success} />
+              <Ionicons name="checkmark-circle" size={18} color={colors.success} />
             ) : (
               <TouchableOpacity
-                style={styles.miniJoinBtn}
+                style={[styles.miniJoinBtn, { backgroundColor: colors.primary }]}
                 onPress={() => handleSlotSelect(slot)}
               >
                 <Text style={styles.miniJoinText}>Katıl</Text>
@@ -244,26 +345,45 @@ export default function MatchDetailScreen() {
 
       {/* Notes / Rules */}
       {match.notes ? (
-        <View style={styles.notesBox}>
-          <Text style={styles.notesTitle}>Kaptan Notu & Kurallar</Text>
-          <Text style={styles.notesBody}>{match.notes}</Text>
+        <View
+          style={[
+            styles.notesBox,
+            {
+              backgroundColor: isDark ? colors.surface : '#FFFFFF',
+              borderColor: colors.surfaceBorder,
+            },
+          ]}
+        >
+          <Text style={[styles.notesTitle, { color: colors.textSecondary }]}>
+            Kaptan Notu & Kurallar
+          </Text>
+          <Text style={[styles.notesBody, { color: colors.text }]}>{match.notes}</Text>
         </View>
       ) : null}
+
+      {/* Post-Match Opponent & Teammate Evaluation Section */}
+      <PostMatchEvaluationSection match={match} currentUserId={currentUser.id} />
 
       {/* Sticky Bottom Action Button */}
       <View style={styles.bottomBar}>
         {isUserJoined ? (
           <TouchableOpacity style={styles.leaveBtn} onPress={handleLeave}>
-            <Ionicons name="exit-outline" size={20} color={COLORS.danger} />
-            <Text style={styles.leaveBtnText}>Kadrodan Ayrıl</Text>
+            <Ionicons name="exit-outline" size={20} color={colors.danger} />
+            <Text style={[styles.leaveBtnText, { color: colors.danger }]}>Kadrodan Ayrıl</Text>
           </TouchableOpacity>
         ) : (
           <TouchableOpacity
-            style={[styles.joinBtn, vacantSlots.length === 0 && styles.joinBtnDisabled]}
+            style={[
+              styles.joinBtn,
+              {
+                backgroundColor: vacantSlots.length > 0 ? colors.primary : colors.surfaceBorder,
+              },
+              vacantSlots.length === 0 && styles.joinBtnDisabled,
+            ]}
             onPress={handleQuickJoin}
             disabled={vacantSlots.length === 0}
           >
-            <Ionicons name="football" size={20} color={COLORS.black} />
+            <Ionicons name="football" size={20} color="#FFFFFF" />
             <Text style={styles.joinBtnText}>
               {vacantSlots.length > 0 ? 'Kadroya Hemen Katıl' : 'Kadro Tamamen Doldu'}
             </Text>
@@ -274,10 +394,10 @@ export default function MatchDetailScreen() {
   );
 }
 
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
   },
   content: {
     padding: SPACING.lg,
@@ -290,23 +410,24 @@ const styles = StyleSheet.create({
     padding: SPACING.xl,
   },
   backButton: {
-    backgroundColor: COLORS.primary,
     paddingHorizontal: 20,
     paddingVertical: 10,
     borderRadius: 8,
     marginTop: 16,
   },
   backButtonText: {
-    color: COLORS.black,
-    fontWeight: '700',
+    color: '#FFFFFF',
+    fontWeight: '800',
   },
   heroCard: {
-    backgroundColor: COLORS.surface,
     borderRadius: 16,
     padding: SPACING.lg,
     borderWidth: 1,
-    borderColor: COLORS.surfaceBorder,
     marginBottom: SPACING.md,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 3,
   },
   badgeRow: {
     flexDirection: 'row',
@@ -314,25 +435,21 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.sm,
   },
   formatPill: {
-    backgroundColor: COLORS.surfaceLight,
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 6,
     marginRight: 6,
   },
   formatText: {
-    color: COLORS.primaryLight,
     fontSize: FONT_SIZE.xs,
     fontWeight: '800',
   },
   pitchPill: {
-    backgroundColor: COLORS.surfaceLight,
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 6,
   },
   pitchText: {
-    color: COLORS.textSecondary,
     fontSize: FONT_SIZE.xs,
     fontWeight: '600',
   },
@@ -341,17 +458,14 @@ const styles = StyleSheet.create({
     alignItems: 'baseline',
   },
   feeNumber: {
-    color: COLORS.accent,
     fontSize: FONT_SIZE.xl,
     fontWeight: '900',
   },
   feePer: {
-    color: COLORS.textSecondary,
     fontSize: FONT_SIZE.xs,
     marginLeft: 2,
   },
   title: {
-    color: COLORS.text,
     fontSize: FONT_SIZE.xl,
     fontWeight: '800',
     marginBottom: SPACING.sm,
@@ -362,47 +476,51 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   metaText: {
-    color: COLORS.textSecondary,
     fontSize: FONT_SIZE.xs,
     marginLeft: 6,
     flex: 1,
+    fontWeight: '500',
   },
   metaDot: {
-    color: COLORS.textTertiary,
     marginHorizontal: 8,
+  },
+  sectionWrap: {
+    marginBottom: SPACING.xs,
   },
   organizerBox: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.surface,
-    borderRadius: 12,
+    borderRadius: 14,
     padding: SPACING.md,
     borderWidth: 1,
-    borderColor: COLORS.surfaceBorder,
     marginBottom: SPACING.md,
   },
-  orgAvatar: {},
+  orgAvatar: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   orgLabel: {
-    color: COLORS.textTertiary,
     fontSize: 10,
-    fontWeight: '600',
+    fontWeight: '700',
   },
   orgName: {
-    color: COLORS.text,
     fontSize: FONT_SIZE.sm,
-    fontWeight: '700',
+    fontWeight: '800',
+    marginTop: 1,
   },
   callBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.accent,
     paddingHorizontal: 12,
-    paddingVertical: 6,
+    paddingVertical: 7,
     borderRadius: 16,
     gap: 4,
   },
   callBtnText: {
-    color: COLORS.black,
+    color: '#FFFFFF',
     fontSize: FONT_SIZE.xs,
     fontWeight: '800',
   },
@@ -410,9 +528,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: 'rgba(245, 158, 11, 0.12)',
     borderWidth: 1,
-    borderColor: 'rgba(245, 158, 11, 0.3)',
     borderRadius: 12,
     padding: SPACING.md,
     marginBottom: SPACING.md,
@@ -423,7 +539,6 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   missingBannerTitle: {
-    color: COLORS.warning,
     fontSize: FONT_SIZE.xs,
     fontWeight: '800',
   },
@@ -434,25 +549,22 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     marginTop: SPACING.sm,
-    marginBottom: 4,
+    marginBottom: 6,
   },
   sectionTitle: {
-    color: COLORS.text,
     fontSize: FONT_SIZE.md,
     fontWeight: '800',
     marginLeft: 6,
   },
   sectionHint: {
-    color: COLORS.textTertiary,
     fontSize: FONT_SIZE.xs,
     marginLeft: 6,
+    fontWeight: '500',
   },
   rosterCard: {
-    backgroundColor: COLORS.surface,
     borderRadius: 14,
     padding: SPACING.md,
     borderWidth: 1,
-    borderColor: COLORS.surfaceBorder,
     marginTop: SPACING.md,
   },
   rosterHeader: {
@@ -460,16 +572,13 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginBottom: SPACING.sm,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,0.06)',
     paddingBottom: 6,
   },
   rosterTitle: {
-    color: COLORS.text,
     fontSize: FONT_SIZE.sm,
     fontWeight: '700',
   },
   rosterCount: {
-    color: COLORS.primaryLight,
     fontSize: FONT_SIZE.xs,
     fontWeight: '700',
   },
@@ -478,47 +587,39 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 8,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,0.04)',
   },
   slotPos: {
     width: 65,
   },
   slotName: {
-    color: COLORS.text,
     fontSize: FONT_SIZE.xs,
     fontWeight: '600',
   },
   slotVacantText: {
-    color: COLORS.danger,
     fontStyle: 'italic',
   },
   miniJoinBtn: {
-    backgroundColor: COLORS.primary,
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 6,
   },
   miniJoinText: {
-    color: COLORS.black,
+    color: '#FFFFFF',
     fontSize: 10,
     fontWeight: '800',
   },
   notesBox: {
-    backgroundColor: COLORS.surface,
     borderRadius: 12,
     padding: SPACING.md,
     marginTop: SPACING.md,
     borderWidth: 1,
-    borderColor: COLORS.surfaceBorder,
   },
   notesTitle: {
-    color: COLORS.textSecondary,
     fontSize: FONT_SIZE.xs,
     fontWeight: '700',
     marginBottom: 4,
   },
   notesBody: {
-    color: COLORS.text,
     fontSize: FONT_SIZE.xs,
     lineHeight: 18,
   },
@@ -527,7 +628,6 @@ const styles = StyleSheet.create({
   },
   joinBtn: {
     flexDirection: 'row',
-    backgroundColor: COLORS.primaryLight,
     paddingVertical: 14,
     borderRadius: 12,
     justifyContent: 'center',
@@ -535,19 +635,18 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   joinBtnDisabled: {
-    backgroundColor: COLORS.surfaceBorder,
-    opacity: 0.6,
+    opacity: 0.5,
   },
   joinBtnText: {
-    color: COLORS.black,
+    color: '#FFFFFF',
     fontSize: FONT_SIZE.md,
     fontWeight: '800',
   },
   leaveBtn: {
     flexDirection: 'row',
-    backgroundColor: 'rgba(239, 68, 68, 0.15)',
+    backgroundColor: 'rgba(239, 68, 68, 0.12)',
     borderWidth: 1,
-    borderColor: COLORS.danger,
+    borderColor: '#EF4444',
     paddingVertical: 14,
     borderRadius: 12,
     justifyContent: 'center',
@@ -555,8 +654,8 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   leaveBtnText: {
-    color: COLORS.danger,
     fontSize: FONT_SIZE.md,
     fontWeight: '800',
   },
 });
+

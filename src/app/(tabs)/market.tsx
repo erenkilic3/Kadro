@@ -13,13 +13,16 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useApp } from '../../context/AppContext';
+import { useTheme } from '../../context/ThemeContext';
 import { GearCard } from '../../components/GearCard';
 import { EmptyState } from '../../components/EmptyState';
-import { COLORS, FONT_SIZE, SPACING } from '../../constants/theme';
+import { FONT_SIZE, SPACING } from '../../constants/theme';
 import { GearCategory } from '../../types';
 
 export default function MarketplaceScreen() {
   const { gearItems, refreshData } = useApp();
+  const { colors, isDark } = useTheme();
+
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<'ALL' | GearCategory>('ALL');
   const [sortBy, setSortBy] = useState<'NEWEST' | 'PRICE_LOW' | 'PRICE_HIGH'>('NEWEST');
@@ -60,40 +63,53 @@ export default function MarketplaceScreen() {
   }, [gearItems, searchQuery, selectedCategory, sortBy]);
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={['top']}>
+    <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]} edges={['top']}>
       {/* Top Header */}
       <View style={styles.header}>
         <View>
           <View style={styles.titleRow}>
-            <Ionicons name="cart" size={22} color={COLORS.accent} style={{ marginRight: 6 }} />
-            <Text style={styles.headerTitle}>2. EL PAZAR</Text>
+            <View style={[styles.titleIcon, { backgroundColor: colors.primary }]}>
+              <Ionicons name="cart" size={16} color="#FFFFFF" />
+            </View>
+            <Text style={[styles.headerTitle, { color: colors.text }]}>2. EL PAZAR</Text>
           </View>
-          <Text style={styles.headerSub}>Amatör futbolcular için ekipman borsası</Text>
+          <Text style={[styles.headerSub, { color: colors.textSecondary }]}>
+            Futbolcular için güvenilir ekipman borsası
+          </Text>
         </View>
 
         <TouchableOpacity
-          style={styles.sellButton}
+          style={[styles.sellButton, { backgroundColor: colors.primary }]}
           onPress={() => router.push('/(tabs)/create')}
           activeOpacity={0.8}
         >
-          <Ionicons name="add" size={16} color={COLORS.black} />
+          <Ionicons name="add" size={16} color="#FFFFFF" />
           <Text style={styles.sellButtonText}>İlan Ver</Text>
         </TouchableOpacity>
       </View>
 
       {/* Search Input */}
-      <View style={styles.searchContainer}>
-        <Ionicons name="search" size={18} color={COLORS.textTertiary} style={styles.searchIcon} />
+      <View
+        style={[
+          styles.searchContainer,
+          {
+            backgroundColor: isDark ? colors.surface : '#FFFFFF',
+            borderColor: colors.surfaceBorder,
+            shadowColor: colors.cardShadow,
+          },
+        ]}
+      >
+        <Ionicons name="search" size={18} color={colors.textTertiary} style={styles.searchIcon} />
         <TextInput
-          style={styles.searchInput}
+          style={[styles.searchInput, { color: colors.text }]}
           placeholder="Krampon, forma, eldiven veya marka ara..."
-          placeholderTextColor={COLORS.textTertiary}
+          placeholderTextColor={colors.textTertiary}
           value={searchQuery}
           onChangeText={setSearchQuery}
         />
         {searchQuery.length > 0 && (
           <TouchableOpacity onPress={() => setSearchQuery('')}>
-            <Ionicons name="close-circle" size={18} color={COLORS.textTertiary} />
+            <Ionicons name="close-circle" size={18} color={colors.textTertiary} />
           </TouchableOpacity>
         )}
       </View>
@@ -102,46 +118,126 @@ export default function MarketplaceScreen() {
       <View style={styles.filterSection}>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterScroll}>
           <TouchableOpacity
-            style={[styles.filterChip, selectedCategory === 'ALL' && styles.filterChipActive]}
+            style={[
+              styles.filterChip,
+              {
+                backgroundColor:
+                  selectedCategory === 'ALL'
+                    ? colors.primary
+                    : isDark
+                    ? colors.surface
+                    : '#FFFFFF',
+                borderColor: selectedCategory === 'ALL' ? colors.primary : colors.surfaceBorder,
+              },
+            ]}
             onPress={() => setSelectedCategory('ALL')}
           >
-            <Text style={[styles.filterChipText, selectedCategory === 'ALL' && styles.filterChipTextActive]}>
+            <Text
+              style={[
+                styles.filterChipText,
+                { color: selectedCategory === 'ALL' ? '#FFFFFF' : colors.textSecondary },
+              ]}
+            >
               Tümü ({gearItems.length})
             </Text>
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[styles.filterChip, selectedCategory === 'Boots' && styles.filterChipActive]}
+            style={[
+              styles.filterChip,
+              {
+                backgroundColor:
+                  selectedCategory === 'Boots'
+                    ? colors.primary
+                    : isDark
+                    ? colors.surface
+                    : '#FFFFFF',
+                borderColor: selectedCategory === 'Boots' ? colors.primary : colors.surfaceBorder,
+              },
+            ]}
             onPress={() => setSelectedCategory('Boots')}
           >
-            <Text style={[styles.filterChipText, selectedCategory === 'Boots' && styles.filterChipTextActive]}>
+            <Text
+              style={[
+                styles.filterChipText,
+                { color: selectedCategory === 'Boots' ? '#FFFFFF' : colors.textSecondary },
+              ]}
+            >
               👟 Kramponlar
             </Text>
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[styles.filterChip, selectedCategory === 'Jerseys' && styles.filterChipActive]}
+            style={[
+              styles.filterChip,
+              {
+                backgroundColor:
+                  selectedCategory === 'Jerseys'
+                    ? colors.primary
+                    : isDark
+                    ? colors.surface
+                    : '#FFFFFF',
+                borderColor: selectedCategory === 'Jerseys' ? colors.primary : colors.surfaceBorder,
+              },
+            ]}
             onPress={() => setSelectedCategory('Jerseys')}
           >
-            <Text style={[styles.filterChipText, selectedCategory === 'Jerseys' && styles.filterChipTextActive]}>
+            <Text
+              style={[
+                styles.filterChipText,
+                { color: selectedCategory === 'Jerseys' ? '#FFFFFF' : colors.textSecondary },
+              ]}
+            >
               👕 Formalar
             </Text>
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[styles.filterChip, selectedCategory === 'Gloves' && styles.filterChipActive]}
+            style={[
+              styles.filterChip,
+              {
+                backgroundColor:
+                  selectedCategory === 'Gloves'
+                    ? colors.primary
+                    : isDark
+                    ? colors.surface
+                    : '#FFFFFF',
+                borderColor: selectedCategory === 'Gloves' ? colors.primary : colors.surfaceBorder,
+              },
+            ]}
             onPress={() => setSelectedCategory('Gloves')}
           >
-            <Text style={[styles.filterChipText, selectedCategory === 'Gloves' && styles.filterChipTextActive]}>
+            <Text
+              style={[
+                styles.filterChipText,
+                { color: selectedCategory === 'Gloves' ? '#FFFFFF' : colors.textSecondary },
+              ]}
+            >
               🧤 Kaleci Eldiveni
             </Text>
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[styles.filterChip, selectedCategory === 'Equipment' && styles.filterChipActive]}
+            style={[
+              styles.filterChip,
+              {
+                backgroundColor:
+                  selectedCategory === 'Equipment'
+                    ? colors.primary
+                    : isDark
+                    ? colors.surface
+                    : '#FFFFFF',
+                borderColor: selectedCategory === 'Equipment' ? colors.primary : colors.surfaceBorder,
+              },
+            ]}
             onPress={() => setSelectedCategory('Equipment')}
           >
-            <Text style={[styles.filterChipText, selectedCategory === 'Equipment' && styles.filterChipTextActive]}>
+            <Text
+              style={[
+                styles.filterChipText,
+                { color: selectedCategory === 'Equipment' ? '#FFFFFF' : colors.textSecondary },
+              ]}
+            >
               🛡️ Ekipman & Top
             </Text>
           </TouchableOpacity>
@@ -150,17 +246,23 @@ export default function MarketplaceScreen() {
 
       {/* Sort Row */}
       <View style={styles.sortRow}>
-        <Text style={styles.resultCount}>
-          <Text style={{ color: COLORS.accent, fontWeight: '700' }}>{filteredItems.length}</Text> ürün listeleniyor
+        <Text style={[styles.resultCount, { color: colors.textTertiary }]}>
+          <Text style={{ color: colors.primary, fontWeight: '700' }}>{filteredItems.length}</Text> ürün listeleniyor
         </Text>
 
         <View style={styles.sortToggle}>
           <TouchableOpacity
             onPress={() => setSortBy(sortBy === 'PRICE_LOW' ? 'PRICE_HIGH' : sortBy === 'PRICE_HIGH' ? 'NEWEST' : 'PRICE_LOW')}
-            style={styles.sortButton}
+            style={[
+              styles.sortButton,
+              {
+                backgroundColor: isDark ? colors.surfaceLight : '#EDF2F7',
+                borderColor: colors.surfaceBorder,
+              },
+            ]}
           >
-            <Ionicons name="swap-vertical" size={14} color={COLORS.primaryLight} />
-            <Text style={styles.sortText}>
+            <Ionicons name="swap-vertical" size={14} color={colors.primary} />
+            <Text style={[styles.sortText, { color: colors.primary }]}>
               {sortBy === 'PRICE_LOW' ? 'Fiyat: Artan' : sortBy === 'PRICE_HIGH' ? 'Fiyat: Azalan' : 'En Yeniler'}
             </Text>
           </TouchableOpacity>
@@ -176,7 +278,7 @@ export default function MarketplaceScreen() {
         contentContainerStyle={styles.gridContent}
         columnWrapperStyle={styles.columnWrapper}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.primary} />
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />
         }
         ListEmptyComponent={
           <EmptyState
@@ -193,7 +295,6 @@ export default function MarketplaceScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: COLORS.background,
   },
   header: {
     flexDirection: 'row',
@@ -206,51 +307,59 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
   },
+  titleIcon: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 8,
+  },
   headerTitle: {
-    color: COLORS.text,
     fontSize: FONT_SIZE.xl,
     fontWeight: '900',
     letterSpacing: 1.2,
   },
   headerSub: {
-    color: COLORS.textSecondary,
     fontSize: FONT_SIZE.xs,
     marginTop: 2,
+    fontWeight: '500',
   },
   sellButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.accent,
-    paddingHorizontal: 12,
-    paddingVertical: 7,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
     borderRadius: 20,
     gap: 4,
   },
   sellButtonText: {
-    color: COLORS.black,
+    color: '#FFFFFF',
     fontSize: FONT_SIZE.xs,
     fontWeight: '800',
   },
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.surface,
     borderRadius: 12,
     marginHorizontal: SPACING.lg,
     paddingHorizontal: SPACING.md,
     height: 44,
     borderWidth: 1,
-    borderColor: COLORS.surfaceBorder,
     marginBottom: SPACING.sm,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
   },
   searchIcon: {
     marginRight: 8,
   },
   searchInput: {
     flex: 1,
-    color: COLORS.text,
     fontSize: FONT_SIZE.sm,
     height: '100%',
+    fontWeight: '500',
   },
   filterSection: {
     marginBottom: SPACING.xs,
@@ -261,24 +370,14 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
   },
   filterChip: {
-    backgroundColor: COLORS.surface,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+    paddingHorizontal: 13,
+    paddingVertical: 7,
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: COLORS.surfaceBorder,
-  },
-  filterChipActive: {
-    backgroundColor: COLORS.accent,
-    borderColor: COLORS.accent,
   },
   filterChipText: {
-    color: COLORS.textSecondary,
     fontSize: FONT_SIZE.xs,
     fontWeight: '700',
-  },
-  filterChipTextActive: {
-    color: COLORS.black,
   },
   sortRow: {
     flexDirection: 'row',
@@ -289,29 +388,29 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   resultCount: {
-    color: COLORS.textTertiary,
     fontSize: FONT_SIZE.xs,
+    fontWeight: '500',
   },
   sortToggle: {},
   sortButton: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: COLORS.surfaceLight,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 8,
+    borderWidth: 1,
   },
   sortText: {
-    color: COLORS.primaryLight,
     fontSize: 11,
-    fontWeight: '700',
+    fontWeight: '800',
   },
   gridContent: {
     paddingHorizontal: SPACING.md,
-    paddingBottom: SPACING.xxl,
+    paddingBottom: SPACING.xxxl,
   },
   columnWrapper: {
     justifyContent: 'space-between',
   },
 });
+
