@@ -75,7 +75,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [currentUser, setCurrentUser] = useState<User>({} as User);
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
-  const loadAllData = async () => {
+  const refreshData = async () => {
     setIsLoading(true);
     try {
       const [storedMatches, storedGear, storedUser, storedLeagues, storedEvals] = await Promise.all([
@@ -98,7 +98,34 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   useEffect(() => {
-    loadAllData();
+    let isMounted = true;
+    const initData = async () => {
+      try {
+        const [storedMatches, storedGear, storedUser, storedLeagues, storedEvals] = await Promise.all([
+          storageService.getMatches(),
+          storageService.getGearItems(),
+          storageService.getUser(),
+          storageService.getLeagues(),
+          storageService.getEvaluations(),
+        ]);
+        if (!isMounted) return;
+        setMatches(storedMatches);
+        setGearItems(storedGear);
+        setCurrentUser(storedUser);
+        setLeagues(storedLeagues);
+        setEvaluations(storedEvals);
+      } catch (err) {
+        console.error('Failed to load initial data', err);
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      }
+    };
+    initData();
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   const createMatch = async (data: CreateMatchInput) => {
@@ -591,7 +618,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         getPlayerEvaluations,
         updateUser,
         resetDemoData,
-        refreshData: loadAllData,
+        refreshData,
       }}
     >
       {children}

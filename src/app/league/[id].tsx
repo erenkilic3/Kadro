@@ -17,7 +17,6 @@ import { useApp } from '../../context/AppContext';
 import { useTheme } from '../../context/ThemeContext';
 import { EmptyState } from '../../components/EmptyState';
 import { FONT_SIZE, SPACING } from '../../constants/theme';
-import { RegionalLeague, LeagueTeam } from '../../types';
 
 export default function LeagueDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -38,6 +37,30 @@ export default function LeagueDetailScreen() {
     return leagues.find((l) => l.id === id);
   }, [leagues, id]);
 
+  // Sorted teams for Standings
+  const sortedTeams = useMemo(() => {
+    if (!league) return [];
+    return [...league.teams].sort((a, b) => {
+      if (b.points !== a.points) return b.points - a.points;
+      if (b.goalDifference !== a.goalDifference) return b.goalDifference - a.goalDifference;
+      return b.goalsFor - a.goalsFor;
+    });
+  }, [league]);
+
+  // Distinct weeks from fixtures
+  const weeks = useMemo(() => {
+    if (!league) return [1];
+    const wSet = new Set<number>();
+    league.fixtures.forEach((f) => wSet.add(f.week));
+    const arr = Array.from(wSet).sort((a, b) => b - a);
+    return arr.length > 0 ? arr : [1];
+  }, [league]);
+
+  const activeWeekFixtures = useMemo(() => {
+    if (!league) return [];
+    return league.fixtures.filter((f) => f.week === selectedWeek);
+  }, [league, selectedWeek]);
+
   if (!league) {
     return (
       <View style={[styles.centerContainer, { backgroundColor: colors.background }]}>
@@ -54,33 +77,12 @@ export default function LeagueDetailScreen() {
   const isRegistrationOpen = league.status === 'REGISTRATION_OPEN';
   const remainingSlots = Math.max(0, league.maxTeams - league.registeredTeamsCount);
 
-  // Sorted teams for Standings
-  const sortedTeams = useMemo(() => {
-    return [...league.teams].sort((a, b) => {
-      if (b.points !== a.points) return b.points - a.points;
-      if (b.goalDifference !== a.goalDifference) return b.goalDifference - a.goalDifference;
-      return b.goalsFor - a.goalsFor;
-    });
-  }, [league.teams]);
-
-  // Distinct weeks from fixtures
-  const weeks = useMemo(() => {
-    const wSet = new Set<number>();
-    league.fixtures.forEach((f) => wSet.add(f.week));
-    const arr = Array.from(wSet).sort((a, b) => b - a);
-    return arr.length > 0 ? arr : [1];
-  }, [league.fixtures]);
-
-  const activeWeekFixtures = useMemo(() => {
-    return league.fixtures.filter((f) => f.week === selectedWeek);
-  }, [league.fixtures, selectedWeek]);
-
   const handleShare = async () => {
     try {
       await Share.share({
         message: `⚽ ${league.title} (${league.season})\n🏆 Ödül: ${league.prize}\n📍 Konum: ${league.venueName}, ${league.district}\nKadro uygulaması üzerinden takımını lige kaydet veya fikstürü takip et!`,
       });
-    } catch (e) {
+    } catch {
       // Ignored
     }
   };
@@ -108,7 +110,7 @@ export default function LeagueDetailScreen() {
       } else {
         Alert.alert('Kayıt Başarısız', 'Lig kontenjanı dolmuş olabilir.');
       }
-    } catch (e) {
+    } catch {
       Alert.alert('Hata', 'Kayıt sırasında bir problem oluştu.');
     } finally {
       setIsSubmitting(false);

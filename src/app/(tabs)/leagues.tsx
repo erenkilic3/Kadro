@@ -16,7 +16,6 @@ import { useTheme } from '../../context/ThemeContext';
 import { LeagueCard } from '../../components/LeagueCard';
 import { EmptyState } from '../../components/EmptyState';
 import { FONT_SIZE, SPACING } from '../../constants/theme';
-import { RegionalLeague } from '../../types';
 
 export default function RegionalLeaguesScreen() {
   const { leagues, refreshData } = useApp();

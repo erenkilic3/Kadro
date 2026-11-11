@@ -39,7 +39,7 @@ export default function TabLayout() {
             <Ionicons
               name={focused ? 'football' : 'football-outline'}
               size={size + 2}
-              color={color}
+              color={typeof color === 'string' ? color : undefined}
             />
           ),
         }}
@@ -52,7 +52,7 @@ export default function TabLayout() {
             <Ionicons
               name={focused ? 'trophy' : 'trophy-outline'}
               size={size + 2}
-              color={color}
+              color={typeof color === 'string' ? color : undefined}
             />
           ),
         }}
@@ -65,7 +65,7 @@ export default function TabLayout() {
             <Ionicons
               name={focused ? 'add-circle' : 'add-circle-outline'}
               size={size + 3}
-              color={color}
+              color={typeof color === 'string' ? color : undefined}
             />
           ),
         }}
@@ -78,7 +78,7 @@ export default function TabLayout() {
             <Ionicons
               name={focused ? 'shirt' : 'shirt-outline'}
               size={size + 2}
-              color={color}
+              color={typeof color === 'string' ? color : undefined}
             />
           ),
         }}
@@ -91,7 +91,7 @@ export default function TabLayout() {
             <Ionicons
               name={focused ? 'person' : 'person-outline'}
               size={size + 2}
-              color={color}
+              color={typeof color === 'string' ? color : undefined}
             />
           ),
         }}

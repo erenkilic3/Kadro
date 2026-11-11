@@ -98,7 +98,7 @@ export default function CreateLeagueScreen() {
           },
         ]
       );
-    } catch (e) {
+    } catch {
       setErrorMessage('Lig oluşturulurken bir hata oluştu.');
     } finally {
       setIsSubmitting(false);

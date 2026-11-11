@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -23,23 +23,26 @@ export default function CreateScreen() {
   const { colors, isDark } = useTheme();
   const params = useLocalSearchParams<{ tab?: string }>();
 
-  const [activeTab, setActiveTab] = useState<'MATCH' | 'LEAGUE' | 'GEAR'>('MATCH');
-
-  useEffect(() => {
-    if (params.tab === 'LEAGUE') {
-      setActiveTab('LEAGUE');
-    } else if (params.tab === 'GEAR') {
-      setActiveTab('GEAR');
-    } else if (params.tab === 'MATCH') {
-      setActiveTab('MATCH');
+  const [activeTab, setActiveTab] = useState<'MATCH' | 'LEAGUE' | 'GEAR'>(() => {
+    if (params.tab === 'LEAGUE' || params.tab === 'GEAR' || params.tab === 'MATCH') {
+      return params.tab;
     }
-  }, [params.tab]);
+    return 'MATCH';
+  });
+  const [prevTabParam, setPrevTabParam] = useState(params.tab);
+
+  if (params.tab !== prevTabParam) {
+    setPrevTabParam(params.tab);
+    if (params.tab === 'LEAGUE' || params.tab === 'GEAR' || params.tab === 'MATCH') {
+      setActiveTab(params.tab);
+    }
+  }
 
   // Match Form State
   const [matchTitle, setMatchTitle] = useState('');
   const [venueName, setVenueName] = useState('');
   const [district, setDistrict] = useState('Kadıköy');
-  const [address, setAddress] = useState('');
+  const [address] = useState('');
   const [date, setDate] = useState('18 Ekim Cumartesi');
   const [time, setTime] = useState('21:00 - 22:00');
   const [format, setFormat] = useState<MatchFormat>('7v7');
@@ -144,7 +147,7 @@ export default function CreateScreen() {
           },
         },
       ]);
-    } catch (e) {
+    } catch {
       setErrorMessage('Maç kaydedilirken bir hata oluştu.');
     } finally {
       setIsSubmitting(false);
@@ -194,7 +197,7 @@ export default function CreateScreen() {
           },
         },
       ]);
-    } catch (e) {
+    } catch {
       setErrorMessage('Lig oluşturulurken bir hata oluştu.');
     } finally {
       setIsSubmitting(false);
@@ -248,7 +251,7 @@ export default function CreateScreen() {
           },
         },
       ]);
-    } catch (e) {
+    } catch {
       setErrorMessage('İlan oluşturulurken bir hata meydana geldi.');
     } finally {
       setIsSubmitting(false);

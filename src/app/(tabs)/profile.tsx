@@ -31,7 +31,7 @@ export default function ProfileScreen() {
     markGearSold,
     votePrediction,
   } = useApp();
-  const { colors, isDark, themeMode, setThemeMode, toggleTheme } = useTheme();
+  const { colors, isDark, setThemeMode } = useTheme();
 
   const [profileTab, setProfileTab] = useState<
     'MATCHES' | 'PREDICTIONS' | 'REVIEWS' | 'LISTINGS' | 'SETTINGS'
@@ -168,7 +168,7 @@ export default function ProfileScreen() {
           {/* Bio */}
           {currentUser.bio && !isEditing && (
             <Text style={[styles.bioText, { color: colors.textSecondary }]}>
-              "{currentUser.bio}"
+              {`"${currentUser.bio}"`}
             </Text>
           )}
 
@@ -547,7 +547,7 @@ export default function ProfileScreen() {
                       ]}
                     >
                       <Text style={[styles.reviewQuoteText, { color: colors.text }]}>
-                        "{rev.comment}"
+                        {`"${rev.comment}"`}
                       </Text>
                     </View>
                   ) : null}

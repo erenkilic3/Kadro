@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../context/ThemeContext';
 import { useApp } from '../context/AppContext';
@@ -63,7 +63,7 @@ export const PostMatchEvaluationSection: React.FC<PostMatchEvaluationSectionProp
       isEvaluated: boolean;
       evaluation?: any;
     }[];
-  }, [match.roster, currentUserId, isUserHome, evaluations, hasUserEvaluatedPlayer]);
+  }, [match.id, match.roster, half, currentUserId, isUserHome, evaluations, hasUserEvaluatedPlayer]);
 
   const filteredPlayers = useMemo(() => {
     return matchPlayers.filter((p) => {

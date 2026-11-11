@@ -124,7 +124,7 @@ export const PlayerEvaluationModal: React.FC<PlayerEvaluationModalProps> = ({
         Alert.alert('Bilgi', 'Bu oyuncuyu bu maç için zaten değerlendirdiniz.');
         onClose();
       }
-    } catch (e) {
+    } catch {
       Alert.alert('Hata', 'Değerlendirme kaydedilirken bir hata oluştu.');
     } finally {
       setIsSubmitting(false);

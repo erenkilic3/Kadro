@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { RosterSlot, PlayerPosition } from '../types';
+import { RosterSlot } from '../types';
 import { COLORS, POSITION_COLORS, FONT_SIZE } from '../constants/theme';
 
 interface PitchLineupProps {
