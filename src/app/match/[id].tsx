@@ -14,14 +14,16 @@ import { useTheme } from '../../context/ThemeContext';
 import { PitchLineup } from '../../components/PitchLineup';
 import { PositionBadge } from '../../components/PositionBadge';
 import { MatchPredictionCard } from '../../components/MatchPredictionCard';
+import { PreMatchStatsCard } from '../../components/PreMatchStatsCard';
 import { PostMatchEvaluationSection } from '../../components/PostMatchEvaluationSection';
 import { EmptyState } from '../../components/EmptyState';
 import { FONT_SIZE, SPACING } from '../../constants/theme';
 import { RosterSlot } from '../../types';
+import { resolveMatchupStats } from '../../utils/matchupStats';
 
 export default function MatchDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { matches, currentUser, joinMatchSlot, leaveMatch, votePrediction } = useApp();
+  const { matches, leagues, currentUser, joinMatchSlot, leaveMatch, votePrediction } = useApp();
   const { colors, isDark } = useTheme();
 
   const match = matches.find((m) => m.id === id);
@@ -47,6 +49,7 @@ export default function MatchDetailScreen() {
   const isUserJoined = match.roster.some((s) => s.assignedPlayer?.id === currentUser.id);
   const vacantSlots = match.roster.filter((s) => !s.isFilled);
   const filledCount = match.roster.filter((s) => s.isFilled).length;
+  const matchupStats = resolveMatchupStats(match, leagues);
 
   const handleSlotSelect = (slot: RosterSlot) => {
     if (slot.isFilled) {
@@ -179,6 +182,9 @@ export default function MatchDetailScreen() {
           </Text>
         </View>
       </View>
+
+      {/* Pre-Match Opponent Statistics Comparison */}
+      <PreMatchStatsCard stats={matchupStats} isCompleted={match.isCompleted} />
 
       {/* Match Prediction Widget Section */}
       {match.prediction && (

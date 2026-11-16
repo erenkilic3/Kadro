@@ -16,7 +16,10 @@ import { Ionicons } from '@expo/vector-icons';
 import { useApp } from '../../context/AppContext';
 import { useTheme } from '../../context/ThemeContext';
 import { EmptyState } from '../../components/EmptyState';
+import { PreMatchStatsCard } from '../../components/PreMatchStatsCard';
 import { FONT_SIZE, SPACING } from '../../constants/theme';
+import { LeagueFixture } from '../../types';
+import { resolveLeagueFixtureMatchupStats } from '../../utils/matchupStats';
 
 export default function LeagueDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -25,6 +28,7 @@ export default function LeagueDetailScreen() {
 
   const [activeTab, setActiveTab] = useState<'STANDINGS' | 'FIXTURES' | 'TEAMS' | 'RULES'>('STANDINGS');
   const [selectedWeek, setSelectedWeek] = useState<number>(6);
+  const [selectedFixture, setSelectedFixture] = useState<LeagueFixture | null>(null);
 
   // Register Team Modal State
   const [modalVisible, setModalVisible] = useState(false);
@@ -60,6 +64,11 @@ export default function LeagueDetailScreen() {
     if (!league) return [];
     return league.fixtures.filter((f) => f.week === selectedWeek);
   }, [league, selectedWeek]);
+
+  const selectedFixtureStats = useMemo(() => {
+    if (!league || !selectedFixture) return null;
+    return resolveLeagueFixtureMatchupStats(selectedFixture, league);
+  }, [league, selectedFixture]);
 
   if (!league) {
     return (
@@ -486,7 +495,7 @@ export default function LeagueDetailScreen() {
 
             {activeWeekFixtures.length > 0 ? (
               activeWeekFixtures.map((fixture) => (
-                <View
+                <TouchableOpacity
                   key={fixture.id}
                   style={[
                     styles.fixtureCard,
@@ -495,6 +504,8 @@ export default function LeagueDetailScreen() {
                       borderColor: colors.surfaceBorder,
                     },
                   ]}
+                  activeOpacity={0.85}
+                  onPress={() => setSelectedFixture(fixture)}
                 >
                   <View style={styles.fixtureMetaRow}>
                     <Text style={[styles.fixtureVenue, { color: colors.textSecondary }]}>
@@ -554,8 +565,14 @@ export default function LeagueDetailScreen() {
                     >
                       {fixture.isFinished ? '✅ Maç Tamamlandı' : '⏳ Oynanacak'}
                     </Text>
+                    <View style={[styles.fixtureStatsHint, { backgroundColor: `${colors.primary}15` }]}>
+                      <Ionicons name="stats-chart" size={12} color={colors.primary} />
+                      <Text style={[styles.fixtureStatsHintText, { color: colors.primary }]}>
+                        Rakip İstatistikleri
+                      </Text>
+                    </View>
                   </View>
-                </View>
+                </TouchableOpacity>
               ))
             ) : (
               <EmptyState
@@ -770,6 +787,51 @@ export default function LeagueDetailScreen() {
                 {isSubmitting ? 'Kaydediliyor...' : 'Lige Başvurumu Onayla'}
               </Text>
             </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Fixture Pre-Match Stats Modal */}
+      <Modal
+        visible={Boolean(selectedFixture)}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setSelectedFixture(null)}
+      >
+        <View style={styles.modalOverlay}>
+          <View
+            style={[
+              styles.statsModalSheet,
+              {
+                backgroundColor: colors.background,
+                borderColor: colors.surfaceBorder,
+              },
+            ]}
+          >
+            <View style={styles.modalHeader}>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.modalTitle, { color: colors.text }]}>
+                  Maç Öncesi Karşılaştırma
+                </Text>
+                {selectedFixture && (
+                  <Text style={[styles.modalSub, { color: colors.textSecondary }]}>
+                    Hafta {selectedFixture.week} • {selectedFixture.date} • {selectedFixture.time}
+                  </Text>
+                )}
+              </View>
+              <TouchableOpacity onPress={() => setSelectedFixture(null)}>
+                <Ionicons name="close-circle" size={26} color={colors.textSecondary} />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView showsVerticalScrollIndicator={false}>
+              {selectedFixtureStats && (
+                <PreMatchStatsCard
+                  stats={selectedFixtureStats}
+                  isCompleted={selectedFixture?.isFinished}
+                />
+              )}
+            </ScrollView>
           </View>
         </View>
       </Modal>
@@ -1071,8 +1133,22 @@ const styles = StyleSheet.create({
   fixtureStatusRow: {
     borderTopWidth: 1,
     marginTop: 8,
-    paddingTop: 6,
+    paddingTop: 8,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
+  },
+  fixtureStatsHint: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    gap: 4,
+  },
+  fixtureStatsHintText: {
+    fontSize: 10,
+    fontWeight: '800',
   },
   fixtureStatusBadge: {
     fontSize: 11,
@@ -1215,6 +1291,14 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 20,
     borderWidth: 1,
     padding: SPACING.lg,
+    paddingBottom: Platform.OS === 'ios' ? 36 : 24,
+  },
+  statsModalSheet: {
+    borderTopLeftRadius: 22,
+    borderTopRightRadius: 22,
+    borderWidth: 1,
+    padding: SPACING.lg,
+    maxHeight: '88%',
     paddingBottom: Platform.OS === 'ios' ? 36 : 24,
   },
   modalHeader: {

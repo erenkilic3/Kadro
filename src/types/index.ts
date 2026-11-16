@@ -14,6 +14,54 @@ export interface MatchPrediction {
   category?: 'Derbi' | 'Haftanın Maçı' | 'Normal';
 }
 
+export interface TeamRecentMatch {
+  id: string;
+  opponentName: string;
+  goalsFor: number;
+  goalsAgainst: number;
+  result: 'W' | 'D' | 'L';
+  date: string;
+  competition?: string;
+}
+
+export interface TeamMatchStats {
+  teamName: string;
+  logoEmoji?: string;
+  played: number;
+  won: number;
+  drawn: number;
+  lost: number;
+  goalsFor: number;
+  goalsAgainst: number;
+  cleanSheets?: number;
+  form: ('W' | 'D' | 'L')[];
+  recentMatches?: TeamRecentMatch[];
+}
+
+export interface HeadToHeadMatch {
+  id: string;
+  date: string;
+  team1Goals: number;
+  team2Goals: number;
+  venue?: string;
+}
+
+export interface HeadToHeadStats {
+  totalMatches: number;
+  team1Wins: number;
+  draws: number;
+  team2Wins: number;
+  team1Goals: number;
+  team2Goals: number;
+  recentMeetings?: HeadToHeadMatch[];
+}
+
+export interface MatchupStats {
+  team1: TeamMatchStats;
+  team2: TeamMatchStats;
+  headToHead?: HeadToHeadStats;
+}
+
 export interface PlayerBadge {
   id: string;
   label: string;
@@ -110,6 +158,7 @@ export interface Match {
   finalScore?: { team1: number; team2: number };
   createdAt: string;
   prediction?: MatchPrediction;
+  matchupStats?: MatchupStats;
 }
 
 export type GearCategory = 'Boots' | 'Jerseys' | 'Gloves' | 'Equipment';
