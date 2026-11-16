@@ -16,12 +16,20 @@ import { useApp } from '../../context/AppContext';
 import { useTheme } from '../../context/ThemeContext';
 import { GearCard } from '../../components/GearCard';
 import { EmptyState } from '../../components/EmptyState';
-import { FONT_SIZE, SPACING } from '../../constants/theme';
+import { FONT_SIZE, RADIUS, SPACING } from '../../constants/theme';
 import { GearCategory } from '../../types';
+
+const MARKET_CATEGORIES: { key: 'ALL' | GearCategory; label: string }[] = [
+  { key: 'ALL', label: 'Tümü' },
+  { key: 'Boots', label: 'Krampon' },
+  { key: 'Jerseys', label: 'Forma' },
+  { key: 'Gloves', label: 'Eldiven' },
+  { key: 'Equipment', label: 'Ekipman' },
+];
 
 export default function MarketplaceScreen() {
   const { gearItems, refreshData } = useApp();
-  const { colors, isDark } = useTheme();
+  const { colors } = useTheme();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<'ALL' | GearCategory>('ALL');
@@ -36,23 +44,19 @@ export default function MarketplaceScreen() {
 
   const filteredItems = useMemo(() => {
     let items = gearItems.filter((item) => {
-      // Search
+      const q = searchQuery.toLowerCase();
       const matchesSearch =
-        item.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        item.brand.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        item.location.toLowerCase().includes(searchQuery.toLowerCase());
+        item.title.toLowerCase().includes(q) ||
+        item.brand.toLowerCase().includes(q) ||
+        item.location.toLowerCase().includes(q);
 
       if (!matchesSearch) return false;
-
-      // Category
       if (selectedCategory !== 'ALL' && item.category !== selectedCategory) {
         return false;
       }
-
       return true;
     });
 
-    // Sorting
     if (sortBy === 'PRICE_LOW') {
       items = [...items].sort((a, b) => a.price - b.price);
     } else if (sortBy === 'PRICE_HIGH') {
@@ -63,210 +67,124 @@ export default function MarketplaceScreen() {
   }, [gearItems, searchQuery, selectedCategory, sortBy]);
 
   return (
-    <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]} edges={['top']}>
-      {/* Top Header */}
+    <SafeAreaView
+      style={[styles.safeArea, { backgroundColor: colors.background }]}
+      edges={['top']}
+    >
+      {/* Header */}
       <View style={styles.header}>
         <View>
-          <View style={styles.titleRow}>
-            <View style={[styles.titleIcon, { backgroundColor: colors.primary }]}>
-              <Ionicons name="cart" size={16} color="#FFFFFF" />
-            </View>
-            <Text style={[styles.headerTitle, { color: colors.text }]}>2. EL PAZAR</Text>
-          </View>
+          <Text style={[styles.headerTitle, { color: colors.text }]}>Pazar</Text>
           <Text style={[styles.headerSub, { color: colors.textSecondary }]}>
-            Futbolcular için güvenilir ekipman borsası
+            İkinci el futbol ekipmanları
           </Text>
         </View>
 
         <TouchableOpacity
           style={[styles.sellButton, { backgroundColor: colors.primary }]}
-          onPress={() => router.push('/(tabs)/create')}
-          activeOpacity={0.8}
+          onPress={() =>
+            router.push({ pathname: '/(tabs)/create', params: { tab: 'GEAR' } } as any)
+          }
+          activeOpacity={0.85}
         >
           <Ionicons name="add" size={16} color="#FFFFFF" />
           <Text style={styles.sellButtonText}>İlan Ver</Text>
         </TouchableOpacity>
       </View>
 
-      {/* Search Input */}
+      {/* Search */}
       <View
         style={[
           styles.searchContainer,
           {
-            backgroundColor: isDark ? colors.surface : '#FFFFFF',
+            backgroundColor: colors.surface,
             borderColor: colors.surfaceBorder,
-            shadowColor: colors.cardShadow,
           },
         ]}
       >
-        <Ionicons name="search" size={18} color={colors.textTertiary} style={styles.searchIcon} />
+        <Ionicons
+          name="search-outline"
+          size={17}
+          color={colors.textTertiary}
+          style={styles.searchIcon}
+        />
         <TextInput
           style={[styles.searchInput, { color: colors.text }]}
-          placeholder="Krampon, forma, eldiven veya marka ara..."
+          placeholder="Krampon, forma, marka veya semt ara"
           placeholderTextColor={colors.textTertiary}
           value={searchQuery}
           onChangeText={setSearchQuery}
         />
         {searchQuery.length > 0 && (
           <TouchableOpacity onPress={() => setSearchQuery('')}>
-            <Ionicons name="close-circle" size={18} color={colors.textTertiary} />
+            <Ionicons name="close-circle" size={17} color={colors.textTertiary} />
           </TouchableOpacity>
         )}
       </View>
 
-      {/* Category Pills */}
+      {/* Category Chips */}
       <View style={styles.filterSection}>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterScroll}>
-          <TouchableOpacity
-            style={[
-              styles.filterChip,
-              {
-                backgroundColor:
-                  selectedCategory === 'ALL'
-                    ? colors.primary
-                    : isDark
-                    ? colors.surface
-                    : '#FFFFFF',
-                borderColor: selectedCategory === 'ALL' ? colors.primary : colors.surfaceBorder,
-              },
-            ]}
-            onPress={() => setSelectedCategory('ALL')}
-          >
-            <Text
-              style={[
-                styles.filterChipText,
-                { color: selectedCategory === 'ALL' ? '#FFFFFF' : colors.textSecondary },
-              ]}
-            >
-              Tümü ({gearItems.length})
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[
-              styles.filterChip,
-              {
-                backgroundColor:
-                  selectedCategory === 'Boots'
-                    ? colors.primary
-                    : isDark
-                    ? colors.surface
-                    : '#FFFFFF',
-                borderColor: selectedCategory === 'Boots' ? colors.primary : colors.surfaceBorder,
-              },
-            ]}
-            onPress={() => setSelectedCategory('Boots')}
-          >
-            <Text
-              style={[
-                styles.filterChipText,
-                { color: selectedCategory === 'Boots' ? '#FFFFFF' : colors.textSecondary },
-              ]}
-            >
-              👟 Kramponlar
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[
-              styles.filterChip,
-              {
-                backgroundColor:
-                  selectedCategory === 'Jerseys'
-                    ? colors.primary
-                    : isDark
-                    ? colors.surface
-                    : '#FFFFFF',
-                borderColor: selectedCategory === 'Jerseys' ? colors.primary : colors.surfaceBorder,
-              },
-            ]}
-            onPress={() => setSelectedCategory('Jerseys')}
-          >
-            <Text
-              style={[
-                styles.filterChipText,
-                { color: selectedCategory === 'Jerseys' ? '#FFFFFF' : colors.textSecondary },
-              ]}
-            >
-              👕 Formalar
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[
-              styles.filterChip,
-              {
-                backgroundColor:
-                  selectedCategory === 'Gloves'
-                    ? colors.primary
-                    : isDark
-                    ? colors.surface
-                    : '#FFFFFF',
-                borderColor: selectedCategory === 'Gloves' ? colors.primary : colors.surfaceBorder,
-              },
-            ]}
-            onPress={() => setSelectedCategory('Gloves')}
-          >
-            <Text
-              style={[
-                styles.filterChipText,
-                { color: selectedCategory === 'Gloves' ? '#FFFFFF' : colors.textSecondary },
-              ]}
-            >
-              🧤 Kaleci Eldiveni
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[
-              styles.filterChip,
-              {
-                backgroundColor:
-                  selectedCategory === 'Equipment'
-                    ? colors.primary
-                    : isDark
-                    ? colors.surface
-                    : '#FFFFFF',
-                borderColor: selectedCategory === 'Equipment' ? colors.primary : colors.surfaceBorder,
-              },
-            ]}
-            onPress={() => setSelectedCategory('Equipment')}
-          >
-            <Text
-              style={[
-                styles.filterChipText,
-                { color: selectedCategory === 'Equipment' ? '#FFFFFF' : colors.textSecondary },
-              ]}
-            >
-              🛡️ Ekipman & Top
-            </Text>
-          </TouchableOpacity>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.filterScroll}
+        >
+          {MARKET_CATEGORIES.map((cat) => {
+            const isSelected = selectedCategory === cat.key;
+            return (
+              <TouchableOpacity
+                key={cat.key}
+                style={[
+                  styles.filterChip,
+                  {
+                    backgroundColor: isSelected ? colors.text : colors.surface,
+                    borderColor: isSelected ? colors.text : colors.surfaceBorder,
+                  },
+                ]}
+                onPress={() => setSelectedCategory(cat.key)}
+              >
+                <Text
+                  style={[
+                    styles.filterChipText,
+                    { color: isSelected ? colors.background : colors.textSecondary },
+                  ]}
+                >
+                  {cat.label}
+                  {cat.key === 'ALL' ? ` (${gearItems.length})` : ''}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
         </ScrollView>
       </View>
 
       {/* Sort Row */}
       <View style={styles.sortRow}>
         <Text style={[styles.resultCount, { color: colors.textTertiary }]}>
-          <Text style={{ color: colors.primary, fontWeight: '700' }}>{filteredItems.length}</Text> ürün listeleniyor
+          {filteredItems.length} ilan
         </Text>
 
-        <View style={styles.sortToggle}>
-          <TouchableOpacity
-            onPress={() => setSortBy(sortBy === 'PRICE_LOW' ? 'PRICE_HIGH' : sortBy === 'PRICE_HIGH' ? 'NEWEST' : 'PRICE_LOW')}
-            style={[
-              styles.sortButton,
-              {
-                backgroundColor: isDark ? colors.surfaceLight : '#EDF2F7',
-                borderColor: colors.surfaceBorder,
-              },
-            ]}
-          >
-            <Ionicons name="swap-vertical" size={14} color={colors.primary} />
-            <Text style={[styles.sortText, { color: colors.primary }]}>
-              {sortBy === 'PRICE_LOW' ? 'Fiyat: Artan' : sortBy === 'PRICE_HIGH' ? 'Fiyat: Azalan' : 'En Yeniler'}
-            </Text>
-          </TouchableOpacity>
-        </View>
+        <TouchableOpacity
+          onPress={() =>
+            setSortBy(
+              sortBy === 'PRICE_LOW'
+                ? 'PRICE_HIGH'
+                : sortBy === 'PRICE_HIGH'
+                ? 'NEWEST'
+                : 'PRICE_LOW'
+            )
+          }
+          style={[styles.sortButton, { backgroundColor: colors.surfaceLight }]}
+        >
+          <Ionicons name="swap-vertical-outline" size={14} color={colors.text} />
+          <Text style={[styles.sortText, { color: colors.text }]}>
+            {sortBy === 'PRICE_LOW'
+              ? 'Artan Fiyat'
+              : sortBy === 'PRICE_HIGH'
+              ? 'Azalan Fiyat'
+              : 'En Yeniler'}
+          </Text>
+        </TouchableOpacity>
       </View>
 
       {/* 2-Column Product Grid */}
@@ -278,13 +196,17 @@ export default function MarketplaceScreen() {
         contentContainerStyle={styles.gridContent}
         columnWrapperStyle={styles.columnWrapper}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={colors.primary}
+          />
         }
         ListEmptyComponent={
           <EmptyState
-            icon="shirt-outline"
-            title="Ürün Bulunamadı"
-            description="Arama filtrenize uygun 2. el spor ekipmanı bulunamadı. Kendi ekipmanınızı satmak için hemen ilan verebilirsiniz."
+            icon="pricetag-outline"
+            title="Ürün bulunamadı"
+            description="Arama filtrenizi temizleyebilir veya yeni bir ekipman ilanı verebilirsiniz."
           />
         }
       />
@@ -301,56 +223,41 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: SPACING.lg,
-    paddingVertical: SPACING.md,
-  },
-  titleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  titleIcon: {
-    width: 26,
-    height: 26,
-    borderRadius: 13,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 8,
+    paddingTop: SPACING.sm,
+    paddingBottom: SPACING.md,
   },
   headerTitle: {
-    fontSize: FONT_SIZE.xl,
-    fontWeight: '900',
-    letterSpacing: 1.2,
+    fontSize: 26,
+    fontWeight: '800',
+    letterSpacing: -0.6,
   },
   headerSub: {
     fontSize: FONT_SIZE.xs,
-    marginTop: 2,
+    marginTop: 1,
     fontWeight: '500',
   },
   sellButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 14,
+    paddingHorizontal: 13,
     paddingVertical: 8,
-    borderRadius: 20,
+    borderRadius: RADIUS.pill,
     gap: 4,
   },
   sellButtonText: {
     color: '#FFFFFF',
     fontSize: FONT_SIZE.xs,
-    fontWeight: '800',
+    fontWeight: '700',
   },
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderRadius: 12,
+    borderRadius: RADIUS.md,
     marginHorizontal: SPACING.lg,
     paddingHorizontal: SPACING.md,
-    height: 44,
-    borderWidth: 1,
+    height: 42,
+    borderWidth: StyleSheet.hairlineWidth,
     marginBottom: SPACING.sm,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
   },
   searchIcon: {
     marginRight: 8,
@@ -372,12 +279,12 @@ const styles = StyleSheet.create({
   filterChip: {
     paddingHorizontal: 13,
     paddingVertical: 7,
-    borderRadius: 20,
-    borderWidth: 1,
+    borderRadius: RADIUS.pill,
+    borderWidth: StyleSheet.hairlineWidth,
   },
   filterChipText: {
     fontSize: FONT_SIZE.xs,
-    fontWeight: '700',
+    fontWeight: '600',
   },
   sortRow: {
     flexDirection: 'row',
@@ -389,21 +296,19 @@ const styles = StyleSheet.create({
   },
   resultCount: {
     fontSize: FONT_SIZE.xs,
-    fontWeight: '500',
+    fontWeight: '600',
   },
-  sortToggle: {},
   sortButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: 5,
     paddingHorizontal: 10,
     paddingVertical: 5,
-    borderRadius: 8,
-    borderWidth: 1,
+    borderRadius: RADIUS.sm,
   },
   sortText: {
     fontSize: 11,
-    fontWeight: '800',
+    fontWeight: '700',
   },
   gridContent: {
     paddingHorizontal: SPACING.md,
@@ -413,4 +318,3 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
 });
-

@@ -2,7 +2,8 @@ import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { RosterSlot } from '../types';
-import { COLORS, POSITION_COLORS, FONT_SIZE } from '../constants/theme';
+import { COLORS, POSITION_COLORS } from '../constants/theme';
+import { getInitials } from '../utils/formatters';
 
 interface PitchLineupProps {
   roster: RosterSlot[];
@@ -15,7 +16,6 @@ export const PitchLineup: React.FC<PitchLineupProps> = ({
   onSelectSlot,
   currentUserId,
 }) => {
-  // Take team 1 slots (first half of roster, typically 6 or 7 slots)
   const teamSlots = roster.slice(0, Math.ceil(roster.length / 2));
 
   const gkSlots = teamSlots.filter((s) => s.position === 'GK');
@@ -26,15 +26,12 @@ export const PitchLineup: React.FC<PitchLineupProps> = ({
   const renderSlot = (slot: RosterSlot) => {
     const isCurrentUser = slot.assignedPlayer?.id === currentUserId;
     const posColor = POSITION_COLORS[slot.position] || COLORS.primary;
+    const playerName = slot.assignedPlayer?.name || '';
 
     return (
       <TouchableOpacity
         key={slot.id}
-        style={[
-          styles.playerNode,
-          slot.isFilled ? styles.playerFilled : styles.playerVacant,
-          isCurrentUser && styles.playerCurrentUser,
-        ]}
+        style={styles.playerNode}
         onPress={() => onSelectSlot && onSelectSlot(slot)}
         activeOpacity={0.8}
         disabled={slot.isFilled && !isCurrentUser}
@@ -42,31 +39,43 @@ export const PitchLineup: React.FC<PitchLineupProps> = ({
         <View
           style={[
             styles.avatarCircle,
-            { backgroundColor: slot.isFilled ? (isCurrentUser ? COLORS.accent : posColor) : 'rgba(239, 68, 68, 0.2)' },
-            !slot.isFilled && styles.vacantBorder,
+            {
+              backgroundColor: slot.isFilled
+                ? isCurrentUser
+                  ? '#FFFFFF'
+                  : posColor
+                : 'rgba(17, 24, 39, 0.45)',
+              borderColor: slot.isFilled
+                ? isCurrentUser
+                  ? COLORS.primary
+                  : 'rgba(255,255,255,0.8)'
+                : 'rgba(255,255,255,0.6)',
+              borderStyle: slot.isFilled ? 'solid' : 'dashed',
+            },
           ]}
         >
           {slot.isFilled ? (
-            <Ionicons
-              name={isCurrentUser ? 'person' : 'shirt'}
-              size={18}
-              color={COLORS.white}
-            />
+            <Text
+              style={[
+                styles.avatarInitials,
+                { color: isCurrentUser ? '#111315' : '#FFFFFF' },
+              ]}
+            >
+              {isCurrentUser ? 'SEN' : getInitials(playerName)}
+            </Text>
           ) : (
-            <Ionicons name="add" size={20} color={COLORS.danger} />
+            <Ionicons name="add" size={18} color="#FFFFFF" />
           )}
         </View>
 
-        <Text style={styles.playerName} numberOfLines={1}>
-          {slot.isFilled
-            ? isCurrentUser
-              ? 'SEN'
-              : slot.assignedPlayer?.name.split(' ')[0]
-            : `EKSİK`}
-        </Text>
-
-        <View style={[styles.posTag, { backgroundColor: posColor }]}>
-          <Text style={styles.posText}>{slot.position}</Text>
+        <View style={styles.namePill}>
+          <Text style={styles.playerName} numberOfLines={1}>
+            {slot.isFilled
+              ? isCurrentUser
+                ? 'Sen'
+                : playerName.split(' ')[0]
+              : slot.position}
+          </Text>
         </View>
       </TouchableOpacity>
     );
@@ -74,35 +83,22 @@ export const PitchLineup: React.FC<PitchLineupProps> = ({
 
   return (
     <View style={styles.pitchContainer}>
-      {/* Field Background & Markings */}
       <View style={styles.pitch}>
-        {/* Grass lines pattern */}
         <View style={styles.grassStripeTop} />
         <View style={styles.grassStripeMiddle} />
 
-        {/* Pitch boundary and lines */}
         <View style={styles.pitchBorder}>
-          {/* Goal Box (Top) */}
           <View style={styles.goalBoxTop} />
           <View style={styles.penaltyAreaTop} />
 
-          {/* Halfway Line & Center Circle */}
           <View style={styles.halfwayLine}>
             <View style={styles.centerCircle} />
           </View>
 
-          {/* Tactical Formation Layout */}
           <View style={styles.formationContainer}>
-            {/* GK Line */}
             <View style={styles.lineRow}>{gkSlots.map(renderSlot)}</View>
-
-            {/* DEF Line */}
             <View style={styles.lineRow}>{defSlots.map(renderSlot)}</View>
-
-            {/* MID Line */}
             <View style={styles.lineRow}>{midSlots.map(renderSlot)}</View>
-
-            {/* FWD Line */}
             <View style={styles.lineRow}>{fwdSlots.map(renderSlot)}</View>
           </View>
         </View>
@@ -113,21 +109,14 @@ export const PitchLineup: React.FC<PitchLineupProps> = ({
 
 const styles = StyleSheet.create({
   pitchContainer: {
-    borderRadius: 16,
+    borderRadius: 14,
     overflow: 'hidden',
-    borderWidth: 1.5,
-    borderColor: '#1E4620',
-    backgroundColor: '#0D381E',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.35,
-    shadowRadius: 10,
-    elevation: 8,
-    marginVertical: 12,
+    backgroundColor: '#154D2F',
+    marginVertical: 10,
   },
   pitch: {
-    height: 380,
-    backgroundColor: '#0B3319',
+    height: 356,
+    backgroundColor: '#154D2F',
     position: 'relative',
     overflow: 'hidden',
   },
@@ -150,33 +139,33 @@ const styles = StyleSheet.create({
   pitchBorder: {
     flex: 1,
     margin: 12,
-    borderWidth: 2,
-    borderColor: 'rgba(255, 255, 255, 0.45)',
-    borderRadius: 8,
+    borderWidth: 1.5,
+    borderColor: 'rgba(255, 255, 255, 0.28)',
+    borderRadius: 6,
     position: 'relative',
     justifyContent: 'space-between',
   },
   goalBoxTop: {
     position: 'absolute',
     top: 0,
-    left: '35%',
-    width: '30%',
-    height: 24,
+    left: '36%',
+    width: '28%',
+    height: 22,
     borderBottomWidth: 1.5,
     borderLeftWidth: 1.5,
     borderRightWidth: 1.5,
-    borderColor: 'rgba(255, 255, 255, 0.4)',
+    borderColor: 'rgba(255, 255, 255, 0.28)',
   },
   penaltyAreaTop: {
     position: 'absolute',
     top: 0,
-    left: '20%',
-    width: '60%',
-    height: 60,
+    left: '22%',
+    width: '56%',
+    height: 54,
     borderBottomWidth: 1.5,
     borderLeftWidth: 1.5,
     borderRightWidth: 1.5,
-    borderColor: 'rgba(255, 255, 255, 0.4)',
+    borderColor: 'rgba(255, 255, 255, 0.28)',
   },
   halfwayLine: {
     position: 'absolute',
@@ -184,18 +173,18 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     height: 1.5,
-    backgroundColor: 'rgba(255, 255, 255, 0.4)',
+    backgroundColor: 'rgba(255, 255, 255, 0.28)',
     alignItems: 'center',
     justifyContent: 'center',
   },
   centerCircle: {
-    width: 70,
-    height: 70,
-    borderRadius: 35,
+    width: 68,
+    height: 68,
+    borderRadius: 34,
     borderWidth: 1.5,
-    borderColor: 'rgba(255, 255, 255, 0.4)',
+    borderColor: 'rgba(255, 255, 255, 0.28)',
     position: 'absolute',
-    top: -35,
+    top: -34,
   },
   formationContainer: {
     flex: 1,
@@ -210,49 +199,33 @@ const styles = StyleSheet.create({
   },
   playerNode: {
     alignItems: 'center',
-    width: 68,
-  },
-  playerFilled: {},
-  playerVacant: {},
-  playerCurrentUser: {
-    transform: [{ scale: 1.05 }],
+    width: 66,
   },
   avatarCircle: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    borderWidth: 1.5,
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 3,
-    elevation: 4,
   },
-  vacantBorder: {
-    borderWidth: 2,
-    borderColor: COLORS.danger,
-    borderStyle: 'dashed',
+  avatarInitials: {
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 0.3,
+  },
+  namePill: {
+    backgroundColor: 'rgba(0, 0, 0, 0.45)',
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: 5,
+    marginTop: 4,
+    maxWidth: 66,
   },
   playerName: {
-    color: COLORS.white,
-    fontSize: FONT_SIZE.xs,
-    fontWeight: '700',
-    marginTop: 3,
+    color: '#FFFFFF',
+    fontSize: 11,
+    fontWeight: '600',
     textAlign: 'center',
-    textShadowColor: 'rgba(0,0,0,0.8)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 2,
-  },
-  posTag: {
-    borderRadius: 4,
-    paddingHorizontal: 5,
-    paddingVertical: 1,
-    marginTop: 2,
-  },
-  posText: {
-    color: COLORS.white,
-    fontSize: 9,
-    fontWeight: '800',
   },
 });

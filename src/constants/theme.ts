@@ -1,78 +1,77 @@
 export const DARK_COLORS = {
-  // Backgrounds
-  background: '#0B0F17',      // Deep midnight sports carbon
-  surface: '#141C2B',         // Elevated card surface
-  surfaceLight: '#1E293B',    // Higher elevation / input surface
-  surfaceBorder: '#27384E',   // Border highlight
-  surfaceHover: '#233247',
-  
-  // Brand & Turf Accents
-  primary: '#10B981',         // Turf green
-  primaryLight: '#34D399',    // Vibrant emerald highlight
-  primaryDark: '#059669',     // Deep grass green
-  accent: '#00F5A0',          // Electric stadium mint
-  
-  // Text
-  text: '#F8FAFC',            // Pure crisp white
-  textSecondary: '#94A3B8',   // Muted slate
-  textTertiary: '#64748B',    // Subdued caption text
-  
+  // Floodlight Charcoal palette
+  background: '#0D1011',
+  surface: '#15191B',
+  surfaceLight: '#1E2326',
+  surfaceBorder: 'rgba(255, 255, 255, 0.08)',
+  surfaceHover: '#262C30',
+
+  // Turf & Matchday Accents
+  primary: '#16A34A',
+  primaryLight: '#22C55E',
+  primaryDark: '#15803D',
+  accent: '#22C55E',
+
+  // Text Hierarchy
+  text: '#F4F4F5',
+  textSecondary: '#A1A1AA',
+  textTertiary: '#71717A',
+
   // Player Position Colors
-  positionGK: '#F59E0B',      // Amber for Goalkeepers
-  positionDEF: '#3B82F6',     // Royal Blue for Defenders
-  positionMID: '#10B981',     // Turf Green for Midfielders
-  positionFWD: '#EF4444',     // Crimson Red for Forwards
-  
+  positionGK: '#D97706',
+  positionDEF: '#2563EB',
+  positionMID: '#16A34A',
+  positionFWD: '#DC2626',
+
   // Status & Utility
-  success: '#10B981',
-  warning: '#F59E0B',
+  success: '#22C55E',
+  warning: '#EAB308',
   danger: '#EF4444',
-  info: '#3B82F6',
+  info: '#38BDF8',
   white: '#FFFFFF',
   black: '#000000',
-  pitchGreen: '#0B3319',     // Football grass field
-  pitchLines: 'rgba(255, 255, 255, 0.45)',
-  cardShadow: '#000000',
+  pitchGreen: '#14452B',
+  pitchLines: 'rgba(255, 255, 255, 0.3)',
+  cardShadow: 'rgba(0, 0, 0, 0.25)',
 };
 
 export const LIGHT_COLORS = {
-  // Backgrounds
-  background: '#F4F6F9',      // Crisp light arena gray-white
-  surface: '#FFFFFF',         // Pure white card surface
-  surfaceLight: '#EEF2F6',    // Higher elevation / input surface
-  surfaceBorder: '#E2E8F0',   // Clean crisp border
-  surfaceHover: '#E2E8F0',
-  
-  // Brand & Turf Accents
-  primary: '#059669',         // Deep turf emerald
-  primaryLight: '#10B981',    // Vibrant emerald
-  primaryDark: '#047857',     // Deep grass green
-  accent: '#0D9488',          // Vibrant stadium teal-mint
-  
-  // Text
-  text: '#0F172A',            // Deep athletic navy-black
-  textSecondary: '#475569',   // Slate gray
-  textTertiary: '#94A3B8',    // Light slate
-  
+  // Matchday Paper palette
+  background: '#F5F5F3',
+  surface: '#FFFFFF',
+  surfaceLight: '#EEEEEC',
+  surfaceBorder: 'rgba(17, 24, 39, 0.08)',
+  surfaceHover: '#E5E5E0',
+
+  // Turf & Matchday Accents
+  primary: '#15803D',
+  primaryLight: '#16A34A',
+  primaryDark: '#166534',
+  accent: '#15803D',
+
+  // Text Hierarchy
+  text: '#111315',
+  textSecondary: '#52525B',
+  textTertiary: '#8E8E93',
+
   // Player Position Colors
-  positionGK: '#D97706',      // Darker Amber for Goalkeepers
-  positionDEF: '#2563EB',     // Blue for Defenders
-  positionMID: '#059669',     // Green for Midfielders
-  positionFWD: '#DC2626',     // Crimson Red for Forwards
-  
+  positionGK: '#B45309',
+  positionDEF: '#1D4ED8',
+  positionMID: '#15803D',
+  positionFWD: '#B91C1C',
+
   // Status & Utility
-  success: '#059669',
-  warning: '#D97706',
+  success: '#15803D',
+  warning: '#CA8A04',
   danger: '#DC2626',
-  info: '#2563EB',
+  info: '#0284C7',
   white: '#FFFFFF',
   black: '#000000',
-  pitchGreen: '#0B3319',
-  pitchLines: 'rgba(255, 255, 255, 0.45)',
-  cardShadow: 'rgba(15, 23, 42, 0.08)',
+  pitchGreen: '#14452B',
+  pitchLines: 'rgba(255, 255, 255, 0.3)',
+  cardShadow: 'rgba(17, 24, 39, 0.06)',
 };
 
-// Default fallback export
 export const COLORS = DARK_COLORS;
 
 export const SPACING = {
@@ -85,8 +84,15 @@ export const SPACING = {
   xxxl: 32,
 };
 
+export const RADIUS = {
+  sm: 8,
+  md: 12,
+  lg: 16,
+  pill: 999,
+};
+
 export const FONT_SIZE = {
-  xs: 11,
+  xs: 12,
   sm: 13,
   md: 15,
   lg: 17,
@@ -108,4 +114,3 @@ export const POSITION_COLORS: Record<string, string> = {
   MID: DARK_COLORS.positionMID,
   FWD: DARK_COLORS.positionFWD,
 };
-

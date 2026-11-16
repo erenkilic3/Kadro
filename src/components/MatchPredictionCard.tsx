@@ -3,7 +3,8 @@ import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { MatchPrediction, PredictionChoice } from '../types';
 import { useTheme } from '../context/ThemeContext';
-import { FONT_SIZE, SPACING } from '../constants/theme';
+import { FONT_SIZE, RADIUS, SPACING } from '../constants/theme';
+import { getInitials } from '../utils/formatters';
 
 interface MatchPredictionCardProps {
   prediction: MatchPrediction;
@@ -14,11 +15,10 @@ interface MatchPredictionCardProps {
 
 export const MatchPredictionCard: React.FC<MatchPredictionCardProps> = ({
   prediction,
-  matchId,
   onVote,
   compact = false,
 }) => {
-  const { colors, isDark } = useTheme();
+  const { colors } = useTheme();
 
   const totalVotes =
     (prediction.votesTeam1 || 0) + (prediction.votesDraw || 0) + (prediction.votesTeam2 || 0);
@@ -41,52 +41,46 @@ export const MatchPredictionCard: React.FC<MatchPredictionCardProps> = ({
       style={[
         styles.card,
         {
-          backgroundColor: isDark ? colors.surface : '#FFFFFF',
-          borderColor: isDark ? colors.surfaceBorder : '#E2E8F0',
-          shadowColor: colors.cardShadow,
+          backgroundColor: colors.surface,
+          borderColor: colors.surfaceBorder,
         },
         compact && styles.cardCompact,
       ]}
     >
-      {/* Header Badge & Stats */}
+      {/* Header */}
       <View style={styles.headerRow}>
-        <View style={[styles.categoryBadge, { backgroundColor: `${colors.primary}20` }]}>
-          <Ionicons name="flame" size={12} color={colors.primary} style={{ marginRight: 4 }} />
-          <Text style={[styles.categoryText, { color: colors.primary }]}>
-            {prediction.category === 'Derbi'
-              ? 'Günün Derbisi Tahmini'
-              : prediction.category === 'Haftanın Maçı'
-              ? 'Haftanın Maçı Tahmini'
-              : 'Topluluk Tahmini'}
-          </Text>
-        </View>
-
-        <View style={styles.voteCountBadge}>
-          <Ionicons name="people-outline" size={12} color={colors.textTertiary} style={{ marginRight: 3 }} />
-          <Text style={[styles.voteCountText, { color: colors.textSecondary }]}>
-            {totalVotes} Oy
-          </Text>
-        </View>
+        <Text style={[styles.categoryText, { color: colors.textSecondary }]}>
+          {prediction.category === 'Derbi'
+            ? 'Derbi Anketi'
+            : prediction.category === 'Haftanın Maçı'
+            ? 'Haftanın Maçı Anketi'
+            : 'Topluluk Tahmini'}
+        </Text>
+        <Text style={[styles.voteCountText, { color: colors.textTertiary }]}>
+          {totalVotes} oy
+        </Text>
       </View>
 
       {/* Matchup Header */}
       <View style={styles.matchupRow}>
         <View style={styles.teamCol}>
-          <View style={[styles.teamAvatar, { backgroundColor: isDark ? '#1E293B' : '#EEF2F6' }]}>
-            <Ionicons name="shield" size={16} color={colors.primaryLight} />
+          <View style={[styles.teamAvatar, { backgroundColor: colors.surfaceLight }]}>
+            <Text style={[styles.teamInitials, { color: colors.primary }]}>
+              {getInitials(prediction.team1Name)}
+            </Text>
           </View>
           <Text style={[styles.teamName, { color: colors.text }]} numberOfLines={1}>
             {prediction.team1Name}
           </Text>
         </View>
 
-        <View style={[styles.vsBadge, { backgroundColor: isDark ? '#1E293B' : '#EEF2F6' }]}>
-          <Text style={[styles.vsText, { color: colors.accent }]}>VS</Text>
-        </View>
+        <Text style={[styles.vsText, { color: colors.textTertiary }]}>VS</Text>
 
         <View style={styles.teamCol}>
-          <View style={[styles.teamAvatar, { backgroundColor: isDark ? '#1E293B' : '#EEF2F6' }]}>
-            <Ionicons name="shield-outline" size={16} color={colors.warning} />
+          <View style={[styles.teamAvatar, { backgroundColor: colors.surfaceLight }]}>
+            <Text style={[styles.teamInitials, { color: colors.info }]}>
+              {getInitials(prediction.team2Name)}
+            </Text>
           </View>
           <Text style={[styles.teamName, { color: colors.text }]} numberOfLines={1}>
             {prediction.team2Name}
@@ -96,104 +90,40 @@ export const MatchPredictionCard: React.FC<MatchPredictionCardProps> = ({
 
       {/* Voting Options: 1 - X - 2 */}
       <View style={styles.buttonsRow}>
-        {/* Team 1 (1) */}
-        <TouchableOpacity
-          style={[
-            styles.voteBtn,
-            {
-              backgroundColor: isDark ? colors.surfaceLight : '#F8FAFC',
-              borderColor:
-                prediction.userVote === '1'
-                  ? colors.primary
-                  : isDark
-                  ? colors.surfaceBorder
-                  : '#E2E8F0',
-            },
-            prediction.userVote === '1' && {
-              backgroundColor: `${colors.primary}18`,
-              borderWidth: 1.5,
-            },
-          ]}
-          onPress={() => onVote('1')}
-          activeOpacity={0.75}
-        >
-          <Text style={[styles.voteBtnCode, { color: colors.primary }]}>1</Text>
-          <Text style={[styles.voteBtnLabel, { color: colors.text }]} numberOfLines={1}>
-            Ev Sahibi
-          </Text>
-          {hasVoted && (
-            <Text style={[styles.votePercentText, { color: colors.primaryLight }]}>
-              %{pct1}
-            </Text>
-          )}
-        </TouchableOpacity>
-
-        {/* Draw (X) */}
-        <TouchableOpacity
-          style={[
-            styles.voteBtn,
-            {
-              backgroundColor: isDark ? colors.surfaceLight : '#F8FAFC',
-              borderColor:
-                prediction.userVote === 'X'
-                  ? colors.warning
-                  : isDark
-                  ? colors.surfaceBorder
-                  : '#E2E8F0',
-            },
-            prediction.userVote === 'X' && {
-              backgroundColor: `${colors.warning}18`,
-              borderWidth: 1.5,
-            },
-          ]}
-          onPress={() => onVote('X')}
-          activeOpacity={0.75}
-        >
-          <Text style={[styles.voteBtnCode, { color: colors.warning }]}>X</Text>
-          <Text style={[styles.voteBtnLabel, { color: colors.text }]} numberOfLines={1}>
-            Berabere
-          </Text>
-          {hasVoted && (
-            <Text style={[styles.votePercentText, { color: colors.warning }]}>
-              %{pctX}
-            </Text>
-          )}
-        </TouchableOpacity>
-
-        {/* Team 2 (2) */}
-        <TouchableOpacity
-          style={[
-            styles.voteBtn,
-            {
-              backgroundColor: isDark ? colors.surfaceLight : '#F8FAFC',
-              borderColor:
-                prediction.userVote === '2'
-                  ? colors.info
-                  : isDark
-                  ? colors.surfaceBorder
-                  : '#E2E8F0',
-            },
-            prediction.userVote === '2' && {
-              backgroundColor: `${colors.info}18`,
-              borderWidth: 1.5,
-            },
-          ]}
-          onPress={() => onVote('2')}
-          activeOpacity={0.75}
-        >
-          <Text style={[styles.voteBtnCode, { color: colors.info }]}>2</Text>
-          <Text style={[styles.voteBtnLabel, { color: colors.text }]} numberOfLines={1}>
-            Deplasman
-          </Text>
-          {hasVoted && (
-            <Text style={[styles.votePercentText, { color: colors.info }]}>
-              %{pct2}
-            </Text>
-          )}
-        </TouchableOpacity>
+        {(
+          [
+            { choice: '1' as const, label: 'Ev Sahibi', pct: pct1, accent: colors.primary },
+            { choice: 'X' as const, label: 'Berabere', pct: pctX, accent: colors.warning },
+            { choice: '2' as const, label: 'Deplasman', pct: pct2, accent: colors.info },
+          ]
+        ).map((opt) => {
+          const isSelected = prediction.userVote === opt.choice;
+          return (
+            <TouchableOpacity
+              key={opt.choice}
+              style={[
+                styles.voteBtn,
+                {
+                  backgroundColor: isSelected ? `${opt.accent}18` : colors.surfaceLight,
+                  borderColor: isSelected ? opt.accent : 'transparent',
+                },
+              ]}
+              onPress={() => onVote(opt.choice)}
+              activeOpacity={0.8}
+            >
+              <Text style={[styles.voteBtnCode, { color: opt.accent }]}>{opt.choice}</Text>
+              <Text style={[styles.voteBtnLabel, { color: colors.textSecondary }]} numberOfLines={1}>
+                {opt.label}
+              </Text>
+              {hasVoted && (
+                <Text style={[styles.votePercentText, { color: opt.accent }]}>%{opt.pct}</Text>
+              )}
+            </TouchableOpacity>
+          );
+        })}
       </View>
 
-      {/* Distribution Progress Bar */}
+      {/* Distribution Bar */}
       {hasVoted && (
         <View style={styles.barContainer}>
           <View style={styles.progressBarWrapper}>
@@ -205,7 +135,10 @@ export const MatchPredictionCard: React.FC<MatchPredictionCardProps> = ({
           <View style={styles.userChoiceBadge}>
             <Ionicons name="checkmark-circle" size={14} color={colors.primary} />
             <Text style={[styles.userChoiceText, { color: colors.textSecondary }]}>
-              Tahminin: <Text style={{ color: colors.text, fontWeight: '700' }}>{getChoiceLabel(prediction.userVote)}</Text> (+25 Puan)
+              Tahminin:{' '}
+              <Text style={{ color: colors.text, fontWeight: '700' }}>
+                {getChoiceLabel(prediction.userVote)}
+              </Text>
             </Text>
           </View>
         </View>
@@ -216,14 +149,10 @@ export const MatchPredictionCard: React.FC<MatchPredictionCardProps> = ({
 
 const styles = StyleSheet.create({
   card: {
-    borderRadius: 16,
+    borderRadius: RADIUS.lg,
     padding: SPACING.md,
-    borderWidth: 1,
+    borderWidth: StyleSheet.hairlineWidth,
     marginBottom: SPACING.md,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.12,
-    shadowRadius: 8,
-    elevation: 3,
   },
   cardCompact: {
     padding: SPACING.sm + 2,
@@ -233,26 +162,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: SPACING.sm,
-  },
-  categoryBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 8,
+    marginBottom: SPACING.md,
   },
   categoryText: {
-    fontSize: FONT_SIZE.xs,
-    fontWeight: '800',
-    letterSpacing: 0.3,
-  },
-  voteCountBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    fontSize: 12,
+    fontWeight: '700',
   },
   voteCountText: {
-    fontSize: FONT_SIZE.xs,
+    fontSize: 11,
     fontWeight: '600',
   },
   matchupRow: {
@@ -267,28 +184,26 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   teamAvatar: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    width: 34,
+    height: 34,
+    borderRadius: 17,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 4,
+    marginBottom: 5,
+  },
+  teamInitials: {
+    fontSize: 11,
+    fontWeight: '800',
   },
   teamName: {
     fontSize: FONT_SIZE.xs,
     fontWeight: '700',
     textAlign: 'center',
   },
-  vsBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 10,
-    marginHorizontal: 8,
-  },
   vsText: {
     fontSize: 11,
-    fontWeight: '900',
-    letterSpacing: 0.5,
+    fontWeight: '800',
+    marginHorizontal: 8,
   },
   buttonsRow: {
     flexDirection: 'row',
@@ -297,14 +212,14 @@ const styles = StyleSheet.create({
   voteBtn: {
     flex: 1,
     alignItems: 'center',
-    paddingVertical: 8,
+    paddingVertical: 9,
     paddingHorizontal: 4,
-    borderRadius: 10,
+    borderRadius: RADIUS.sm,
     borderWidth: 1,
   },
   voteBtnCode: {
     fontSize: FONT_SIZE.md,
-    fontWeight: '900',
+    fontWeight: '800',
     marginBottom: 2,
   },
   voteBtnLabel: {
@@ -317,14 +232,14 @@ const styles = StyleSheet.create({
     marginTop: 3,
   },
   barContainer: {
-    marginTop: SPACING.sm + 2,
+    marginTop: SPACING.md,
   },
   progressBarWrapper: {
     flexDirection: 'row',
-    height: 6,
-    borderRadius: 3,
+    height: 4,
+    borderRadius: 2,
     overflow: 'hidden',
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    gap: 2,
   },
   barSegment: {
     height: '100%',
@@ -332,8 +247,8 @@ const styles = StyleSheet.create({
   userChoiceBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 6,
-    gap: 4,
+    marginTop: 8,
+    gap: 5,
   },
   userChoiceText: {
     fontSize: FONT_SIZE.xs,

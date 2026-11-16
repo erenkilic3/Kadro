@@ -1,102 +1,58 @@
 import React from 'react';
+import { StyleSheet } from 'react-native';
 import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../context/ThemeContext';
 
+const TAB_ITEMS = [
+  { name: 'index', title: 'Maçlar', activeIcon: 'football', inactiveIcon: 'football-outline' },
+  { name: 'leagues', title: 'Ligler', activeIcon: 'trophy', inactiveIcon: 'trophy-outline' },
+  { name: 'create', title: 'Oluştur', activeIcon: 'add-circle', inactiveIcon: 'add-circle-outline' },
+  { name: 'market', title: 'Pazar', activeIcon: 'pricetag', inactiveIcon: 'pricetag-outline' },
+  { name: 'profile', title: 'Profil', activeIcon: 'person', inactiveIcon: 'person-outline' },
+] as const;
+
 export default function TabLayout() {
-  const { colors, isDark } = useTheme();
+  const { colors } = useTheme();
 
   return (
     <Tabs
       screenOptions={{
         headerShown: false,
         tabBarStyle: {
-          backgroundColor: isDark ? colors.surface : '#FFFFFF',
+          backgroundColor: colors.surface,
           borderTopColor: colors.surfaceBorder,
-          borderTopWidth: 1,
-          height: 64,
-          paddingBottom: 10,
-          paddingTop: 8,
-          shadowColor: colors.cardShadow,
-          shadowOffset: { width: 0, height: -2 },
-          shadowOpacity: 0.08,
-          shadowRadius: 4,
-          elevation: 8,
+          borderTopWidth: StyleSheet.hairlineWidth,
+          height: 62,
+          paddingBottom: 8,
+          paddingTop: 6,
+          elevation: 0,
+          shadowOpacity: 0,
         },
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.textTertiary,
         tabBarLabelStyle: {
           fontSize: 11,
-          fontWeight: '700',
+          fontWeight: '600',
         },
       }}
     >
-      <Tabs.Screen
-        name="index"
-        options={{
-          title: 'Maçlar',
-          tabBarIcon: ({ color, size, focused }) => (
-            <Ionicons
-              name={focused ? 'football' : 'football-outline'}
-              size={size + 2}
-              color={typeof color === 'string' ? color : undefined}
-            />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="leagues"
-        options={{
-          title: 'Ligler',
-          tabBarIcon: ({ color, size, focused }) => (
-            <Ionicons
-              name={focused ? 'trophy' : 'trophy-outline'}
-              size={size + 2}
-              color={typeof color === 'string' ? color : undefined}
-            />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="create"
-        options={{
-          title: 'Lig & İlan',
-          tabBarIcon: ({ color, size, focused }) => (
-            <Ionicons
-              name={focused ? 'add-circle' : 'add-circle-outline'}
-              size={size + 3}
-              color={typeof color === 'string' ? color : undefined}
-            />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="market"
-        options={{
-          title: '2. El Pazar',
-          tabBarIcon: ({ color, size, focused }) => (
-            <Ionicons
-              name={focused ? 'shirt' : 'shirt-outline'}
-              size={size + 2}
-              color={typeof color === 'string' ? color : undefined}
-            />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="profile"
-        options={{
-          title: 'Profil',
-          tabBarIcon: ({ color, size, focused }) => (
-            <Ionicons
-              name={focused ? 'person' : 'person-outline'}
-              size={size + 2}
-              color={typeof color === 'string' ? color : undefined}
-            />
-          ),
-        }}
-      />
+      {TAB_ITEMS.map((tab) => (
+        <Tabs.Screen
+          key={tab.name}
+          name={tab.name}
+          options={{
+            title: tab.title,
+            tabBarIcon: ({ color, focused }) => (
+              <Ionicons
+                name={focused ? tab.activeIcon : tab.inactiveIcon}
+                size={22}
+                color={typeof color === 'string' ? color : undefined}
+              />
+            ),
+          }}
+        />
+      ))}
     </Tabs>
   );
 }
-

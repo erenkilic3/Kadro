@@ -5,8 +5,9 @@ import { useTheme } from '../context/ThemeContext';
 import { useApp } from '../context/AppContext';
 import { PositionBadge } from './PositionBadge';
 import { PlayerEvaluationModal, EvaluationTargetPlayer } from './PlayerEvaluationModal';
-import { FONT_SIZE, SPACING } from '../constants/theme';
-import { Match, PlayerPosition } from '../types';
+import { FONT_SIZE, RADIUS, SPACING } from '../constants/theme';
+import { Match, PlayerEvaluation, PlayerPosition } from '../types';
+import { stripLeadingSymbols } from '../utils/formatters';
 
 interface PostMatchEvaluationSectionProps {
   match: Match;
@@ -17,13 +18,12 @@ export const PostMatchEvaluationSection: React.FC<PostMatchEvaluationSectionProp
   match,
   currentUserId,
 }) => {
-  const { colors, isDark } = useTheme();
+  const { colors } = useTheme();
   const { submitPlayerEvaluation, hasUserEvaluatedPlayer, evaluations } = useApp();
 
   const [selectedFilter, setSelectedFilter] = useState<'OPPONENTS' | 'TEAMMATES' | 'ALL'>('OPPONENTS');
   const [activePlayerToRate, setActivePlayerToRate] = useState<EvaluationTargetPlayer | null>(null);
 
-  // Divide roster into Home and Away
   const half = Math.ceil(match.roster.length / 2);
   const userSlotIndex = match.roster.findIndex((s) => s.assignedPlayer?.id === currentUserId);
   const isUserHome = userSlotIndex !== -1 ? userSlotIndex < half : true;
@@ -32,11 +32,10 @@ export const PostMatchEvaluationSection: React.FC<PostMatchEvaluationSectionProp
     return match.roster
       .map((slot, index) => {
         if (!slot.isFilled || !slot.assignedPlayer) return null;
-        if (slot.assignedPlayer.id === currentUserId) return null; // Don't rate yourself
+        if (slot.assignedPlayer.id === currentUserId) return null;
 
         const isHome = index < half;
         const isOpponent = isUserHome ? !isHome : isHome;
-
         const isEvaluated = hasUserEvaluatedPlayer(match.id, slot.assignedPlayer.id);
         const existingEval = evaluations.find(
           (e) => e.matchId === match.id && e.targetPlayerId === slot.assignedPlayer?.id
@@ -61,7 +60,7 @@ export const PostMatchEvaluationSection: React.FC<PostMatchEvaluationSectionProp
       fairPlayRating: number;
       isOpponent: boolean;
       isEvaluated: boolean;
-      evaluation?: any;
+      evaluation?: PlayerEvaluation;
     }[];
   }, [match.id, match.roster, half, currentUserId, isUserHome, evaluations, hasUserEvaluatedPlayer]);
 
@@ -83,93 +82,48 @@ export const PostMatchEvaluationSection: React.FC<PostMatchEvaluationSectionProp
         {
           backgroundColor: colors.surface,
           borderColor: colors.surfaceBorder,
-          shadowColor: colors.cardShadow,
         },
       ]}
     >
-      {/* Header Row */}
       <View style={styles.header}>
-        <View style={styles.headerIcon}>
-          <Ionicons name="star" size={18} color="#F59E0B" />
-        </View>
-        <View style={{ flex: 1 }}>
-          <Text style={[styles.sectionTitle, { color: colors.text }]}>
-            Maç Sonu Oyuncu Değerlendirmesi
-          </Text>
-          <Text style={[styles.sectionSubtitle, { color: colors.textSecondary }]}>
-            Rakiplerin ve takım arkadaşlarının yetenek & Fair-Play seviyesini puanla
-          </Text>
-        </View>
-      </View>
-
-      {/* Info Callout */}
-      <View
-        style={[
-          styles.rewardBox,
-          {
-            backgroundColor: isDark ? 'rgba(0, 214, 100, 0.1)' : 'rgba(0, 214, 100, 0.08)',
-            borderColor: 'rgba(0, 214, 100, 0.25)',
-          },
-        ]}
-      >
-        <Ionicons name="sparkles" size={16} color={colors.primary} />
-        <Text style={[styles.rewardText, { color: colors.textSecondary }]}>
-          Her değerlendirme için <Text style={{ color: colors.primary, fontWeight: '800' }}>+15 Kadro Puanı</Text> kazan ve centilmen halı saha topluluğuna katkıda bulun.
+        <Text style={[styles.sectionTitle, { color: colors.text }]}>
+          Maç Sonu Değerlendirme
+        </Text>
+        <Text style={[styles.sectionSubtitle, { color: colors.textSecondary }]}>
+          Oyuncuların performans ve Fair-Play puanını belirle
         </Text>
       </View>
 
       {/* Filter Tabs */}
-      <View style={styles.filterTabsRow}>
-        <TouchableOpacity
-          style={[
-            styles.tabBtn,
-            selectedFilter === 'OPPONENTS' && [styles.tabBtnActive, { backgroundColor: colors.surfaceLight, borderColor: colors.primary }],
-          ]}
-          onPress={() => setSelectedFilter('OPPONENTS')}
-        >
-          <Text
-            style={[
-              styles.tabBtnText,
-              { color: selectedFilter === 'OPPONENTS' ? colors.primary : colors.textTertiary },
-            ]}
-          >
-            ⚔️ Rakipler ({opponentCount})
-          </Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[
-            styles.tabBtn,
-            selectedFilter === 'TEAMMATES' && [styles.tabBtnActive, { backgroundColor: colors.surfaceLight, borderColor: colors.primary }],
-          ]}
-          onPress={() => setSelectedFilter('TEAMMATES')}
-        >
-          <Text
-            style={[
-              styles.tabBtnText,
-              { color: selectedFilter === 'TEAMMATES' ? colors.primary : colors.textTertiary },
-            ]}
-          >
-            🛡️ Takım Arkadaşlarım ({teammateCount})
-          </Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[
-            styles.tabBtn,
-            selectedFilter === 'ALL' && [styles.tabBtnActive, { backgroundColor: colors.surfaceLight, borderColor: colors.primary }],
-          ]}
-          onPress={() => setSelectedFilter('ALL')}
-        >
-          <Text
-            style={[
-              styles.tabBtnText,
-              { color: selectedFilter === 'ALL' ? colors.primary : colors.textTertiary },
-            ]}
-          >
-            Tümü ({matchPlayers.length})
-          </Text>
-        </TouchableOpacity>
+      <View style={[styles.filterTabsRow, { borderBottomColor: colors.surfaceBorder }]}>
+        {(
+          [
+            { key: 'OPPONENTS' as const, label: `Rakipler (${opponentCount})` },
+            { key: 'TEAMMATES' as const, label: `Takım (${teammateCount})` },
+            { key: 'ALL' as const, label: `Tümü (${matchPlayers.length})` },
+          ]
+        ).map((tab) => {
+          const isActive = selectedFilter === tab.key;
+          return (
+            <TouchableOpacity
+              key={tab.key}
+              style={[
+                styles.tabBtn,
+                isActive && { borderBottomColor: colors.primary },
+              ]}
+              onPress={() => setSelectedFilter(tab.key)}
+            >
+              <Text
+                style={[
+                  styles.tabBtnText,
+                  { color: isActive ? colors.text : colors.textTertiary },
+                ]}
+              >
+                {tab.label}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
       </View>
 
       {/* Players List */}
@@ -181,7 +135,6 @@ export const PostMatchEvaluationSection: React.FC<PostMatchEvaluationSectionProp
               styles.playerCard,
               {
                 backgroundColor: colors.surfaceLight,
-                borderColor: player.isEvaluated ? 'rgba(0, 214, 100, 0.3)' : colors.surfaceBorder,
               },
             ]}
           >
@@ -193,33 +146,27 @@ export const PostMatchEvaluationSection: React.FC<PostMatchEvaluationSectionProp
                 <PositionBadge position={player.position} size="sm" />
               </View>
 
-              <View style={styles.playerTagsRow}>
-                <Text
-                  style={[
-                    styles.roleTag,
-                    { color: player.isOpponent ? colors.danger : colors.primary },
-                  ]}
-                >
-                  {player.isOpponent ? '⚔️ Rakip' : '🛡️ Takım Arkadaşı'}
-                </Text>
-                <Text style={[styles.fairPlayTag, { color: colors.textSecondary }]}>
-                  🤝 %{Math.round((player.fairPlayRating / 5) * 100)} Fair-Play
-                </Text>
-              </View>
+              <Text style={[styles.playerMeta, { color: colors.textSecondary }]}>
+                {player.isOpponent ? 'Rakip' : 'Takım Arkadaşı'} · %
+                {Math.round((player.fairPlayRating / 5) * 100)} Fair-Play
+              </Text>
 
-              {/* Badges preview if evaluated */}
               {player.evaluation?.badges && player.evaluation.badges.length > 0 && (
                 <View style={styles.evalBadgesRow}>
-                  {player.evaluation.badges.slice(0, 2).map((b: string, i: number) => (
-                    <View key={i} style={[styles.evalBadgePill, { backgroundColor: `${colors.primary}20` }]}>
-                      <Text style={[styles.evalBadgeText, { color: colors.primary }]}>{b}</Text>
+                  {player.evaluation.badges.slice(0, 2).map((b, i) => (
+                    <View
+                      key={i}
+                      style={[styles.evalBadgePill, { backgroundColor: `${colors.primary}18` }]}
+                    >
+                      <Text style={[styles.evalBadgeText, { color: colors.primary }]}>
+                        {stripLeadingSymbols(b)}
+                      </Text>
                     </View>
                   ))}
                 </View>
               )}
             </View>
 
-            {/* Action or Done State */}
             {player.isEvaluated ? (
               <View style={styles.evaluatedBadge}>
                 <Ionicons name="checkmark-circle" size={16} color={colors.primary} />
@@ -240,24 +187,20 @@ export const PostMatchEvaluationSection: React.FC<PostMatchEvaluationSectionProp
                 }
                 activeOpacity={0.8}
               >
-                <Ionicons name="star" size={13} color="#FFFFFF" />
-                <Text style={styles.rateBtnText}>Değerlendir</Text>
+                <Text style={styles.rateBtnText}>Puanla</Text>
               </TouchableOpacity>
             )}
           </View>
         ))}
       </View>
 
-      {/* Evaluation Modal */}
       <PlayerEvaluationModal
         visible={Boolean(activePlayerToRate)}
         matchId={match.id}
         matchTitle={match.title}
         player={activePlayerToRate}
         onClose={() => setActivePlayerToRate(null)}
-        onSubmit={async (data) => {
-          return await submitPlayerEvaluation(data);
-        }}
+        onSubmit={async (data) => submitPlayerEvaluation(data)}
       />
     </View>
   );
@@ -265,65 +208,35 @@ export const PostMatchEvaluationSection: React.FC<PostMatchEvaluationSectionProp
 
 const styles = StyleSheet.create({
   container: {
-    borderRadius: 16,
-    borderWidth: 1,
-    padding: SPACING.md,
+    borderRadius: RADIUS.lg,
+    borderWidth: StyleSheet.hairlineWidth,
+    padding: SPACING.lg,
     marginTop: SPACING.md,
-    elevation: 3,
   },
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    marginBottom: 10,
-  },
-  headerIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    backgroundColor: 'rgba(245, 158, 11, 0.15)',
-    alignItems: 'center',
-    justifyContent: 'center',
+    marginBottom: SPACING.sm,
   },
   sectionTitle: {
     fontSize: FONT_SIZE.md,
-    fontWeight: '900',
-    letterSpacing: -0.2,
+    fontWeight: '700',
   },
   sectionSubtitle: {
-    fontSize: 11,
-    fontWeight: '500',
-    marginTop: 1,
-  },
-  rewardBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 10,
-    borderRadius: 10,
-    borderWidth: 1,
-    gap: 8,
-    marginBottom: 12,
-  },
-  rewardText: {
-    fontSize: 11,
-    lineHeight: 16,
-    flex: 1,
+    fontSize: 12,
+    marginTop: 2,
   },
   filterTabsRow: {
     flexDirection: 'row',
-    gap: 6,
-    marginBottom: 12,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    gap: 16,
+    marginBottom: SPACING.md,
   },
   tabBtn: {
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: 'transparent',
+    paddingVertical: 8,
+    borderBottomWidth: 2,
+    borderBottomColor: 'transparent',
   },
-  tabBtnActive: {},
   tabBtnText: {
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: '700',
   },
   playersList: {
@@ -333,9 +246,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 10,
-    borderRadius: 12,
-    borderWidth: 1,
+    padding: 11,
+    borderRadius: RADIUS.md,
   },
   playerInfoCol: {
     flex: 1,
@@ -349,25 +261,15 @@ const styles = StyleSheet.create({
   },
   playerName: {
     fontSize: FONT_SIZE.xs,
-    fontWeight: '800',
-  },
-  playerTagsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  roleTag: {
-    fontSize: 10,
     fontWeight: '700',
   },
-  fairPlayTag: {
-    fontSize: 10,
-    fontWeight: '500',
+  playerMeta: {
+    fontSize: 11,
   },
   evalBadgesRow: {
     flexDirection: 'row',
     gap: 4,
-    marginTop: 4,
+    marginTop: 5,
   },
   evalBadgePill: {
     paddingHorizontal: 6,
@@ -375,31 +277,26 @@ const styles = StyleSheet.create({
     borderRadius: 4,
   },
   evalBadgeText: {
-    fontSize: 9,
+    fontSize: 10,
     fontWeight: '700',
   },
   rateBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 12,
+    paddingHorizontal: 14,
     paddingVertical: 7,
-    borderRadius: 8,
-    gap: 4,
+    borderRadius: RADIUS.sm,
   },
   rateBtnText: {
     color: '#FFFFFF',
-    fontSize: 11,
-    fontWeight: '800',
+    fontSize: 12,
+    fontWeight: '700',
   },
   evaluatedBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
   },
   evaluatedText: {
-    fontSize: 11,
-    fontWeight: '800',
+    fontSize: 12,
+    fontWeight: '700',
   },
 });

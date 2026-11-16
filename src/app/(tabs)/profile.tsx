@@ -17,8 +17,11 @@ import { MatchPredictionCard } from '../../components/MatchPredictionCard';
 import { GearCard } from '../../components/GearCard';
 import { PositionBadge } from '../../components/PositionBadge';
 import { EmptyState } from '../../components/EmptyState';
-import { FONT_SIZE, SPACING } from '../../constants/theme';
+import { FONT_SIZE, RADIUS, SPACING } from '../../constants/theme';
 import { PlayerPosition } from '../../types';
+import { getInitials, stripLeadingSymbols } from '../../utils/formatters';
+
+type ProfileTab = 'MATCHES' | 'PREDICTIONS' | 'REVIEWS' | 'LISTINGS' | 'SETTINGS';
 
 export default function ProfileScreen() {
   const {
@@ -33,29 +36,20 @@ export default function ProfileScreen() {
   } = useApp();
   const { colors, isDark, setThemeMode } = useTheme();
 
-  const [profileTab, setProfileTab] = useState<
-    'MATCHES' | 'PREDICTIONS' | 'REVIEWS' | 'LISTINGS' | 'SETTINGS'
-  >('MATCHES');
+  const [profileTab, setProfileTab] = useState<ProfileTab>('MATCHES');
   const [isEditing, setIsEditing] = useState(false);
   const [name, setName] = useState(currentUser.name || '');
   const [phone, setPhone] = useState(currentUser.phone || '');
   const [bio, setBio] = useState(currentUser.bio || '');
   const [position, setPosition] = useState<PlayerPosition>(currentUser.position || 'MID');
 
-  // Filter matches user has joined or created
   const myMatches = matches.filter(
     (m) =>
       m.organizerId === currentUser.id ||
       m.roster.some((s) => s.assignedPlayer?.id === currentUser.id)
   );
-
-  // Filter matches user made predictions for
   const myPredictions = matches.filter((m) => Boolean(m.prediction?.userVote));
-
-  // Filter gear items listed by user
   const myListings = gearItems.filter((g) => g.sellerId === currentUser.id);
-
-  // Filter reviews received from opponents and teammates
   const myReviews = evaluations.filter((e) => e.targetPlayerId === currentUser.id);
 
   const handleSaveProfile = async () => {
@@ -66,13 +60,13 @@ export default function ProfileScreen() {
       position,
     });
     setIsEditing(false);
-    Alert.alert('✅ Güncellendi', 'Profil bilgileriniz başarıyla kaydedildi.');
+    Alert.alert('Güncellendi', 'Profil bilgileriniz kaydedildi.');
   };
 
   const handleResetData = () => {
     Alert.alert(
       'Demo Verilerini Sıfırla',
-      'Tüm maç, tahmin ve pazar verileri orijinal başlangıç durumuna döndürülecek. Devam edilsin mi?',
+      'Tüm maç, lig, tahmin ve pazar verileri başlangıç durumuna döndürülecek. Devam edilsin mi?',
       [
         { text: 'İptal', style: 'cancel' },
         {
@@ -80,71 +74,90 @@ export default function ProfileScreen() {
           style: 'destructive',
           onPress: async () => {
             await resetDemoData();
-            Alert.alert('Başarılı', 'Demo verileri sıfırlandı.');
+            Alert.alert('Tamamlandı', 'Demo verileri sıfırlandı.');
           },
         },
       ]
     );
   };
 
+  const profileTabs: { key: ProfileTab; label: string }[] = [
+    { key: 'MATCHES', label: `Maçlar (${myMatches.length})` },
+    { key: 'PREDICTIONS', label: `Tahminler (${myPredictions.length})` },
+    { key: 'REVIEWS', label: `Yorumlar (${myReviews.length})` },
+    { key: 'LISTINGS', label: `İlanlar (${myListings.length})` },
+    { key: 'SETTINGS', label: 'Ayarlar' },
+  ];
+
+  const userBadges = currentUser.badges || [
+    { id: 'mvp', label: 'Maçın Adamı', icon: '', count: 6 },
+    { id: 'fairplay', label: 'Centilmen Rakip', icon: '', count: 18 },
+    { id: 'maestro', label: 'Oyun Kurucu', icon: '', count: 12 },
+    { id: 'engine', label: 'Yorulmaz Ciğer', icon: '', count: 8 },
+  ];
+
   return (
-    <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]} edges={['top']}>
+    <SafeAreaView
+      style={[styles.safeArea, { backgroundColor: colors.background }]}
+      edges={['top']}
+    >
       <ScrollView contentContainerStyle={styles.scrollContent}>
-        {/* Profile Identity Card */}
+        {/* Header Title */}
+        <Text style={[styles.screenTitle, { color: colors.text }]}>Profil</Text>
+
+        {/* Identity Card */}
         <View
           style={[
             styles.card,
             {
-              backgroundColor: isDark ? colors.surface : '#FFFFFF',
+              backgroundColor: colors.surface,
               borderColor: colors.surfaceBorder,
-              shadowColor: colors.cardShadow,
             },
           ]}
         >
           <View style={styles.avatarRow}>
             <View style={[styles.avatarCircle, { backgroundColor: colors.primary }]}>
-              <Ionicons name="person" size={38} color="#FFFFFF" />
+              <Text style={styles.avatarInitials}>
+                {getInitials(currentUser.name || 'EK')}
+              </Text>
             </View>
+
             <View style={{ flex: 1, marginLeft: SPACING.md }}>
               <View style={styles.nameRow}>
-                <Text style={[styles.userName, { color: colors.text }]}>{currentUser.name}</Text>
+                <Text style={[styles.userName, { color: colors.text }]}>
+                  {currentUser.name}
+                </Text>
                 <TouchableOpacity
                   onPress={() => setIsEditing(!isEditing)}
                   hitSlop={8}
+                  style={[styles.editIconBtn, { backgroundColor: colors.surfaceLight }]}
                 >
                   <Ionicons
-                    name={isEditing ? 'close' : 'create-outline'}
-                    size={22}
-                    color={colors.primary}
+                    name={isEditing ? 'close' : 'pencil-outline'}
+                    size={16}
+                    color={colors.text}
                   />
                 </TouchableOpacity>
               </View>
-              <View style={{ marginTop: 4, flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+
+              <View style={styles.metaRow}>
                 <PositionBadge position={currentUser.position || 'MID'} size="sm" />
-                <View style={[styles.badgePill, { backgroundColor: `${colors.warning}20` }]}>
-                  <Ionicons name="trophy" size={12} color={colors.warning} />
-                  <Text style={[styles.badgePillText, { color: colors.warning }]}>
-                    Usta Tahminci
-                  </Text>
-                </View>
+                <Text style={[styles.locationText, { color: colors.textSecondary }]}>
+                  {currentUser.district || 'Kadıköy'}, {currentUser.city || 'İstanbul'}
+                </Text>
               </View>
             </View>
           </View>
 
-          {/* Stats Bar */}
-          <View
-            style={[
-              styles.statsBar,
-              { backgroundColor: isDark ? colors.surfaceLight : '#F8FAFC' },
-            ]}
-          >
+          {/* 4-Column Stats */}
+          <View style={[styles.statsBar, { backgroundColor: colors.surfaceLight }]}>
             <View style={styles.statCol}>
-              <Text style={[styles.statVal, { color: colors.text }]}>⭐ {currentUser.rating}</Text>
+              <Text style={[styles.statVal, { color: colors.text }]}>{currentUser.rating}</Text>
               <Text style={[styles.statLbl, { color: colors.textTertiary }]}>Yetenek</Text>
             </View>
             <View style={[styles.statDivider, { backgroundColor: colors.surfaceBorder }]} />
             <View style={styles.statCol}>
-              <Text style={[styles.statVal, { color: '#EC4899' }]}>
+              <Text style={[styles.statVal, { color: colors.primary }]}>
                 %{Math.round(((currentUser.fairPlayRating || 4.95) / 5) * 100)}
               </Text>
               <Text style={[styles.statLbl, { color: colors.textTertiary }]}>Fair-Play</Text>
@@ -158,71 +171,49 @@ export default function ProfileScreen() {
             </View>
             <View style={[styles.statDivider, { backgroundColor: colors.surfaceBorder }]} />
             <View style={styles.statCol}>
-              <Text style={[styles.statVal, { color: colors.primary }]}>
+              <Text style={[styles.statVal, { color: colors.text }]}>
                 {currentUser.evaluationsCount || myReviews.length || 22}
               </Text>
               <Text style={[styles.statLbl, { color: colors.textTertiary }]}>Değerlendirme</Text>
             </View>
           </View>
 
-          {/* Bio */}
           {currentUser.bio && !isEditing && (
             <Text style={[styles.bioText, { color: colors.textSecondary }]}>
-              {`"${currentUser.bio}"`}
+              {currentUser.bio}
             </Text>
           )}
 
-          {/* Opponent Badges Showcase */}
           {!isEditing && (
-            <View style={styles.badgesShowcase}>
-              <Text style={[styles.badgesSectionHeading, { color: colors.textSecondary }]}>
-                🏆 Rakiplerden Kazanılan Rozetler
+            <View style={[styles.badgesShowcase, { borderTopColor: colors.surfaceBorder }]}>
+              <Text style={[styles.badgesSectionHeading, { color: colors.textTertiary }]}>
+                Kazanılan Rozetler
               </Text>
               <View style={styles.badgesRow}>
-                {(currentUser.badges || [
-                  { id: 'mvp', label: 'Maçın Adamı', icon: '⚡', count: 6 },
-                  { id: 'fairplay', label: 'Centilmen Rakip', icon: '🤝', count: 18 },
-                  { id: 'maestro', label: 'Oyun Kurucu', icon: '🎯', count: 12 },
-                  { id: 'engine', label: 'Yorulmaz Ciğer', icon: '🏃', count: 8 },
-                ]).map((b) => (
+                {userBadges.map((b) => (
                   <View
                     key={b.id}
-                    style={[
-                      styles.badgeCardPill,
-                      {
-                        backgroundColor: isDark ? colors.surfaceLight : '#F1F5F9',
-                        borderColor: colors.surfaceBorder,
-                      },
-                    ]}
+                    style={[styles.badgeCardPill, { backgroundColor: colors.surfaceLight }]}
                   >
-                    <Text style={{ fontSize: 13 }}>{b.icon}</Text>
-                    <Text style={[styles.badgeLabelText, { color: colors.text }]}>{b.label}</Text>
-                    <View style={[styles.badgeCountBadge, { backgroundColor: colors.primary }]}>
-                      <Text style={styles.badgeCountText}>{b.count}</Text>
-                    </View>
+                    <Text style={[styles.badgeLabelText, { color: colors.text }]}>
+                      {stripLeadingSymbols(b.label)}
+                    </Text>
+                    <Text style={[styles.badgeCountText, { color: colors.primary }]}>
+                      {b.count}
+                    </Text>
                   </View>
                 ))}
               </View>
             </View>
           )}
 
-          {/* Edit Form */}
           {isEditing && (
-            <View
-              style={[
-                styles.editForm,
-                { borderTopColor: isDark ? 'rgba(255,255,255,0.08)' : '#E2E8F0' },
-              ]}
-            >
+            <View style={[styles.editForm, { borderTopColor: colors.surfaceBorder }]}>
               <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>İsim Soyisim</Text>
               <TextInput
                 style={[
                   styles.input,
-                  {
-                    backgroundColor: isDark ? colors.surfaceLight : '#F1F5F9',
-                    color: colors.text,
-                    borderColor: colors.surfaceBorder,
-                  },
+                  { backgroundColor: colors.surfaceLight, color: colors.text },
                 ]}
                 value={name}
                 onChangeText={setName}
@@ -233,11 +224,7 @@ export default function ProfileScreen() {
               <TextInput
                 style={[
                   styles.input,
-                  {
-                    backgroundColor: isDark ? colors.surfaceLight : '#F1F5F9',
-                    color: colors.text,
-                    borderColor: colors.surfaceBorder,
-                  },
+                  { backgroundColor: colors.surfaceLight, color: colors.text },
                 ]}
                 value={phone}
                 onChangeText={setPhone}
@@ -252,12 +239,7 @@ export default function ProfileScreen() {
                     style={[
                       styles.posButton,
                       {
-                        backgroundColor: isDark ? colors.surfaceLight : '#F1F5F9',
-                        borderColor: colors.surfaceBorder,
-                      },
-                      position === p && {
-                        backgroundColor: colors.primary,
-                        borderColor: colors.primary,
+                        backgroundColor: position === p ? colors.primary : colors.surfaceLight,
                       },
                     ]}
                     onPress={() => setPosition(p)}
@@ -275,17 +257,12 @@ export default function ProfileScreen() {
               </View>
 
               <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>
-                Hakkımda / Oyun Tarzı
+                Oyun Tarzı / Hakkımda
               </Text>
               <TextInput
                 style={[
                   styles.input,
-                  {
-                    backgroundColor: isDark ? colors.surfaceLight : '#F1F5F9',
-                    color: colors.text,
-                    borderColor: colors.surfaceBorder,
-                    height: 60,
-                  },
+                  { backgroundColor: colors.surfaceLight, color: colors.text, height: 64 },
                 ]}
                 value={bio}
                 onChangeText={setBio}
@@ -303,113 +280,38 @@ export default function ProfileScreen() {
           )}
         </View>
 
-        {/* Tab Selection */}
-        <View
-          style={[
-            styles.segmentContainer,
-            {
-              backgroundColor: isDark ? colors.surface : '#FFFFFF',
-              borderColor: colors.surfaceBorder,
-            },
+        {/* Scrollable Underline Tab Bar */}
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={[
+            styles.tabsScrollRow,
+            { borderBottomColor: colors.surfaceBorder },
           ]}
+          style={styles.tabsScroll}
         >
-          <TouchableOpacity
-            style={[
-              styles.segmentBtn,
-              profileTab === 'MATCHES' && {
-                backgroundColor: isDark ? colors.surfaceLight : '#EDF2F7',
-              },
-            ]}
-            onPress={() => setProfileTab('MATCHES')}
-          >
-            <Text
-              style={[
-                styles.segmentText,
-                { color: profileTab === 'MATCHES' ? colors.primary : colors.textTertiary },
-              ]}
-            >
-              ⚽ Maçlarım ({myMatches.length})
-            </Text>
-          </TouchableOpacity>
+          {profileTabs.map((tab) => {
+            const isActive = profileTab === tab.key;
+            return (
+              <TouchableOpacity
+                key={tab.key}
+                style={[styles.tabItem, isActive && { borderBottomColor: colors.primary }]}
+                onPress={() => setProfileTab(tab.key)}
+              >
+                <Text
+                  style={[
+                    styles.tabItemText,
+                    { color: isActive ? colors.text : colors.textTertiary },
+                  ]}
+                >
+                  {tab.label}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
 
-          <TouchableOpacity
-            style={[
-              styles.segmentBtn,
-              profileTab === 'PREDICTIONS' && {
-                backgroundColor: isDark ? colors.surfaceLight : '#EDF2F7',
-              },
-            ]}
-            onPress={() => setProfileTab('PREDICTIONS')}
-          >
-            <Text
-              style={[
-                styles.segmentText,
-                { color: profileTab === 'PREDICTIONS' ? colors.warning : colors.textTertiary },
-              ]}
-            >
-              🏆 Tahmin ({myPredictions.length})
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[
-              styles.segmentBtn,
-              profileTab === 'REVIEWS' && {
-                backgroundColor: isDark ? colors.surfaceLight : '#EDF2F7',
-              },
-            ]}
-            onPress={() => setProfileTab('REVIEWS')}
-          >
-            <Text
-              style={[
-                styles.segmentText,
-                { color: profileTab === 'REVIEWS' ? '#EC4899' : colors.textTertiary },
-              ]}
-            >
-              💬 Yorumlar ({myReviews.length})
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[
-              styles.segmentBtn,
-              profileTab === 'LISTINGS' && {
-                backgroundColor: isDark ? colors.surfaceLight : '#EDF2F7',
-              },
-            ]}
-            onPress={() => setProfileTab('LISTINGS')}
-          >
-            <Text
-              style={[
-                styles.segmentText,
-                { color: profileTab === 'LISTINGS' ? colors.primary : colors.textTertiary },
-              ]}
-            >
-              🛍️ İlanlarım ({myListings.length})
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[
-              styles.segmentBtn,
-              profileTab === 'SETTINGS' && {
-                backgroundColor: isDark ? colors.surfaceLight : '#EDF2F7',
-              },
-            ]}
-            onPress={() => setProfileTab('SETTINGS')}
-          >
-            <Text
-              style={[
-                styles.segmentText,
-                { color: profileTab === 'SETTINGS' ? colors.primary : colors.textTertiary },
-              ]}
-            >
-              ⚙️ Ayarlar
-            </Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* Tab Content: MATCHES */}
+        {/* TAB: MATCHES */}
         {profileTab === 'MATCHES' && (
           <View>
             {myMatches.length > 0 ? (
@@ -419,37 +321,36 @@ export default function ProfileScreen() {
             ) : (
               <EmptyState
                 icon="calendar-outline"
-                title="Henüz Bir Maça Katılmadın"
-                description="Maçlar sekmesinden sana uygun semtteki bir kadroya başvurabilirsin."
+                title="Henüz maça katılmadın"
+                description="Maçlar sekmesinden sana uygun kadrolara başvurabilirsin."
               />
             )}
           </View>
         )}
 
-        {/* Tab Content: PREDICTIONS */}
+        {/* TAB: PREDICTIONS */}
         {profileTab === 'PREDICTIONS' && (
           <View>
             {myPredictions.length > 0 ? (
               myPredictions.map((m) => (
-                <View key={m.id} style={{ marginBottom: SPACING.sm }}>
-                  <MatchPredictionCard
-                    prediction={m.prediction!}
-                    matchId={m.id}
-                    onVote={(choice) => votePrediction(m.id, choice)}
-                  />
-                </View>
+                <MatchPredictionCard
+                  key={m.id}
+                  prediction={m.prediction!}
+                  matchId={m.id}
+                  onVote={(choice) => votePrediction(m.id, choice)}
+                />
               ))
             ) : (
               <EmptyState
-                icon="trophy-outline"
-                title="Henüz Tahmin Yapmadın"
-                description="Maçlar sekmesinden oynanacak maçlar için kazananı tahmin et, topluluk puanı topla!"
+                icon="stats-chart-outline"
+                title="Henüz tahmin yapmadın"
+                description="Maç kartlarından veya maç detayından tahmin oyunu kullanabilirsin."
               />
             )}
           </View>
         )}
 
-        {/* Tab Content: REVIEWS (Oyuncu & Rakip Değerlendirmeleri) */}
+        {/* TAB: REVIEWS */}
         {profileTab === 'REVIEWS' && (
           <View>
             {myReviews.length > 0 ? (
@@ -459,32 +360,16 @@ export default function ProfileScreen() {
                   style={[
                     styles.reviewCard,
                     {
-                      backgroundColor: isDark ? colors.surface : '#FFFFFF',
+                      backgroundColor: colors.surface,
                       borderColor: colors.surfaceBorder,
-                      shadowColor: colors.cardShadow,
                     },
                   ]}
                 >
                   <View style={styles.reviewHeaderRow}>
-                    <View
-                      style={[
-                        styles.reviewAvatarBox,
-                        {
-                          backgroundColor: rev.isOpponent
-                            ? isDark
-                              ? 'rgba(239, 68, 68, 0.15)'
-                              : 'rgba(239, 68, 68, 0.1)'
-                            : isDark
-                            ? 'rgba(0, 214, 100, 0.15)'
-                            : 'rgba(0, 214, 100, 0.1)',
-                        },
-                      ]}
-                    >
-                      <Ionicons
-                        name={rev.isOpponent ? 'shield' : 'people'}
-                        size={18}
-                        color={rev.isOpponent ? colors.danger : colors.primary}
-                      />
+                    <View style={[styles.reviewAvatarBox, { backgroundColor: colors.surfaceLight }]}>
+                      <Text style={[styles.reviewInitials, { color: colors.text }]}>
+                        {getInitials(rev.evaluatorName)}
+                      </Text>
                     </View>
 
                     <View style={{ flex: 1 }}>
@@ -497,73 +382,48 @@ export default function ProfileScreen() {
                     </View>
 
                     <View style={styles.reviewScoresCol}>
-                      <View style={styles.reviewScoreRow}>
-                        <Ionicons name="star" size={13} color="#F59E0B" />
-                        <Text style={[styles.reviewScoreVal, { color: colors.text }]}>
-                          {rev.skillRating}/5
-                        </Text>
-                      </View>
-                      <View style={styles.reviewScoreRow}>
-                        <Ionicons name="heart" size={13} color="#EC4899" />
-                        <Text style={[styles.reviewScoreVal, { color: colors.text }]}>
-                          {rev.fairPlayRating}/5
-                        </Text>
-                      </View>
+                      <Text style={[styles.reviewScoreVal, { color: colors.text }]}>
+                        Yetenek {rev.skillRating}/5
+                      </Text>
+                      <Text style={[styles.reviewScoreVal, { color: colors.primary }]}>
+                        Fair-Play {rev.fairPlayRating}/5
+                      </Text>
                     </View>
                   </View>
 
-                  {/* Badges Awarded */}
                   {rev.badges && rev.badges.length > 0 && (
                     <View style={styles.reviewBadgesWrap}>
                       {rev.badges.map((badge, idx) => (
                         <View
                           key={idx}
-                          style={[
-                            styles.reviewBadgePill,
-                            {
-                              backgroundColor: isDark
-                                ? 'rgba(0, 214, 100, 0.12)'
-                                : 'rgba(0, 214, 100, 0.08)',
-                            },
-                          ]}
+                          style={[styles.reviewBadgePill, { backgroundColor: colors.surfaceLight }]}
                         >
-                          <Text style={[styles.reviewBadgeText, { color: colors.primary }]}>
-                            {badge}
+                          <Text style={[styles.reviewBadgeText, { color: colors.textSecondary }]}>
+                            {stripLeadingSymbols(badge)}
                           </Text>
                         </View>
                       ))}
                     </View>
                   )}
 
-                  {/* Comment */}
                   {rev.comment ? (
-                    <View
-                      style={[
-                        styles.reviewQuoteBox,
-                        {
-                          backgroundColor: isDark ? colors.surfaceLight : '#F8FAFC',
-                          borderColor: colors.surfaceBorder,
-                        },
-                      ]}
-                    >
-                      <Text style={[styles.reviewQuoteText, { color: colors.text }]}>
-                        {`"${rev.comment}"`}
-                      </Text>
-                    </View>
+                    <Text style={[styles.reviewQuoteText, { color: colors.textSecondary }]}>
+                      {`"${rev.comment}"`}
+                    </Text>
                   ) : null}
                 </View>
               ))
             ) : (
               <EmptyState
-                icon="chatbubbles-outline"
-                title="Henüz Değerlendirme Yok"
-                description="Oynadığın maçlardan sonra rakiplerin seni değerlendirdiğinde yorumlar ve rozetler burada görünecektir."
+                icon="chatbubble-outline"
+                title="Henüz değerlendirme yok"
+                description="Oynadığın maçlardan sonra yapılan değerlendirmeler burada listelenir."
               />
             )}
           </View>
         )}
 
-        {/* Tab Content: LISTINGS */}
+        {/* TAB: LISTINGS */}
         {profileTab === 'LISTINGS' && (
           <View>
             {myListings.length > 0 ? (
@@ -572,11 +432,11 @@ export default function ProfileScreen() {
                   <GearCard item={g} />
                   {g.status === 'Available' && (
                     <TouchableOpacity
-                      style={styles.markSoldBtn}
+                      style={[styles.markSoldBtn, { backgroundColor: colors.surfaceLight }]}
                       onPress={() => markGearSold(g.id)}
                     >
-                      <Ionicons name="checkmark-done" size={16} color={colors.warning} />
-                      <Text style={[styles.markSoldText, { color: colors.warning }]}>
+                      <Ionicons name="checkmark-done-outline" size={16} color={colors.text} />
+                      <Text style={[styles.markSoldText, { color: colors.text }]}>
                         Satıldı Olarak İşaretle
                       </Text>
                     </TouchableOpacity>
@@ -586,46 +446,40 @@ export default function ProfileScreen() {
             ) : (
               <EmptyState
                 icon="pricetag-outline"
-                title="Henüz Bir İlan Vermedin"
-                description="İkinci el krampon, forma veya kaleci ekipmanlarını pazarda satmak için 'İlan / Maç' sekmesini kullanabilirsin."
+                title="Henüz ilanın yok"
+                description="Ekipmanlarını satmak için Oluştur sekmesinden ilan yayınlayabilirsin."
               />
             )}
           </View>
         )}
 
-        {/* Tab Content: SETTINGS */}
+        {/* TAB: SETTINGS */}
         {profileTab === 'SETTINGS' && (
           <View
             style={[
               styles.settingsCard,
               {
-                backgroundColor: isDark ? colors.surface : '#FFFFFF',
+                backgroundColor: colors.surface,
                 borderColor: colors.surfaceBorder,
               },
             ]}
           >
-            {/* Theme Toggle Section */}
-            <Text style={[styles.settingsHeader, { color: colors.text }]}>Görünüm ve Tema</Text>
-            <Text style={[styles.settingsDesc, { color: colors.textSecondary }]}>
-              Uygulamayı tercihinize göre Aydınlık veya Karanlık modda kullanabilirsiniz.
-            </Text>
-
+            <Text style={[styles.settingsHeader, { color: colors.text }]}>Görünüm</Text>
             <View style={styles.themeSwitchRow}>
               <TouchableOpacity
                 style={[
                   styles.themeSelectBtn,
                   {
-                    backgroundColor: isDark ? colors.surfaceLight : '#F1F5F9',
-                    borderColor: !isDark ? colors.primary : colors.surfaceBorder,
+                    backgroundColor: !isDark ? `${colors.primary}18` : colors.surfaceLight,
+                    borderColor: !isDark ? colors.primary : 'transparent',
                   },
-                  !isDark && { backgroundColor: `${colors.primary}15`, borderWidth: 1.5 },
                 ]}
                 onPress={() => setThemeMode('light')}
               >
                 <Ionicons
-                  name="sunny"
-                  size={20}
-                  color={!isDark ? colors.primary : colors.textTertiary}
+                  name="sunny-outline"
+                  size={18}
+                  color={!isDark ? colors.primary : colors.textSecondary}
                 />
                 <Text
                   style={[
@@ -633,7 +487,7 @@ export default function ProfileScreen() {
                     { color: !isDark ? colors.primary : colors.textSecondary },
                   ]}
                 >
-                  Aydınlık Mod
+                  Aydınlık
                 </Text>
               </TouchableOpacity>
 
@@ -641,75 +495,58 @@ export default function ProfileScreen() {
                 style={[
                   styles.themeSelectBtn,
                   {
-                    backgroundColor: isDark ? colors.surfaceLight : '#F1F5F9',
-                    borderColor: isDark ? colors.primary : colors.surfaceBorder,
+                    backgroundColor: isDark ? `${colors.primary}18` : colors.surfaceLight,
+                    borderColor: isDark ? colors.primary : 'transparent',
                   },
-                  isDark && { backgroundColor: `${colors.primary}20`, borderWidth: 1.5 },
                 ]}
                 onPress={() => setThemeMode('dark')}
               >
                 <Ionicons
-                  name="moon"
-                  size={20}
-                  color={isDark ? colors.primaryLight : colors.textTertiary}
+                  name="moon-outline"
+                  size={18}
+                  color={isDark ? colors.primary : colors.textSecondary}
                 />
                 <Text
                   style={[
                     styles.themeSelectText,
-                    { color: isDark ? colors.primaryLight : colors.textSecondary },
+                    { color: isDark ? colors.primary : colors.textSecondary },
                   ]}
                 >
-                  Karanlık Mod
+                  Karanlık
                 </Text>
               </TouchableOpacity>
             </View>
 
-            <View
-              style={[
-                styles.sectionDivider,
-                { backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : '#E2E8F0' },
-              ]}
-            />
+            <View style={[styles.sectionDivider, { backgroundColor: colors.surfaceBorder }]} />
 
-            {/* Data & Reset */}
             <Text style={[styles.settingsHeader, { color: colors.text }]}>Veri Yönetimi</Text>
             <Text style={[styles.settingsDesc, { color: colors.textSecondary }]}>
-              Örnek maç, pazar ve kullanıcı verilerini başlangıç durumuna sıfırlayabilirsiniz.
+              Tüm örnek maç, lig ve ilan verilerini başlangıç durumuna döndürür.
             </Text>
 
-            <TouchableOpacity style={styles.resetBtn} onPress={handleResetData}>
-              <Ionicons name="refresh" size={18} color="#EF4444" />
-              <Text style={styles.resetBtnText}>Demo Verilerini Sıfırla (Reset)</Text>
+            <TouchableOpacity
+              style={[styles.resetBtn, { backgroundColor: `${colors.danger}15` }]}
+              onPress={handleResetData}
+            >
+              <Ionicons name="refresh-outline" size={17} color={colors.danger} />
+              <Text style={[styles.resetBtnText, { color: colors.danger }]}>
+                Demo Verilerini Sıfırla
+              </Text>
             </TouchableOpacity>
 
-            <View
-              style={[
-                styles.infoRow,
-                { borderTopColor: isDark ? 'rgba(255,255,255,0.06)' : '#E2E8F0' },
-              ]}
-            >
+            <View style={[styles.infoRow, { borderTopColor: colors.surfaceBorder }]}>
               <Text style={[styles.infoKey, { color: colors.textTertiary }]}>Uygulama</Text>
-              <Text style={[styles.infoVal, { color: colors.text }]}>Kadro Halı Saha & Pazar</Text>
+              <Text style={[styles.infoVal, { color: colors.text }]}>Kadro</Text>
             </View>
-            <View
-              style={[
-                styles.infoRow,
-                { borderTopColor: isDark ? 'rgba(255,255,255,0.06)' : '#E2E8F0' },
-              ]}
-            >
-              <Text style={[styles.infoKey, { color: colors.textTertiary }]}>Tema Durumu</Text>
-              <Text style={[styles.infoVal, { color: colors.primary }]}>
-                {isDark ? 'Karanlık (Dark Carbon)' : 'Aydınlık (Light Arena)'}
+            <View style={[styles.infoRow, { borderTopColor: colors.surfaceBorder }]}>
+              <Text style={[styles.infoKey, { color: colors.textTertiary }]}>Tema</Text>
+              <Text style={[styles.infoVal, { color: colors.text }]}>
+                {isDark ? 'Karanlık' : 'Aydınlık'}
               </Text>
             </View>
-            <View
-              style={[
-                styles.infoRow,
-                { borderTopColor: isDark ? 'rgba(255,255,255,0.06)' : '#E2E8F0' },
-              ]}
-            >
-              <Text style={[styles.infoKey, { color: colors.textTertiary }]}>Versiyon</Text>
-              <Text style={[styles.infoVal, { color: colors.text }]}>1.2.0 (Tahmin & Dark Mode Destekli)</Text>
+            <View style={[styles.infoRow, { borderTopColor: colors.surfaceBorder }]}>
+              <Text style={[styles.infoKey, { color: colors.textTertiary }]}>Sürüm</Text>
+              <Text style={[styles.infoVal, { color: colors.text }]}>1.0.0</Text>
             </View>
           </View>
         )}
@@ -726,26 +563,33 @@ const styles = StyleSheet.create({
     padding: SPACING.lg,
     paddingBottom: SPACING.xxxl,
   },
+  screenTitle: {
+    fontSize: 26,
+    fontWeight: '800',
+    letterSpacing: -0.6,
+    marginBottom: SPACING.md,
+  },
   card: {
-    borderRadius: 16,
+    borderRadius: RADIUS.lg,
     padding: SPACING.lg,
-    borderWidth: 1,
-    marginBottom: SPACING.lg,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 3,
+    borderWidth: StyleSheet.hairlineWidth,
+    marginBottom: SPACING.md,
   },
   avatarRow: {
     flexDirection: 'row',
     alignItems: 'center',
   },
   avatarCircle: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
+    width: 52,
+    height: 52,
+    borderRadius: 26,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  avatarInitials: {
+    color: '#FFFFFF',
+    fontSize: 17,
+    fontWeight: '800',
   },
   nameRow: {
     flexDirection: 'row',
@@ -753,24 +597,29 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   userName: {
-    fontSize: FONT_SIZE.xl,
-    fontWeight: '800',
+    fontSize: FONT_SIZE.lg,
+    fontWeight: '700',
   },
-  badgePill: {
+  editIconBtn: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  metaRow: {
+    marginTop: 5,
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
-    gap: 4,
+    gap: 8,
   },
-  badgePillText: {
-    fontSize: 10,
-    fontWeight: '800',
+  locationText: {
+    fontSize: FONT_SIZE.xs,
+    fontWeight: '500',
   },
   statsBar: {
     flexDirection: 'row',
-    borderRadius: 12,
+    borderRadius: RADIUS.md,
     marginTop: SPACING.md,
     paddingVertical: 12,
     justifyContent: 'space-around',
@@ -784,37 +633,66 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
   statLbl: {
-    fontSize: 10,
-    fontWeight: '600',
+    fontSize: 11,
+    fontWeight: '500',
     marginTop: 2,
   },
   statDivider: {
-    width: 1,
+    width: StyleSheet.hairlineWidth,
     height: 24,
   },
   bioText: {
     fontSize: FONT_SIZE.xs,
     marginTop: SPACING.md,
     lineHeight: 18,
-    fontStyle: 'italic',
+  },
+  badgesShowcase: {
+    marginTop: SPACING.md,
+    paddingTop: SPACING.md,
+    borderTopWidth: StyleSheet.hairlineWidth,
+  },
+  badgesSectionHeading: {
+    fontSize: 11,
+    fontWeight: '600',
+    marginBottom: 8,
+  },
+  badgesRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+  },
+  badgeCardPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 9,
+    paddingVertical: 5,
+    borderRadius: 6,
+    gap: 6,
+  },
+  badgeLabelText: {
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  badgeCountText: {
+    fontSize: 11,
+    fontWeight: '800',
   },
   editForm: {
     marginTop: SPACING.md,
-    borderTopWidth: 1,
+    borderTopWidth: StyleSheet.hairlineWidth,
     paddingTop: SPACING.md,
   },
   inputLabel: {
-    fontSize: 11,
-    fontWeight: '700',
-    marginBottom: 4,
-    marginTop: 8,
+    fontSize: 12,
+    fontWeight: '600',
+    marginBottom: 5,
+    marginTop: 10,
   },
   input: {
-    borderRadius: 8,
-    paddingHorizontal: 10,
-    paddingVertical: 8,
+    borderRadius: RADIUS.sm,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
     fontSize: FONT_SIZE.sm,
-    borderWidth: 1,
   },
   posRow: {
     flexDirection: 'row',
@@ -823,170 +701,47 @@ const styles = StyleSheet.create({
   },
   posButton: {
     flex: 1,
-    paddingVertical: 8,
+    paddingVertical: 9,
     alignItems: 'center',
-    borderRadius: 8,
-    borderWidth: 1,
+    borderRadius: RADIUS.sm,
   },
   posButtonText: {
     fontWeight: '700',
     fontSize: FONT_SIZE.xs,
   },
   saveBtn: {
-    borderRadius: 10,
-    paddingVertical: 11,
+    borderRadius: RADIUS.sm,
+    paddingVertical: 12,
     alignItems: 'center',
-    marginTop: 14,
+    marginTop: 16,
   },
   saveBtnText: {
     color: '#FFFFFF',
-    fontWeight: '800',
-    fontSize: FONT_SIZE.sm,
-  },
-  segmentContainer: {
-    flexDirection: 'row',
-    borderRadius: 14,
-    padding: 4,
-    borderWidth: 1,
-    marginBottom: SPACING.md,
-  },
-  segmentBtn: {
-    flex: 1,
-    paddingVertical: 9,
-    alignItems: 'center',
-    borderRadius: 10,
-  },
-  segmentText: {
-    fontSize: 11,
-    fontWeight: '800',
-  },
-  markSoldBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(245, 158, 11, 0.15)',
-    paddingVertical: 6,
-    borderRadius: 8,
-    marginTop: -8,
-    marginBottom: 8,
-    gap: 4,
-  },
-  markSoldText: {
-    fontSize: FONT_SIZE.xs,
     fontWeight: '700',
-  },
-  settingsCard: {
-    borderRadius: 16,
-    padding: SPACING.lg,
-    borderWidth: 1,
-  },
-  settingsHeader: {
-    fontSize: FONT_SIZE.md,
-    fontWeight: '800',
-    marginBottom: 4,
-  },
-  settingsDesc: {
-    fontSize: FONT_SIZE.xs,
-    lineHeight: 18,
-    marginBottom: SPACING.md,
-  },
-  themeSwitchRow: {
-    flexDirection: 'row',
-    gap: 10,
-    marginBottom: SPACING.md,
-  },
-  themeSelectBtn: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 12,
-    borderRadius: 12,
-    borderWidth: 1,
-    gap: 8,
-  },
-  themeSelectText: {
-    fontSize: FONT_SIZE.xs,
-    fontWeight: '800',
-  },
-  sectionDivider: {
-    height: 1,
-    marginVertical: SPACING.md,
-  },
-  resetBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(239, 68, 68, 0.12)',
-    borderWidth: 1,
-    borderColor: '#EF4444',
-    borderRadius: 10,
-    paddingVertical: 12,
-    gap: 6,
-    marginBottom: SPACING.lg,
-  },
-  resetBtnText: {
-    color: '#EF4444',
-    fontWeight: '800',
     fontSize: FONT_SIZE.sm,
   },
-  infoRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+  tabsScroll: {
+    marginBottom: SPACING.md,
+  },
+  tabsScrollRow: {
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    gap: 18,
+    paddingRight: SPACING.lg,
+  },
+  tabItem: {
     paddingVertical: 10,
-    borderTopWidth: 1,
+    borderBottomWidth: 2,
+    borderBottomColor: 'transparent',
   },
-  infoKey: {
-    fontSize: FONT_SIZE.xs,
-  },
-  infoVal: {
+  tabItemText: {
     fontSize: FONT_SIZE.xs,
     fontWeight: '700',
-  },
-  badgesShowcase: {
-    marginTop: SPACING.md,
-    paddingTop: SPACING.sm,
-  },
-  badgesSectionHeading: {
-    fontSize: 11,
-    fontWeight: '800',
-    letterSpacing: 0.3,
-    marginBottom: 8,
-  },
-  badgesRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  badgeCardPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 8,
-    paddingVertical: 5,
-    borderRadius: 8,
-    borderWidth: 1,
-    gap: 5,
-  },
-  badgeLabelText: {
-    fontSize: 11,
-    fontWeight: '700',
-  },
-  badgeCountBadge: {
-    paddingHorizontal: 5,
-    paddingVertical: 1,
-    borderRadius: 6,
-  },
-  badgeCountText: {
-    color: '#FFFFFF',
-    fontSize: 9,
-    fontWeight: '900',
   },
   reviewCard: {
-    borderRadius: 14,
-    borderWidth: 1,
+    borderRadius: RADIUS.md,
+    borderWidth: StyleSheet.hairlineWidth,
     padding: SPACING.md,
     marginBottom: 10,
-    elevation: 2,
   },
   reviewHeaderRow: {
     flexDirection: 'row',
@@ -995,32 +750,31 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   reviewAvatarBox: {
-    width: 38,
-    height: 38,
-    borderRadius: 10,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  reviewAuthorName: {
-    fontSize: FONT_SIZE.xs,
+  reviewInitials: {
+    fontSize: 12,
     fontWeight: '800',
   },
+  reviewAuthorName: {
+    fontSize: FONT_SIZE.xs,
+    fontWeight: '700',
+  },
   reviewMatchTitle: {
-    fontSize: 10,
-    marginTop: 2,
+    fontSize: 11,
+    marginTop: 1,
   },
   reviewScoresCol: {
     alignItems: 'flex-end',
     gap: 2,
   },
-  reviewScoreRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
   reviewScoreVal: {
     fontSize: 11,
-    fontWeight: '800',
+    fontWeight: '700',
   },
   reviewBadgesWrap: {
     flexDirection: 'row',
@@ -1031,22 +785,91 @@ const styles = StyleSheet.create({
   reviewBadgePill: {
     paddingHorizontal: 8,
     paddingVertical: 3,
-    borderRadius: 6,
+    borderRadius: 5,
   },
   reviewBadgeText: {
-    fontSize: 10,
-    fontWeight: '700',
-  },
-  reviewQuoteBox: {
-    padding: 10,
-    borderRadius: 8,
-    borderWidth: 1,
+    fontSize: 11,
+    fontWeight: '600',
   },
   reviewQuoteText: {
-    fontSize: 11,
-    lineHeight: 16,
-    fontStyle: 'italic',
+    fontSize: 12,
+    lineHeight: 17,
+  },
+  markSoldBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 8,
+    borderRadius: RADIUS.sm,
+    marginTop: -6,
+    marginBottom: 10,
+    gap: 6,
+  },
+  markSoldText: {
+    fontSize: FONT_SIZE.xs,
+    fontWeight: '700',
+  },
+  settingsCard: {
+    borderRadius: RADIUS.lg,
+    padding: SPACING.lg,
+    borderWidth: StyleSheet.hairlineWidth,
+  },
+  settingsHeader: {
+    fontSize: FONT_SIZE.sm,
+    fontWeight: '700',
+    marginBottom: 8,
+  },
+  settingsDesc: {
+    fontSize: FONT_SIZE.xs,
+    lineHeight: 18,
+    marginBottom: SPACING.md,
+  },
+  themeSwitchRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  themeSelectBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 11,
+    borderRadius: RADIUS.sm,
+    borderWidth: 1,
+    gap: 8,
+  },
+  themeSelectText: {
+    fontSize: FONT_SIZE.xs,
+    fontWeight: '700',
+  },
+  sectionDivider: {
+    height: StyleSheet.hairlineWidth,
+    marginVertical: SPACING.lg,
+  },
+  resetBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: RADIUS.sm,
+    paddingVertical: 12,
+    gap: 6,
+    marginBottom: SPACING.lg,
+  },
+  resetBtnText: {
+    fontWeight: '700',
+    fontSize: FONT_SIZE.sm,
+  },
+  infoRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingVertical: 10,
+    borderTopWidth: StyleSheet.hairlineWidth,
+  },
+  infoKey: {
+    fontSize: FONT_SIZE.xs,
+  },
+  infoVal: {
+    fontSize: FONT_SIZE.xs,
+    fontWeight: '600',
   },
 });
-
-

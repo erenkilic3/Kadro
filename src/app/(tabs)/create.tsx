@@ -15,12 +15,29 @@ import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useApp } from '../../context/AppContext';
 import { useTheme } from '../../context/ThemeContext';
-import { FONT_SIZE, SPACING } from '../../constants/theme';
+import { FONT_SIZE, RADIUS, SPACING } from '../../constants/theme';
 import { PlayerPosition, MatchFormat, GearCategory, GearCondition } from '../../types';
+
+const LEAGUE_RULES_OPTIONS = [
+  'TFF Lisanslı Hakem & Gözlemci',
+  'Maçlar 25 x 2 = 50 Dakika',
+  'HD Video Özetleri & Gol Kayıtları',
+  'Fair-Play & Centilmenlik Puanı',
+  'Kart Ceza Takibi',
+  'Halı Saha / AG Krampon Zorunlu',
+];
+
+const LEAGUE_COLOR_OPTIONS = [
+  { hex: '#16A34A', name: 'Çim Yeşili' },
+  { hex: '#2563EB', name: 'Mavi' },
+  { hex: '#D97706', name: 'Altın' },
+  { hex: '#DC2626', name: 'Kırmızı' },
+  { hex: '#52525B', name: 'Antrasit' },
+];
 
 export default function CreateScreen() {
   const { createMatch, createGearItem, createLeague } = useApp();
-  const { colors, isDark } = useTheme();
+  const { colors } = useTheme();
   const params = useLocalSearchParams<{ tab?: string }>();
 
   const [activeTab, setActiveTab] = useState<'MATCH' | 'LEAGUE' | 'GEAR'>(() => {
@@ -51,7 +68,7 @@ export default function CreateScreen() {
   const [missingPositions, setMissingPositions] = useState<PlayerPosition[]>(['GK', 'DEF']);
   const [notes, setNotes] = useState('');
 
-  // Regional League Form State
+  // League Form State
   const [leagueTitle, setLeagueTitle] = useState('');
   const [leagueSeason, setLeagueSeason] = useState('2026 Bahar Sezonu');
   const [leagueCity, setLeagueCity] = useState('İstanbul');
@@ -59,15 +76,14 @@ export default function CreateScreen() {
   const [leagueVenue, setLeagueVenue] = useState('');
   const [leagueFormat, setLeagueFormat] = useState<MatchFormat>('7v7');
   const [maxTeams, setMaxTeams] = useState<number>(8);
-  const [prize, setPrize] = useState('🏆 15.000₺ Şampiyonluk Kupası & Forma Seti');
+  const [prize, setPrize] = useState('15.000₺ Şampiyonluk Kupası & Forma Seti');
   const [leagueEntryFee, setLeagueEntryFee] = useState('1200');
-  const [themeColor, setThemeColor] = useState('#00D664');
+  const [themeColor, setThemeColor] = useState('#16A34A');
   const [leagueDescription, setLeagueDescription] = useState('');
   const [selectedRules, setSelectedRules] = useState<string[]>([
-    'TFF Lisanslı Resmi Hakem & Gözlemci',
-    'Maçlar 25 x 2 = 50 Dakika Oynanır',
+    'TFF Lisanslı Hakem & Gözlemci',
+    'Maçlar 25 x 2 = 50 Dakika',
     'Fair-Play & Centilmenlik Puanı',
-    'Kadro Uygulamasında Canlı Puan Durumu',
   ]);
 
   // Gear Form State
@@ -80,44 +96,30 @@ export default function CreateScreen() {
   const [gearLocation, setGearLocation] = useState('İstanbul / Kadıköy');
   const [gearDescription, setGearDescription] = useState('');
 
-  // Feedback State
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const toggleMissingPosition = (pos: PlayerPosition) => {
-    if (missingPositions.includes(pos)) {
-      setMissingPositions(missingPositions.filter((p) => p !== pos));
-    } else {
-      setMissingPositions([...missingPositions, pos]);
-    }
+    setMissingPositions((prev) =>
+      prev.includes(pos) ? prev.filter((p) => p !== pos) : [...prev, pos]
+    );
   };
 
   const toggleRule = (rule: string) => {
-    if (selectedRules.includes(rule)) {
-      setSelectedRules(selectedRules.filter((r) => r !== rule));
-    } else {
-      setSelectedRules([...selectedRules, rule]);
-    }
+    setSelectedRules((prev) =>
+      prev.includes(rule) ? prev.filter((r) => r !== rule) : [...prev, rule]
+    );
   };
 
   const handleCreateMatch = async () => {
     setErrorMessage(null);
-
-    if (!matchTitle.trim()) {
-      setErrorMessage('Lütfen maç başlığını giriniz.');
-      return;
-    }
-    if (!venueName.trim()) {
-      setErrorMessage('Lütfen halı saha tesis adını giriniz.');
-      return;
-    }
+    if (!matchTitle.trim()) return setErrorMessage('Lütfen maç başlığını giriniz.');
+    if (!venueName.trim()) return setErrorMessage('Lütfen halı saha tesis adını giriniz.');
     if (!fee.trim() || isNaN(Number(fee)) || Number(fee) <= 0) {
-      setErrorMessage('Lütfen geçerli bir kişi başı ücret giriniz.');
-      return;
+      return setErrorMessage('Lütfen geçerli bir kişi başı ücret giriniz.');
     }
     if (missingPositions.length === 0) {
-      setErrorMessage('Lütfen en az bir aranan eksik mevki seçiniz.');
-      return;
+      return setErrorMessage('Lütfen en az bir aranan eksik mevki seçiniz.');
     }
 
     try {
@@ -136,9 +138,9 @@ export default function CreateScreen() {
         notes: notes.trim(),
       });
 
-      Alert.alert('⚽ Başarılı!', 'Halı saha maç ilanınız oluşturuldu ve kadro yayına alındı.', [
+      Alert.alert('Maç Yayınlandı', 'Maç ilanınız oluşturuldu ve kadro yayına alındı.', [
         {
-          text: 'Maçları Gör',
+          text: 'Maçlara Dön',
           onPress: () => {
             setMatchTitle('');
             setVenueName('');
@@ -156,19 +158,9 @@ export default function CreateScreen() {
 
   const handleCreateLeague = async () => {
     setErrorMessage(null);
-
-    if (!leagueTitle.trim()) {
-      setErrorMessage('Lütfen lig adını giriniz (Örn: Kadıköy Süper Halı Saha Ligi).');
-      return;
-    }
-    if (!leagueVenue.trim()) {
-      setErrorMessage('Lütfen ligin oynanacağı tesis adını giriniz.');
-      return;
-    }
-    if (!prize.trim()) {
-      setErrorMessage('Lütfen şampiyonluk ödülünü belirtiniz.');
-      return;
-    }
+    if (!leagueTitle.trim()) return setErrorMessage('Lütfen lig adını giriniz.');
+    if (!leagueVenue.trim()) return setErrorMessage('Lütfen tesis adını giriniz.');
+    if (!prize.trim()) return setErrorMessage('Lütfen şampiyonluk ödülünü belirtiniz.');
 
     try {
       setIsSubmitting(true);
@@ -179,15 +171,17 @@ export default function CreateScreen() {
         district: leagueDistrict.trim(),
         venueName: leagueVenue.trim(),
         format: leagueFormat,
-        maxTeams: maxTeams,
+        maxTeams,
         entryFee: Number(leagueEntryFee) || 0,
         prize: prize.trim(),
         rules: selectedRules,
-        description: leagueDescription.trim() || `${leagueDistrict} bölgesinde ${leagueFormat} formatında amatör bölgesel halı saha turnuvası.`,
+        description:
+          leagueDescription.trim() ||
+          `${leagueDistrict} bölgesinde ${leagueFormat} formatında amatör halı saha ligi.`,
         themeColor,
       });
 
-      Alert.alert('🏆 Lig Başarıyla Kuruldu!', `"${newLeague.title}" bölgesel ligi oluşturuldu. Şimdi puan durumu ve fikstürü inceleyebilir, diğer takımları davet edebilirsiniz.`, [
+      Alert.alert('Lig Kuruldu', `"${newLeague.title}" oluşturuldu.`, [
         {
           text: 'Lige Git',
           onPress: () => {
@@ -206,26 +200,14 @@ export default function CreateScreen() {
 
   const handleCreateGear = async () => {
     setErrorMessage(null);
-
-    if (!gearTitle.trim()) {
-      setErrorMessage('Lütfen ürün başlığını giriniz.');
-      return;
-    }
-    if (!brand.trim()) {
-      setErrorMessage('Lütfen marka bilgisini giriniz.');
-      return;
-    }
-    if (!size.trim()) {
-      setErrorMessage('Lütfen beden veya numara bilgisini giriniz.');
-      return;
-    }
+    if (!gearTitle.trim()) return setErrorMessage('Lütfen ürün başlığını giriniz.');
+    if (!brand.trim()) return setErrorMessage('Lütfen marka bilgisini giriniz.');
+    if (!size.trim()) return setErrorMessage('Lütfen beden veya numara bilgisini giriniz.');
     if (!price.trim() || isNaN(Number(price)) || Number(price) <= 0) {
-      setErrorMessage('Lütfen geçerli bir satış fiyatı giriniz.');
-      return;
+      return setErrorMessage('Lütfen geçerli bir satış fiyatı giriniz.');
     }
     if (!gearDescription.trim()) {
-      setErrorMessage('Lütfen ürünün kullanım durumu hakkında kısa bir açıklama yazınız.');
-      return;
+      return setErrorMessage('Lütfen ürün açıklaması giriniz.');
     }
 
     try {
@@ -241,7 +223,7 @@ export default function CreateScreen() {
         description: gearDescription.trim(),
       });
 
-      Alert.alert('🛍️ Tebrikler!', 'İkinci el futbol ekipmanı ilanınız başarıyla yayınlandı.', [
+      Alert.alert('İlan Yayınlandı', 'İkinci el ekipman ilanınız pazara eklendi.', [
         {
           text: 'Pazara Git',
           onPress: () => {
@@ -252,131 +234,75 @@ export default function CreateScreen() {
         },
       ]);
     } catch {
-      setErrorMessage('İlan oluşturulurken bir hata meydana geldi.');
+      setErrorMessage('İlan oluşturulurken bir hata oluştu.');
     } finally {
       setIsSubmitting(false);
     }
   };
 
+  const inputStyle = [
+    styles.input,
+    { backgroundColor: colors.surfaceLight, color: colors.text },
+  ];
+
   return (
-    <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]} edges={['top']}>
+    <SafeAreaView
+      style={[styles.safeArea, { backgroundColor: colors.background }]}
+      edges={['top']}
+    >
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         <ScrollView contentContainerStyle={styles.scrollContent}>
-          {/* Header Title */}
-          <Text style={[styles.screenTitle, { color: colors.text }]}>Yeni Oluştur</Text>
+          <Text style={[styles.screenTitle, { color: colors.text }]}>Oluştur</Text>
           <Text style={[styles.screenSub, { color: colors.textSecondary }]}>
-            Halı saha maçı organize et, bölgesel lig kur veya 2. el futbol ekipmanını sat.
+            Maç ilanı aç, bölgesel lig kur veya ekipman sat
           </Text>
 
-          {/* Segmented Tab Switcher (3 Options) */}
-          <View
-            style={[
-              styles.tabContainer,
-              { backgroundColor: colors.surface, borderColor: colors.surfaceBorder },
-            ]}
-          >
-            {/* MATCH TAB */}
-            <TouchableOpacity
-              style={[
-                styles.tabButton,
-                activeTab === 'MATCH' && [styles.tabButtonActive, { backgroundColor: colors.primaryLight }],
-              ]}
-              onPress={() => {
-                setActiveTab('MATCH');
-                setErrorMessage(null);
-              }}
-            >
-              <Ionicons
-                name="football"
-                size={15}
-                color={activeTab === 'MATCH' ? colors.black : colors.textSecondary}
-              />
-              <Text
-                style={[
-                  styles.tabText,
-                  { color: activeTab === 'MATCH' ? colors.black : colors.textSecondary },
-                  activeTab === 'MATCH' && styles.tabTextActive,
-                ]}
-              >
-                Maç Aç
-              </Text>
-            </TouchableOpacity>
-
-            {/* LEAGUE TAB */}
-            <TouchableOpacity
-              style={[
-                styles.tabButton,
-                activeTab === 'LEAGUE' && [styles.tabButtonActive, { backgroundColor: colors.primaryLight }],
-              ]}
-              onPress={() => {
-                setActiveTab('LEAGUE');
-                setErrorMessage(null);
-              }}
-            >
-              <Ionicons
-                name="trophy"
-                size={15}
-                color={activeTab === 'LEAGUE' ? colors.black : colors.textSecondary}
-              />
-              <Text
-                style={[
-                  styles.tabText,
-                  { color: activeTab === 'LEAGUE' ? colors.black : colors.textSecondary },
-                  activeTab === 'LEAGUE' && styles.tabTextActive,
-                ]}
-              >
-                Lig Kur 🏆
-              </Text>
-            </TouchableOpacity>
-
-            {/* GEAR TAB */}
-            <TouchableOpacity
-              style={[
-                styles.tabButton,
-                activeTab === 'GEAR' && [styles.tabButtonActive, { backgroundColor: colors.primaryLight }],
-              ]}
-              onPress={() => {
-                setActiveTab('GEAR');
-                setErrorMessage(null);
-              }}
-            >
-              <Ionicons
-                name="shirt"
-                size={15}
-                color={activeTab === 'GEAR' ? colors.black : colors.textSecondary}
-              />
-              <Text
-                style={[
-                  styles.tabText,
-                  { color: activeTab === 'GEAR' ? colors.black : colors.textSecondary },
-                  activeTab === 'GEAR' && styles.tabTextActive,
-                ]}
-              >
-                2. El Sat
-              </Text>
-            </TouchableOpacity>
+          {/* Segmented Bar */}
+          <View style={[styles.tabContainer, { backgroundColor: colors.surfaceLight }]}>
+            {(
+              [
+                { key: 'MATCH' as const, label: 'Maç Aç' },
+                { key: 'LEAGUE' as const, label: 'Lig Kur' },
+                { key: 'GEAR' as const, label: 'Ekipman Sat' },
+              ]
+            ).map((tab) => {
+              const isActive = activeTab === tab.key;
+              return (
+                <TouchableOpacity
+                  key={tab.key}
+                  style={[
+                    styles.tabButton,
+                    isActive && { backgroundColor: colors.surface },
+                  ]}
+                  onPress={() => {
+                    setActiveTab(tab.key);
+                    setErrorMessage(null);
+                  }}
+                >
+                  <Text
+                    style={[
+                      styles.tabText,
+                      { color: isActive ? colors.text : colors.textSecondary },
+                    ]}
+                  >
+                    {tab.label}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
           </View>
 
-          {/* Error Banner */}
           {errorMessage && (
-            <View
-              style={[
-                styles.errorBox,
-                {
-                  backgroundColor: isDark ? 'rgba(239, 68, 68, 0.15)' : 'rgba(239, 68, 68, 0.1)',
-                  borderColor: colors.danger,
-                },
-              ]}
-            >
-              <Ionicons name="alert-circle" size={18} color={colors.danger} />
+            <View style={[styles.errorBox, { backgroundColor: `${colors.danger}15` }]}>
+              <Ionicons name="alert-circle-outline" size={17} color={colors.danger} />
               <Text style={[styles.errorText, { color: colors.danger }]}>{errorMessage}</Text>
             </View>
           )}
 
-          {/* ================= 1. REGIONAL LEAGUE FORM ================= */}
+          {/* LEAGUE FORM */}
           {activeTab === 'LEAGUE' && (
             <View
               style={[
@@ -384,81 +310,41 @@ export default function CreateScreen() {
                 { backgroundColor: colors.surface, borderColor: colors.surfaceBorder },
               ]}
             >
-              <View style={styles.formHeaderRow}>
-                <Ionicons name="trophy" size={20} color="#F59E0B" />
-                <Text style={[styles.sectionHeader, { color: colors.text }]}>
-                  Bölgesel Halı Saha Ligi Kur
-                </Text>
-              </View>
-              <Text style={[styles.sectionNotice, { color: colors.textSecondary }]}>
-                Semtindeki takımları bir araya getir! Otomatik puan durumu, fikstür ve kupa ödüllü amatör ligini hemen başlat.
-              </Text>
+              <Text style={[styles.sectionHeader, { color: colors.text }]}>Lig Bilgileri</Text>
 
-              {/* League Title */}
               <Text style={[styles.label, { color: colors.textSecondary }]}>Lig Adı *</Text>
               <TextInput
-                style={[
-                  styles.input,
-                  {
-                    backgroundColor: colors.surfaceLight,
-                    borderColor: colors.surfaceBorder,
-                    color: colors.text,
-                  },
-                ]}
-                placeholder="Örn: Kadıköy Süper Halı Saha Ligi"
+                style={inputStyle}
+                placeholder="Örn: Kadıköy Halı Saha Ligi"
                 placeholderTextColor={colors.textTertiary}
                 value={leagueTitle}
                 onChangeText={setLeagueTitle}
               />
 
-              {/* Season */}
-              <Text style={[styles.label, { color: colors.textSecondary }]}>Sezon & Dönem</Text>
+              <Text style={[styles.label, { color: colors.textSecondary }]}>Sezon</Text>
               <TextInput
-                style={[
-                  styles.input,
-                  {
-                    backgroundColor: colors.surfaceLight,
-                    borderColor: colors.surfaceBorder,
-                    color: colors.text,
-                  },
-                ]}
-                placeholder="Örn: 2026 Bahar Sezonu"
+                style={inputStyle}
+                placeholder="2026 Bahar Sezonu"
                 placeholderTextColor={colors.textTertiary}
                 value={leagueSeason}
                 onChangeText={setLeagueSeason}
               />
 
-              {/* City & District */}
               <View style={styles.row}>
                 <View style={{ flex: 1, marginRight: 8 }}>
                   <Text style={[styles.label, { color: colors.textSecondary }]}>Şehir</Text>
                   <TextInput
-                    style={[
-                      styles.input,
-                      {
-                        backgroundColor: colors.surfaceLight,
-                        borderColor: colors.surfaceBorder,
-                        color: colors.text,
-                      },
-                    ]}
+                    style={inputStyle}
                     placeholder="İstanbul"
                     placeholderTextColor={colors.textTertiary}
                     value={leagueCity}
                     onChangeText={setLeagueCity}
                   />
                 </View>
-
                 <View style={{ flex: 1 }}>
-                  <Text style={[styles.label, { color: colors.textSecondary }]}>İlçe / Bölge *</Text>
+                  <Text style={[styles.label, { color: colors.textSecondary }]}>İlçe *</Text>
                   <TextInput
-                    style={[
-                      styles.input,
-                      {
-                        backgroundColor: colors.surfaceLight,
-                        borderColor: colors.surfaceBorder,
-                        color: colors.text,
-                      },
-                    ]}
+                    style={inputStyle}
                     placeholder="Kadıköy"
                     placeholderTextColor={colors.textTertiary}
                     value={leagueDistrict}
@@ -467,25 +353,16 @@ export default function CreateScreen() {
                 </View>
               </View>
 
-              {/* Facility / Venue */}
-              <Text style={[styles.label, { color: colors.textSecondary }]}>Halı Saha Tesisi *</Text>
+              <Text style={[styles.label, { color: colors.textSecondary }]}>Tesis Adı *</Text>
               <TextInput
-                style={[
-                  styles.input,
-                  {
-                    backgroundColor: colors.surfaceLight,
-                    borderColor: colors.surfaceBorder,
-                    color: colors.text,
-                  },
-                ]}
-                placeholder="Örn: Kalamış Sahil Spor Tesisleri"
+                style={inputStyle}
+                placeholder="Kalamış Sahil Spor Tesisleri"
                 placeholderTextColor={colors.textTertiary}
                 value={leagueVenue}
                 onChangeText={setLeagueVenue}
               />
 
-              {/* Format & Max Teams */}
-              <Text style={[styles.label, { color: colors.textSecondary }]}>Maç Formatı</Text>
+              <Text style={[styles.label, { color: colors.textSecondary }]}>Format</Text>
               <View style={styles.chipRow}>
                 {(['5v5', '6v6', '7v7', '8v8'] as MatchFormat[]).map((f) => (
                   <TouchableOpacity
@@ -494,7 +371,6 @@ export default function CreateScreen() {
                       styles.choiceChip,
                       {
                         backgroundColor: leagueFormat === f ? colors.primary : colors.surfaceLight,
-                        borderColor: leagueFormat === f ? colors.primary : colors.surfaceBorder,
                       },
                     ]}
                     onPress={() => setLeagueFormat(f)}
@@ -511,7 +387,7 @@ export default function CreateScreen() {
                 ))}
               </View>
 
-              <Text style={[styles.label, { color: colors.textSecondary }]}>Takım Kontenjanı</Text>
+              <Text style={[styles.label, { color: colors.textSecondary }]}>Takım Sayısı</Text>
               <View style={styles.chipRow}>
                 {[6, 8, 10, 12, 16].map((num) => (
                   <TouchableOpacity
@@ -520,7 +396,6 @@ export default function CreateScreen() {
                       styles.choiceChip,
                       {
                         backgroundColor: maxTeams === num ? colors.primary : colors.surfaceLight,
-                        borderColor: maxTeams === num ? colors.primary : colors.surfaceBorder,
                       },
                     ]}
                     onPress={() => setMaxTeams(num)}
@@ -537,72 +412,35 @@ export default function CreateScreen() {
                 ))}
               </View>
 
-              {/* Prize & Entry Fee */}
-              <Text style={[styles.label, { color: colors.textSecondary }]}>
-                Büyük Şampiyonluk Ödülü *
-              </Text>
+              <Text style={[styles.label, { color: colors.textSecondary }]}>Ödül *</Text>
               <TextInput
-                style={[
-                  styles.input,
-                  {
-                    backgroundColor: colors.surfaceLight,
-                    borderColor: colors.surfaceBorder,
-                    color: colors.text,
-                  },
-                ]}
-                placeholder="Örn: 🏆 15.000₺ Şampiyonluk Kupası & Özel Forma Seti"
+                style={inputStyle}
+                placeholder="15.000₺ Kupa & Forma Seti"
                 placeholderTextColor={colors.textTertiary}
                 value={prize}
                 onChangeText={setPrize}
               />
 
-              <View style={styles.row}>
-                <View style={{ flex: 1 }}>
-                  <Text style={[styles.label, { color: colors.textSecondary }]}>
-                    Takım Başı Katılım Ücreti (₺)
-                  </Text>
-                  <TextInput
-                    style={[
-                      styles.input,
-                      {
-                        backgroundColor: colors.surfaceLight,
-                        borderColor: colors.surfaceBorder,
-                        color: colors.text,
-                      },
-                    ]}
-                    placeholder="1200 (veya 0 için Ücretsiz)"
-                    placeholderTextColor={colors.textTertiary}
-                    keyboardType="numeric"
-                    value={leagueEntryFee}
-                    onChangeText={setLeagueEntryFee}
-                  />
-                </View>
-              </View>
-
-              {/* League Rules Checklist */}
               <Text style={[styles.label, { color: colors.textSecondary }]}>
-                Lig Standartları & Kuralları (Seçiniz)
+                Takım Katılım Ücreti (₺)
               </Text>
+              <TextInput
+                style={inputStyle}
+                placeholder="1200"
+                placeholderTextColor={colors.textTertiary}
+                keyboardType="numeric"
+                value={leagueEntryFee}
+                onChangeText={setLeagueEntryFee}
+              />
+
+              <Text style={[styles.label, { color: colors.textSecondary }]}>Kurallar</Text>
               <View style={styles.rulesPicker}>
-                {[
-                  'TFF Lisanslı Resmi Hakem & Gözlemci',
-                  'Maçlar 25 x 2 = 50 Dakika Oynanır',
-                  'HD Video Özetleri & Gol Kayıtları',
-                  'Fair-Play & Centilmenlik Puanı',
-                  'Sarı ve Kırmızı Kart Ceza Takibi',
-                  'Halı Saha / AG Krampon Zorunludur',
-                ].map((rule) => {
+                {LEAGUE_RULES_OPTIONS.map((rule) => {
                   const isChecked = selectedRules.includes(rule);
                   return (
                     <TouchableOpacity
                       key={rule}
-                      style={[
-                        styles.ruleCheckbox,
-                        {
-                          backgroundColor: colors.surfaceLight,
-                          borderColor: isChecked ? colors.primary : colors.surfaceBorder,
-                        },
-                      ]}
+                      style={[styles.ruleCheckbox, { backgroundColor: colors.surfaceLight }]}
                       onPress={() => toggleRule(rule)}
                     >
                       <Ionicons
@@ -616,16 +454,9 @@ export default function CreateScreen() {
                 })}
               </View>
 
-              {/* Theme Color Picker */}
-              <Text style={[styles.label, { color: colors.textSecondary }]}>Lig Rozet / Tema Rengi</Text>
+              <Text style={[styles.label, { color: colors.textSecondary }]}>Lig Rengi</Text>
               <View style={styles.colorRow}>
-                {[
-                  { hex: '#00D664', name: 'Zümrüt Yeşil' },
-                  { hex: '#3B82F6', name: 'Gece Mavi' },
-                  { hex: '#F59E0B', name: 'Altın Sarı' },
-                  { hex: '#EF4444', name: 'Ateş Kırmızı' },
-                  { hex: '#8B5CF6', name: 'Kraliyet Mor' },
-                ].map((c) => (
+                {LEAGUE_COLOR_OPTIONS.map((c) => (
                   <TouchableOpacity
                     key={c.hex}
                     style={[
@@ -642,21 +473,10 @@ export default function CreateScreen() {
                 ))}
               </View>
 
-              {/* Description */}
-              <Text style={[styles.label, { color: colors.textSecondary }]}>
-                Lig Tüzüğü & Ek Bilgiler
-              </Text>
+              <Text style={[styles.label, { color: colors.textSecondary }]}>Açıklama</Text>
               <TextInput
-                style={[
-                  styles.input,
-                  styles.textArea,
-                  {
-                    backgroundColor: colors.surfaceLight,
-                    borderColor: colors.surfaceBorder,
-                    color: colors.text,
-                  },
-                ]}
-                placeholder="Örn: Maçlar her Cumartesi 20:00 - 23:00 arası oynanacaktır. Takımlar en az 10 oyuncu bildirmelidir..."
+                style={[inputStyle, styles.textArea]}
+                placeholder="Maç saatleri ve katılım detayları..."
                 placeholderTextColor={colors.textTertiary}
                 multiline
                 numberOfLines={3}
@@ -664,22 +484,20 @@ export default function CreateScreen() {
                 onChangeText={setLeagueDescription}
               />
 
-              {/* Submit Button */}
               <TouchableOpacity
                 style={[styles.submitButton, { backgroundColor: colors.primary }]}
                 onPress={handleCreateLeague}
                 disabled={isSubmitting}
                 activeOpacity={0.85}
               >
-                <Ionicons name="trophy" size={20} color="#FFFFFF" />
-                <Text style={[styles.submitButtonText, { color: '#FFFFFF' }]}>
-                  {isSubmitting ? 'Lig Kuruluyor...' : 'Bölgesel Ligi Başlat ve Yayınla'}
+                <Text style={styles.submitButtonText}>
+                  {isSubmitting ? 'Oluşturuluyor...' : 'Ligi Yayınla'}
                 </Text>
               </TouchableOpacity>
             </View>
           )}
 
-          {/* ================= 2. MATCH FORM ================= */}
+          {/* MATCH FORM */}
           {activeTab === 'MATCH' && (
             <View
               style={[
@@ -687,72 +505,41 @@ export default function CreateScreen() {
                 { backgroundColor: colors.surface, borderColor: colors.surfaceBorder },
               ]}
             >
-              <Text style={[styles.sectionHeader, { color: colors.text }]}>Maç & Saha Detayları</Text>
+              <Text style={[styles.sectionHeader, { color: colors.text }]}>Maç Detayları</Text>
 
-              {/* Title */}
               <Text style={[styles.label, { color: colors.textSecondary }]}>Maç Başlığı *</Text>
               <TextInput
-                style={[
-                  styles.input,
-                  {
-                    backgroundColor: colors.surfaceLight,
-                    borderColor: colors.surfaceBorder,
-                    color: colors.text,
-                  },
-                ]}
-                placeholder="Örn: Cuma Akşamı Kadıköy 7v7 Çekişmeli Maç"
+                style={inputStyle}
+                placeholder="Örn: Cuma Akşamı Kadıköy 7v7"
                 placeholderTextColor={colors.textTertiary}
                 value={matchTitle}
                 onChangeText={setMatchTitle}
               />
 
-              {/* Venue */}
-              <Text style={[styles.label, { color: colors.textSecondary }]}>Halı Saha Tesis Adı *</Text>
+              <Text style={[styles.label, { color: colors.textSecondary }]}>Tesis Adı *</Text>
               <TextInput
-                style={[
-                  styles.input,
-                  {
-                    backgroundColor: colors.surfaceLight,
-                    borderColor: colors.surfaceBorder,
-                    color: colors.text,
-                  },
-                ]}
-                placeholder="Örn: Kalamış Halı Saha Tesisleri"
+                style={inputStyle}
+                placeholder="Kalamış Halı Saha Tesisleri"
                 placeholderTextColor={colors.textTertiary}
                 value={venueName}
                 onChangeText={setVenueName}
               />
 
-              {/* District & Fee */}
               <View style={styles.row}>
                 <View style={{ flex: 1, marginRight: 8 }}>
-                  <Text style={[styles.label, { color: colors.textSecondary }]}>Semt / İlçe</Text>
+                  <Text style={[styles.label, { color: colors.textSecondary }]}>İlçe</Text>
                   <TextInput
-                    style={[
-                      styles.input,
-                      {
-                        backgroundColor: colors.surfaceLight,
-                        borderColor: colors.surfaceBorder,
-                        color: colors.text,
-                      },
-                    ]}
-                    placeholder="Örn: Kadıköy"
+                    style={inputStyle}
+                    placeholder="Kadıköy"
                     placeholderTextColor={colors.textTertiary}
                     value={district}
                     onChangeText={setDistrict}
                   />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={[styles.label, { color: colors.textSecondary }]}>Kişi Başı Ücret (₺) *</Text>
+                  <Text style={[styles.label, { color: colors.textSecondary }]}>Kişi Başı (₺) *</Text>
                   <TextInput
-                    style={[
-                      styles.input,
-                      {
-                        backgroundColor: colors.surfaceLight,
-                        borderColor: colors.surfaceBorder,
-                        color: colors.text,
-                      },
-                    ]}
+                    style={inputStyle}
                     placeholder="220"
                     placeholderTextColor={colors.textTertiary}
                     keyboardType="numeric"
@@ -762,19 +549,11 @@ export default function CreateScreen() {
                 </View>
               </View>
 
-              {/* Date & Time */}
               <View style={styles.row}>
                 <View style={{ flex: 1, marginRight: 8 }}>
                   <Text style={[styles.label, { color: colors.textSecondary }]}>Tarih</Text>
                   <TextInput
-                    style={[
-                      styles.input,
-                      {
-                        backgroundColor: colors.surfaceLight,
-                        borderColor: colors.surfaceBorder,
-                        color: colors.text,
-                      },
-                    ]}
+                    style={inputStyle}
                     placeholder="18 Ekim Cumartesi"
                     placeholderTextColor={colors.textTertiary}
                     value={date}
@@ -782,16 +561,9 @@ export default function CreateScreen() {
                   />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={[styles.label, { color: colors.textSecondary }]}>Saat Aralığı</Text>
+                  <Text style={[styles.label, { color: colors.textSecondary }]}>Saat</Text>
                   <TextInput
-                    style={[
-                      styles.input,
-                      {
-                        backgroundColor: colors.surfaceLight,
-                        borderColor: colors.surfaceBorder,
-                        color: colors.text,
-                      },
-                    ]}
+                    style={inputStyle}
                     placeholder="21:00 - 22:00"
                     placeholderTextColor={colors.textTertiary}
                     value={time}
@@ -800,18 +572,14 @@ export default function CreateScreen() {
                 </View>
               </View>
 
-              {/* Format & Pitch Type */}
-              <Text style={[styles.label, { color: colors.textSecondary }]}>Maç Formatı</Text>
+              <Text style={[styles.label, { color: colors.textSecondary }]}>Format</Text>
               <View style={styles.chipRow}>
                 {(['5v5', '6v6', '7v7', '8v8'] as MatchFormat[]).map((f) => (
                   <TouchableOpacity
                     key={f}
                     style={[
                       styles.choiceChip,
-                      {
-                        backgroundColor: format === f ? colors.primary : colors.surfaceLight,
-                        borderColor: format === f ? colors.primary : colors.surfaceBorder,
-                      },
+                      { backgroundColor: format === f ? colors.primary : colors.surfaceLight },
                     ]}
                     onPress={() => setFormat(f)}
                   >
@@ -834,10 +602,7 @@ export default function CreateScreen() {
                     key={t}
                     style={[
                       styles.choiceChip,
-                      {
-                        backgroundColor: pitchType === t ? colors.primary : colors.surfaceLight,
-                        borderColor: pitchType === t ? colors.primary : colors.surfaceBorder,
-                      },
+                      { backgroundColor: pitchType === t ? colors.primary : colors.surfaceLight },
                     ]}
                     onPress={() => setPitchType(t)}
                   >
@@ -853,17 +618,16 @@ export default function CreateScreen() {
                 ))}
               </View>
 
-              {/* Missing Positions Selection */}
               <Text style={[styles.label, { color: colors.textSecondary }]}>
-                Aranan Eksik Mevkiler * (Çoklu Seçilebilir)
+                Aranan Eksik Mevkiler *
               </Text>
               <View style={styles.chipRow}>
                 {(
                   [
-                    { pos: 'GK', label: '🧤 Kaleci (GK)' },
-                    { pos: 'DEF', label: '🛡️ Defans (DEF)' },
-                    { pos: 'MID', label: '🎯 Orta Saha (MID)' },
-                    { pos: 'FWD', label: '⚡ Forvet (FWD)' },
+                    { pos: 'GK', label: 'Kaleci (GK)' },
+                    { pos: 'DEF', label: 'Defans (DEF)' },
+                    { pos: 'MID', label: 'Orta Saha (MID)' },
+                    { pos: 'FWD', label: 'Forvet (FWD)' },
                   ] as const
                 ).map(({ pos, label }) => {
                   const isSelected = missingPositions.includes(pos);
@@ -874,7 +638,6 @@ export default function CreateScreen() {
                         styles.choiceChip,
                         {
                           backgroundColor: isSelected ? colors.danger : colors.surfaceLight,
-                          borderColor: isSelected ? colors.danger : colors.surfaceBorder,
                         },
                       ]}
                       onPress={() => toggleMissingPosition(pos)}
@@ -892,21 +655,10 @@ export default function CreateScreen() {
                 })}
               </View>
 
-              {/* Notes */}
-              <Text style={[styles.label, { color: colors.textSecondary }]}>
-                Açıklama / Katılım Kuralları
-              </Text>
+              <Text style={[styles.label, { color: colors.textSecondary }]}>Notlar</Text>
               <TextInput
-                style={[
-                  styles.input,
-                  styles.textArea,
-                  {
-                    backgroundColor: colors.surfaceLight,
-                    borderColor: colors.surfaceBorder,
-                    color: colors.text,
-                  },
-                ]}
-                placeholder="Örn: Krampon serbesttir, lütfen zamanında tesiste bulunalım..."
+                style={[inputStyle, styles.textArea]}
+                placeholder="Krampon kuralı, buluşma saati..."
                 placeholderTextColor={colors.textTertiary}
                 multiline
                 numberOfLines={3}
@@ -914,22 +666,20 @@ export default function CreateScreen() {
                 onChangeText={setNotes}
               />
 
-              {/* Submit Button */}
               <TouchableOpacity
-                style={[styles.submitButton, { backgroundColor: colors.primaryLight }]}
+                style={[styles.submitButton, { backgroundColor: colors.primary }]}
                 onPress={handleCreateMatch}
                 disabled={isSubmitting}
                 activeOpacity={0.85}
               >
-                <Ionicons name="checkmark-circle" size={20} color={colors.black} />
-                <Text style={[styles.submitButtonText, { color: colors.black }]}>
-                  {isSubmitting ? 'Oluşturuluyor...' : 'Maçı ve Kadroyu Yayınla'}
+                <Text style={styles.submitButtonText}>
+                  {isSubmitting ? 'Yayınlanıyor...' : 'Maçı Yayınla'}
                 </Text>
               </TouchableOpacity>
             </View>
           )}
 
-          {/* ================= 3. GEAR FORM ================= */}
+          {/* GEAR FORM */}
           {activeTab === 'GEAR' && (
             <View
               style={[
@@ -937,44 +687,32 @@ export default function CreateScreen() {
                 { backgroundColor: colors.surface, borderColor: colors.surfaceBorder },
               ]}
             >
-              <Text style={[styles.sectionHeader, { color: colors.text }]}>2. El Ekipman Bilgileri</Text>
+              <Text style={[styles.sectionHeader, { color: colors.text }]}>Ekipman Bilgileri</Text>
 
-              {/* Title */}
               <Text style={[styles.label, { color: colors.textSecondary }]}>Ürün Başlığı *</Text>
               <TextInput
-                style={[
-                  styles.input,
-                  {
-                    backgroundColor: colors.surfaceLight,
-                    borderColor: colors.surfaceBorder,
-                    color: colors.text,
-                  },
-                ]}
-                placeholder="Örn: Nike Zoom Mercurial Vapor 15 Halı Saha"
+                style={inputStyle}
+                placeholder="Örn: Nike Mercurial Vapor 15"
                 placeholderTextColor={colors.textTertiary}
                 value={gearTitle}
                 onChangeText={setGearTitle}
               />
 
-              {/* Category */}
               <Text style={[styles.label, { color: colors.textSecondary }]}>Kategori</Text>
               <View style={styles.chipRow}>
                 {(
                   [
-                    { key: 'Boots', label: '👟 Krampon' },
-                    { key: 'Jerseys', label: '👕 Forma' },
-                    { key: 'Gloves', label: '🧤 Eldiven' },
-                    { key: 'Equipment', label: '🛡️ Ekipman' },
+                    { key: 'Boots', label: 'Krampon' },
+                    { key: 'Jerseys', label: 'Forma' },
+                    { key: 'Gloves', label: 'Eldiven' },
+                    { key: 'Equipment', label: 'Ekipman' },
                   ] as const
                 ).map(({ key, label }) => (
                   <TouchableOpacity
                     key={key}
                     style={[
                       styles.choiceChip,
-                      {
-                        backgroundColor: category === key ? colors.primary : colors.surfaceLight,
-                        borderColor: category === key ? colors.primary : colors.surfaceBorder,
-                      },
+                      { backgroundColor: category === key ? colors.primary : colors.surfaceLight },
                     ]}
                     onPress={() => setCategory(key)}
                   >
@@ -990,37 +728,22 @@ export default function CreateScreen() {
                 ))}
               </View>
 
-              {/* Brand & Size */}
               <View style={styles.row}>
                 <View style={{ flex: 1, marginRight: 8 }}>
                   <Text style={[styles.label, { color: colors.textSecondary }]}>Marka *</Text>
                   <TextInput
-                    style={[
-                      styles.input,
-                      {
-                        backgroundColor: colors.surfaceLight,
-                        borderColor: colors.surfaceBorder,
-                        color: colors.text,
-                      },
-                    ]}
-                    placeholder="Nike, Adidas, Puma..."
+                    style={inputStyle}
+                    placeholder="Nike, Adidas..."
                     placeholderTextColor={colors.textTertiary}
                     value={brand}
                     onChangeText={setBrand}
                   />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={[styles.label, { color: colors.textSecondary }]}>Beden / Numara *</Text>
+                  <Text style={[styles.label, { color: colors.textSecondary }]}>Beden / No *</Text>
                   <TextInput
-                    style={[
-                      styles.input,
-                      {
-                        backgroundColor: colors.surfaceLight,
-                        borderColor: colors.surfaceBorder,
-                        color: colors.text,
-                      },
-                    ]}
-                    placeholder="42 EU, L, 9..."
+                    style={inputStyle}
+                    placeholder="42 EU, L..."
                     placeholderTextColor={colors.textTertiary}
                     value={size}
                     onChangeText={setSize}
@@ -1028,20 +751,12 @@ export default function CreateScreen() {
                 </View>
               </View>
 
-              {/* Price & Location */}
               <View style={styles.row}>
                 <View style={{ flex: 1, marginRight: 8 }}>
                   <Text style={[styles.label, { color: colors.textSecondary }]}>Fiyat (₺) *</Text>
                   <TextInput
-                    style={[
-                      styles.input,
-                      {
-                        backgroundColor: colors.surfaceLight,
-                        borderColor: colors.surfaceBorder,
-                        color: colors.text,
-                      },
-                    ]}
-                    placeholder="1250"
+                    style={inputStyle}
+                    placeholder="1500"
                     placeholderTextColor={colors.textTertiary}
                     keyboardType="numeric"
                     value={price}
@@ -1049,16 +764,9 @@ export default function CreateScreen() {
                   />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={[styles.label, { color: colors.textSecondary }]}>Konum / İlçe</Text>
+                  <Text style={[styles.label, { color: colors.textSecondary }]}>Konum</Text>
                   <TextInput
-                    style={[
-                      styles.input,
-                      {
-                        backgroundColor: colors.surfaceLight,
-                        borderColor: colors.surfaceBorder,
-                        color: colors.text,
-                      },
-                    ]}
+                    style={inputStyle}
                     placeholder="Kadıköy"
                     placeholderTextColor={colors.textTertiary}
                     value={gearLocation}
@@ -1067,8 +775,7 @@ export default function CreateScreen() {
                 </View>
               </View>
 
-              {/* Condition */}
-              <Text style={[styles.label, { color: colors.textSecondary }]}>Kullanım Durumu</Text>
+              <Text style={[styles.label, { color: colors.textSecondary }]}>Durum</Text>
               <View style={styles.chipRow}>
                 {(
                   [
@@ -1082,10 +789,7 @@ export default function CreateScreen() {
                     key={c}
                     style={[
                       styles.choiceChip,
-                      {
-                        backgroundColor: condition === c ? colors.primary : colors.surfaceLight,
-                        borderColor: condition === c ? colors.primary : colors.surfaceBorder,
-                      },
+                      { backgroundColor: condition === c ? colors.primary : colors.surfaceLight },
                     ]}
                     onPress={() => setCondition(c)}
                   >
@@ -1101,19 +805,10 @@ export default function CreateScreen() {
                 ))}
               </View>
 
-              {/* Description */}
-              <Text style={[styles.label, { color: colors.textSecondary }]}>Ürün Açıklaması *</Text>
+              <Text style={[styles.label, { color: colors.textSecondary }]}>Açıklama *</Text>
               <TextInput
-                style={[
-                  styles.input,
-                  styles.textArea,
-                  {
-                    backgroundColor: colors.surfaceLight,
-                    borderColor: colors.surfaceBorder,
-                    color: colors.text,
-                  },
-                ]}
-                placeholder="Ürünün kaç maç kullanıldığı, kusuru olup olmadığı gibi detayları belirtiniz..."
+                style={[inputStyle, styles.textArea]}
+                placeholder="Kullanım süresi ve ürün durumu hakkında detaylar..."
                 placeholderTextColor={colors.textTertiary}
                 multiline
                 numberOfLines={3}
@@ -1121,16 +816,14 @@ export default function CreateScreen() {
                 onChangeText={setGearDescription}
               />
 
-              {/* Submit Button */}
               <TouchableOpacity
-                style={[styles.submitButton, { backgroundColor: colors.accent }]}
+                style={[styles.submitButton, { backgroundColor: colors.primary }]}
                 onPress={handleCreateGear}
                 disabled={isSubmitting}
                 activeOpacity={0.85}
               >
-                <Ionicons name="pricetag" size={20} color={colors.black} />
-                <Text style={[styles.submitButtonText, { color: colors.black }]}>
-                  {isSubmitting ? 'Kaydediliyor...' : 'İlanı Pazarda Yayınla'}
+                <Text style={styles.submitButtonText}>
+                  {isSubmitting ? 'Yayınlanıyor...' : 'İlanı Yayınla'}
                 </Text>
               </TouchableOpacity>
             </View>
@@ -1150,87 +843,69 @@ const styles = StyleSheet.create({
     paddingBottom: SPACING.xxxl,
   },
   screenTitle: {
-    fontSize: FONT_SIZE.xxl,
-    fontWeight: '900',
+    fontSize: 26,
+    fontWeight: '800',
+    letterSpacing: -0.6,
   },
   screenSub: {
     fontSize: FONT_SIZE.xs,
-    marginTop: 4,
+    marginTop: 2,
     marginBottom: SPACING.md,
   },
   tabContainer: {
     flexDirection: 'row',
-    borderRadius: 14,
-    padding: 4,
-    borderWidth: 1,
-    marginBottom: SPACING.lg,
+    borderRadius: RADIUS.md,
+    padding: 3,
+    marginBottom: SPACING.md,
   },
   tabButton: {
     flex: 1,
-    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 10,
-    borderRadius: 10,
-    gap: 4,
+    paddingVertical: 9,
+    borderRadius: RADIUS.sm,
   },
-  tabButtonActive: {},
   tabText: {
-    fontSize: 11,
+    fontSize: FONT_SIZE.xs,
     fontWeight: '700',
-  },
-  tabTextActive: {
-    fontWeight: '800',
   },
   errorBox: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderWidth: 1,
-    borderRadius: 10,
+    borderRadius: RADIUS.sm,
     padding: SPACING.md,
     marginBottom: SPACING.md,
     gap: 8,
   },
   errorText: {
-    fontSize: FONT_SIZE.sm,
+    fontSize: FONT_SIZE.xs,
     fontWeight: '600',
     flex: 1,
   },
   formCard: {
-    borderRadius: 16,
+    borderRadius: RADIUS.lg,
     padding: SPACING.lg,
-    borderWidth: 1,
-  },
-  formHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 4,
+    borderWidth: StyleSheet.hairlineWidth,
   },
   sectionHeader: {
     fontSize: FONT_SIZE.md,
-    fontWeight: '800',
-  },
-  sectionNotice: {
-    fontSize: 12,
-    lineHeight: 16,
-    marginBottom: SPACING.md,
+    fontWeight: '700',
+    marginBottom: 4,
   },
   label: {
-    fontSize: FONT_SIZE.xs,
-    fontWeight: '700',
+    fontSize: 12,
+    fontWeight: '600',
     marginBottom: 6,
-    marginTop: 10,
+    marginTop: 12,
   },
   input: {
-    borderRadius: 10,
-    borderWidth: 1,
+    borderRadius: RADIUS.sm,
     fontSize: FONT_SIZE.sm,
     paddingHorizontal: 12,
     paddingVertical: 10,
   },
   textArea: {
-    height: 72,
+    height: 76,
     textAlignVertical: 'top',
   },
   row: {
@@ -1240,65 +915,59 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 8,
-    marginTop: 4,
-    marginBottom: 4,
+    marginTop: 2,
   },
   choiceChip: {
     paddingHorizontal: 12,
     paddingVertical: 7,
-    borderRadius: 8,
-    borderWidth: 1,
+    borderRadius: RADIUS.sm,
   },
   choiceChipText: {
     fontSize: FONT_SIZE.xs,
-    fontWeight: '700',
+    fontWeight: '600',
   },
   rulesPicker: {
     gap: 8,
-    marginTop: 4,
+    marginTop: 2,
   },
   ruleCheckbox: {
     flexDirection: 'row',
     alignItems: 'center',
     padding: 10,
-    borderRadius: 8,
-    borderWidth: 1,
+    borderRadius: RADIUS.sm,
     gap: 8,
   },
   ruleCheckboxText: {
     fontSize: 12,
-    fontWeight: '600',
+    fontWeight: '500',
     flex: 1,
   },
   colorRow: {
     flexDirection: 'row',
     gap: 12,
-    marginTop: 6,
-    marginBottom: 6,
+    marginTop: 4,
   },
   colorCircle: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    width: 30,
+    height: 30,
+    borderRadius: 15,
     alignItems: 'center',
     justifyContent: 'center',
   },
   colorCircleActive: {
-    borderWidth: 2.5,
+    borderWidth: 2,
     borderColor: '#FFFFFF',
-    transform: [{ scale: 1.15 }],
   },
   submitButton: {
-    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 12,
+    borderRadius: RADIUS.md,
     paddingVertical: 14,
     marginTop: SPACING.xl,
-    gap: 8,
   },
   submitButtonText: {
-    fontSize: FONT_SIZE.md,
-    fontWeight: '800',
+    color: '#FFFFFF',
+    fontSize: FONT_SIZE.sm,
+    fontWeight: '700',
   },
 });

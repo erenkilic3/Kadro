@@ -5,7 +5,7 @@ import { router } from 'expo-router';
 import { Match, PredictionChoice } from '../types';
 import { useTheme } from '../context/ThemeContext';
 import { useApp } from '../context/AppContext';
-import { FONT_SIZE, SPACING } from '../constants/theme';
+import { FONT_SIZE, RADIUS, SPACING } from '../constants/theme';
 import { PositionBadge } from './PositionBadge';
 import { resolveMatchupStats } from '../utils/matchupStats';
 import { generateAiMatchPrediction } from '../utils/aiPredictor';
@@ -16,22 +16,25 @@ interface MatchCardProps {
 }
 
 export const MatchCard: React.FC<MatchCardProps> = ({ match, currentUserId }) => {
-  const { colors, isDark } = useTheme();
+  const { colors } = useTheme();
   const { leagues, votePrediction } = useApp();
 
-  const isJoined = match.isJoined || match.roster.some((s) => s.assignedPlayer?.id === currentUserId);
+  const isJoined =
+    match.isJoined || match.roster.some((s) => s.assignedPlayer?.id === currentUserId);
   const filledCount = match.roster.filter((s) => s.isFilled).length;
   const missingCount = match.totalSlots - filledCount;
 
   const pred = match.prediction;
-  const totalVotes = pred ? (pred.votesTeam1 || 0) + (pred.votesDraw || 0) + (pred.votesTeam2 || 0) : 0;
+  const totalVotes = pred
+    ? (pred.votesTeam1 || 0) + (pred.votesDraw || 0) + (pred.votesTeam2 || 0)
+    : 0;
   const matchupStats = resolveMatchupStats(match, leagues);
   const aiPred = generateAiMatchPrediction(matchupStats, {
     format: match.format,
     roster: match.roster,
   });
 
-  const handleQuickVote = (e: any, choice: PredictionChoice) => {
+  const handleQuickVote = (e: { stopPropagation: () => void }, choice: PredictionChoice) => {
     e.stopPropagation();
     votePrediction(match.id, choice);
   };
@@ -41,237 +44,140 @@ export const MatchCard: React.FC<MatchCardProps> = ({ match, currentUserId }) =>
       style={[
         styles.card,
         {
-          backgroundColor: isDark ? colors.surface : '#FFFFFF',
-          borderColor: isDark ? colors.surfaceBorder : '#E2E8F0',
-          shadowColor: colors.cardShadow,
+          backgroundColor: colors.surface,
+          borderColor: colors.surfaceBorder,
         },
       ]}
       onPress={() => router.push(`/match/${match.id}`)}
-      activeOpacity={0.88}
+      activeOpacity={0.85}
     >
-      {/* Top Row: Date Badge, Urgency & Fee */}
+      {/* Top Meta Row */}
       <View style={styles.topRow}>
-        <View
-          style={[
-            styles.dateBadge,
-            { backgroundColor: isDark ? colors.surfaceLight : '#F1F5F9' },
-          ]}
-        >
-          <Ionicons name="calendar-outline" size={13} color={colors.primary} style={{ marginRight: 4 }} />
+        <View style={styles.dateRow}>
           <Text style={[styles.dateText, { color: colors.primary }]}>{match.date}</Text>
-          <Text style={[styles.dotSeparator, { color: colors.textTertiary }]}>•</Text>
-          <Ionicons name="time-outline" size={13} color={colors.textSecondary} style={{ marginRight: 4 }} />
+          <Text style={[styles.metaSep, { color: colors.textTertiary }]}>·</Text>
           <Text style={[styles.timeText, { color: colors.textSecondary }]}>{match.time}</Text>
-        </View>
-
-        <View style={styles.feeBadge}>
-          <Text style={[styles.feeText, { color: colors.accent }]}>₺{match.feePerPlayer}</Text>
-          <Text style={[styles.feeSub, { color: colors.textSecondary }]}>/kişi</Text>
-        </View>
-      </View>
-
-      {/* Match Title */}
-      <Text style={[styles.title, { color: colors.text }]} numberOfLines={1}>
-        {match.title}
-      </Text>
-
-      {/* Venue & District Row */}
-      <View style={styles.venueRow}>
-        <Ionicons name="location-outline" size={15} color={colors.textSecondary} />
-        <Text style={[styles.venueText, { color: colors.textSecondary }]} numberOfLines={1}>
-          {match.venueName} —{' '}
-          <Text style={[styles.districtText, { color: colors.primary }]}>{match.district}</Text>
-        </Text>
-      </View>
-
-      {/* Prediction Teaser Box */}
-      {pred && (
-        <View
-          style={[
-            styles.predBox,
-            {
-              backgroundColor: isDark ? `${colors.surfaceLight}80` : '#F8FAFC',
-              borderColor: isDark ? colors.surfaceBorder : '#E2E8F0',
-            },
-          ]}
-        >
-          <View style={styles.predHeader}>
-            <View style={styles.predTag}>
-              <Ionicons name="flame" size={11} color={colors.warning} />
-              <Text style={[styles.predTagText, { color: colors.warning }]}>
-                {pred.category === 'Derbi' ? 'Derbi Tahmini' : 'Maç Tahmini'}
-              </Text>
-              <View
-                style={[
-                  styles.aiMiniBadge,
-                  { backgroundColor: isDark ? 'rgba(167, 139, 250, 0.18)' : 'rgba(124, 58, 237, 0.12)' },
-                ]}
-              >
-                <Text style={[styles.aiMiniText, { color: isDark ? '#A78BFA' : '#7C3AED' }]}>
-                  🤖 AI: {aiPred.predictedScore1}-{aiPred.predictedScore2} ({aiPred.recommendedOutcome})
-                </Text>
-              </View>
-            </View>
-            <Text style={[styles.predVotesText, { color: colors.textTertiary }]}>
-              {totalVotes} oy • {pred.userVote ? `Tahminin: ${pred.userVote}` : 'Tahmin Yap'}
-            </Text>
-          </View>
-
-          <View style={styles.predTeamsRow}>
-            <Text style={[styles.predTeamText, { color: colors.text }]} numberOfLines={1}>
-              {pred.team1Name}
-            </Text>
-            <View style={[styles.vsCircle, { backgroundColor: isDark ? colors.surface : '#E2E8F0' }]}>
-              <Text style={[styles.vsText, { color: colors.accent }]}>vs</Text>
-            </View>
-            <Text style={[styles.predTeamText, { color: colors.text }]} numberOfLines={1}>
-              {pred.team2Name}
-            </Text>
-          </View>
-
-          {/* Quick 1 - X - 2 buttons */}
-          <View style={styles.quickVoteRow}>
-            <TouchableOpacity
-              style={[
-                styles.quickBtn,
-                {
-                  backgroundColor:
-                    pred.userVote === '1'
-                      ? `${colors.primary}25`
-                      : isDark
-                      ? colors.surface
-                      : '#FFFFFF',
-                  borderColor: pred.userVote === '1' ? colors.primary : colors.surfaceBorder,
-                },
-              ]}
-              onPress={(e) => handleQuickVote(e, '1')}
-            >
-              <Text style={[styles.quickBtnText, { color: colors.primary }]}>1 (Ev)</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[
-                styles.quickBtn,
-                {
-                  backgroundColor:
-                    pred.userVote === 'X'
-                      ? `${colors.warning}25`
-                      : isDark
-                      ? colors.surface
-                      : '#FFFFFF',
-                  borderColor: pred.userVote === 'X' ? colors.warning : colors.surfaceBorder,
-                },
-              ]}
-              onPress={(e) => handleQuickVote(e, 'X')}
-            >
-              <Text style={[styles.quickBtnText, { color: colors.warning }]}>X (Berabere)</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[
-                styles.quickBtn,
-                {
-                  backgroundColor:
-                    pred.userVote === '2'
-                      ? `${colors.info}25`
-                      : isDark
-                      ? colors.surface
-                      : '#FFFFFF',
-                  borderColor: pred.userVote === '2' ? colors.info : colors.surfaceBorder,
-                },
-              ]}
-              onPress={(e) => handleQuickVote(e, '2')}
-            >
-              <Text style={[styles.quickBtnText, { color: colors.info }]}>2 (Dep)</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      )}
-
-      {/* Post-match evaluation teaser if finished */}
-      {match.isCompleted && (
-        <View
-          style={[
-            styles.completedTeaser,
-            {
-              backgroundColor: isDark ? 'rgba(245, 158, 11, 0.12)' : 'rgba(245, 158, 11, 0.08)',
-              borderColor: 'rgba(245, 158, 11, 0.25)',
-            },
-          ]}
-        >
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
-            <Ionicons name="checkmark-done-circle" size={15} color={colors.primary} />
-            <Text style={[styles.completedTeaserText, { color: colors.text }]}>
-              Maç Tamamlandı {match.finalScore ? `(${match.finalScore.team1} - ${match.finalScore.team2})` : ''}
-            </Text>
-          </View>
-          <View style={[styles.rateTeaserBadge, { backgroundColor: colors.warning }]}>
-            <Ionicons name="star" size={11} color="#FFFFFF" />
-            <Text style={styles.rateTeaserText}>Rakipleri Puanla</Text>
-          </View>
-        </View>
-      )}
-
-      {/* Missing Positions Tag Row */}
-      <View
-        style={[
-          styles.positionsRow,
-          {
-            borderTopColor: isDark ? 'rgba(255, 255, 255, 0.06)' : 'rgba(0, 0, 0, 0.06)',
-            borderBottomColor: isDark ? 'rgba(255, 255, 255, 0.06)' : 'rgba(0, 0, 0, 0.06)',
-          },
-        ]}
-      >
-        <Text style={[styles.positionsLabel, { color: colors.textTertiary }]}>Aranan:</Text>
-        {match.missingPositions.length > 0 ? (
-          match.missingPositions.map((pos, idx) => (
-            <View key={`${pos}_${idx}`} style={{ marginRight: 6 }}>
-              <PositionBadge position={pos} size="sm" />
-            </View>
-          ))
-        ) : (
-          <View style={[styles.fullBadge, { backgroundColor: `${colors.success}15` }]}>
-            <Ionicons name="checkmark-circle" size={14} color={colors.success} />
-            <Text style={[styles.fullText, { color: colors.success }]}>Kadro Dolu</Text>
-          </View>
-        )}
-      </View>
-
-      {/* Footer Info: Format, Capacity, and Status */}
-      <View style={styles.footerRow}>
-        <View style={styles.capacityContainer}>
-          <View
-            style={[
-              styles.formatPill,
-              { backgroundColor: isDark ? colors.surfaceLight : '#F1F5F9' },
-            ]}
-          >
+          <View style={[styles.formatChip, { backgroundColor: colors.surfaceLight }]}>
             <Text style={[styles.formatText, { color: colors.textSecondary }]}>
               {match.format}
             </Text>
           </View>
-          <Text style={[styles.capacityText, { color: colors.textSecondary }]}>
-            {filledCount}/{match.totalSlots} Oyuncu
-            {missingCount > 0 && (
-              <Text style={[styles.missingHighlight, { color: colors.danger }]}>
-                {' '}
-                ({missingCount} eksik)
-              </Text>
-            )}
-          </Text>
         </View>
 
-        {isJoined ? (
-          <View style={[styles.joinedPill, { backgroundColor: colors.primary }]}>
-            <Ionicons name="football" size={13} color={colors.white} />
-            <Text style={styles.joinedText}>Kadrodasın</Text>
+        <Text style={[styles.feeText, { color: colors.text }]}>
+          ₺{match.feePerPlayer}
+          <Text style={[styles.feeSub, { color: colors.textTertiary }]}> /kişi</Text>
+        </Text>
+      </View>
+
+      {/* Title & Venue */}
+      <Text style={[styles.title, { color: colors.text }]} numberOfLines={1}>
+        {match.title}
+      </Text>
+
+      <View style={styles.venueRow}>
+        <Ionicons name="location-outline" size={14} color={colors.textTertiary} />
+        <Text style={[styles.venueText, { color: colors.textSecondary }]} numberOfLines={1}>
+          {match.venueName} · {match.district}
+        </Text>
+      </View>
+
+      {/* Matchup & Quick Vote Strip */}
+      {pred && (
+        <View style={[styles.matchupBox, { backgroundColor: colors.surfaceLight }]}>
+          <View style={styles.matchupTop}>
+            <Text style={[styles.matchupTeams, { color: colors.text }]} numberOfLines={1}>
+              {pred.team1Name} — {pred.team2Name}
+            </Text>
+            <Text style={[styles.analysisHint, { color: colors.textTertiary }]}>
+              Öngörü {aiPred.predictedScore1}-{aiPred.predictedScore2} · {totalVotes} oy
+            </Text>
           </View>
-        ) : (
-          <View style={styles.actionPill}>
-            <Text style={[styles.actionText, { color: colors.primary }]}>İncele</Text>
-            <Ionicons name="chevron-forward" size={14} color={colors.primary} />
+
+          <View style={styles.quickVoteRow}>
+            {(
+              [
+                { choice: '1' as const, label: '1 · Ev' },
+                { choice: 'X' as const, label: 'X · Berabere' },
+                { choice: '2' as const, label: '2 · Dep' },
+              ]
+            ).map(({ choice, label }) => {
+              const selected = pred.userVote === choice;
+              return (
+                <TouchableOpacity
+                  key={choice}
+                  style={[
+                    styles.quickBtn,
+                    {
+                      backgroundColor: selected ? colors.primary : colors.surface,
+                      borderColor: selected ? colors.primary : colors.surfaceBorder,
+                    },
+                  ]}
+                  onPress={(e) => handleQuickVote(e, choice)}
+                >
+                  <Text
+                    style={[
+                      styles.quickBtnText,
+                      { color: selected ? '#FFFFFF' : colors.textSecondary },
+                    ]}
+                  >
+                    {label}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
           </View>
-        )}
+        </View>
+      )}
+
+      {/* Completed Match Inline Strip */}
+      {match.isCompleted && (
+        <View
+          style={[
+            styles.completedStrip,
+            { borderColor: colors.surfaceBorder, backgroundColor: colors.surfaceLight },
+          ]}
+        >
+          <Text style={[styles.completedText, { color: colors.text }]}>
+            Maç Sonucu{match.finalScore ? `: ${match.finalScore.team1} - ${match.finalScore.team2}` : ''}
+          </Text>
+          <Text style={[styles.evaluateLink, { color: colors.primary }]}>
+            Oyuncuları Puanla
+          </Text>
+        </View>
+      )}
+
+      {/* Footer: Missing Roles & Capacity */}
+      <View style={[styles.footerRow, { borderTopColor: colors.surfaceBorder }]}>
+        <View style={styles.positionsWrap}>
+          {match.missingPositions.length > 0 ? (
+            match.missingPositions.slice(0, 3).map((pos, idx) => (
+              <PositionBadge key={`${pos}_${idx}`} position={pos} size="sm" />
+            ))
+          ) : (
+            <Text style={[styles.fullText, { color: colors.success }]}>Kadro tamamlandı</Text>
+          )}
+        </View>
+
+        <View style={styles.rightFooter}>
+          <Text style={[styles.capacityText, { color: colors.textSecondary }]}>
+            {filledCount}/{match.totalSlots}
+            {missingCount > 0 ? (
+              <Text style={{ color: colors.danger, fontWeight: '700' }}>
+                {' '}
+                ({missingCount} açık)
+              </Text>
+            ) : null}
+          </Text>
+
+          {isJoined ? (
+            <View style={[styles.joinedDotPill, { backgroundColor: `${colors.primary}20` }]}>
+              <Text style={[styles.joinedText, { color: colors.primary }]}>Kadrodasın</Text>
+            </View>
+          ) : (
+            <Ionicons name="chevron-forward" size={16} color={colors.textTertiary} />
+          )}
+        </View>
       </View>
     </TouchableOpacity>
   );
@@ -279,130 +185,87 @@ export const MatchCard: React.FC<MatchCardProps> = ({ match, currentUserId }) =>
 
 const styles = StyleSheet.create({
   card: {
-    borderRadius: 16,
+    borderRadius: RADIUS.lg,
     padding: SPACING.lg,
     marginBottom: SPACING.md,
-    borderWidth: 1,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 3,
+    borderWidth: StyleSheet.hairlineWidth,
   },
   topRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: SPACING.sm,
+    marginBottom: 8,
   },
-  dateBadge: {
+  dateRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
+    flex: 1,
   },
   dateText: {
     fontSize: FONT_SIZE.xs,
-    fontWeight: '800',
+    fontWeight: '700',
   },
-  dotSeparator: {
-    marginHorizontal: 6,
+  metaSep: {
+    marginHorizontal: 5,
+    fontSize: FONT_SIZE.xs,
   },
   timeText: {
     fontSize: FONT_SIZE.xs,
-    fontWeight: '600',
+    fontWeight: '500',
   },
-  feeBadge: {
-    flexDirection: 'row',
-    alignItems: 'baseline',
+  formatChip: {
+    marginLeft: 8,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 5,
+  },
+  formatText: {
+    fontSize: 10,
+    fontWeight: '700',
   },
   feeText: {
-    fontSize: FONT_SIZE.lg,
-    fontWeight: '900',
+    fontSize: FONT_SIZE.md,
+    fontWeight: '800',
   },
   feeSub: {
-    fontSize: FONT_SIZE.xs,
-    marginLeft: 2,
+    fontSize: 11,
+    fontWeight: '500',
   },
   title: {
-    fontSize: FONT_SIZE.lg,
-    fontWeight: '800',
+    fontSize: FONT_SIZE.md,
+    fontWeight: '700',
     marginBottom: 4,
   },
   venueRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: SPACING.sm,
+    gap: 4,
+    marginBottom: SPACING.md,
   },
   venueText: {
-    fontSize: FONT_SIZE.sm,
-    marginLeft: 4,
+    fontSize: FONT_SIZE.xs,
     flex: 1,
   },
-  districtText: {
-    fontWeight: '700',
-  },
-  predBox: {
-    borderRadius: 12,
-    borderWidth: 1,
+  matchupBox: {
+    borderRadius: RADIUS.md,
     padding: 10,
-    marginBottom: SPACING.sm,
+    marginBottom: SPACING.md,
   },
-  predHeader: {
+  matchupTop: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 6,
-  },
-  predTag: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    flexWrap: 'wrap',
-    flex: 1,
-    paddingRight: 6,
-  },
-  aiMiniBadge: {
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 6,
-  },
-  aiMiniText: {
-    fontSize: 9,
-    fontWeight: '800',
-  },
-  predTagText: {
-    fontSize: 10,
-    fontWeight: '800',
-    textTransform: 'uppercase',
-  },
-  predVotesText: {
-    fontSize: 10,
-    fontWeight: '600',
-  },
-  predTeamsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    gap: 8,
     marginBottom: 8,
   },
-  predTeamText: {
-    fontSize: FONT_SIZE.xs,
+  matchupTeams: {
+    fontSize: 12,
     fontWeight: '700',
     flex: 1,
-    textAlign: 'center',
   },
-  vsCircle: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginHorizontal: 6,
-  },
-  vsText: {
-    fontSize: 9,
-    fontWeight: '900',
+  analysisHint: {
+    fontSize: 10,
+    fontWeight: '600',
   },
   quickVoteRow: {
     flexDirection: 'row',
@@ -411,115 +274,65 @@ const styles = StyleSheet.create({
   quickBtn: {
     flex: 1,
     alignItems: 'center',
-    paddingVertical: 5,
-    borderRadius: 8,
-    borderWidth: 1,
+    paddingVertical: 6,
+    borderRadius: RADIUS.sm,
+    borderWidth: StyleSheet.hairlineWidth,
   },
   quickBtnText: {
-    fontSize: 10,
-    fontWeight: '800',
+    fontSize: 11,
+    fontWeight: '700',
   },
-  positionsRow: {
+  completedStrip: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 10,
     paddingVertical: 8,
-    borderTopWidth: 1,
-    borderBottomWidth: 1,
+    borderRadius: RADIUS.sm,
+    borderWidth: StyleSheet.hairlineWidth,
     marginBottom: SPACING.md,
   },
-  positionsLabel: {
-    fontSize: FONT_SIZE.xs,
-    fontWeight: '600',
-    marginRight: 8,
+  completedText: {
+    fontSize: 12,
+    fontWeight: '700',
   },
-  fullBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 6,
-  },
-  fullText: {
-    fontSize: FONT_SIZE.xs,
-    fontWeight: '600',
-    marginLeft: 4,
+  evaluateLink: {
+    fontSize: 11,
+    fontWeight: '700',
   },
   footerRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    paddingTop: SPACING.sm,
+    borderTopWidth: StyleSheet.hairlineWidth,
   },
-  capacityContainer: {
+  positionsWrap: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 6,
+    flex: 1,
   },
-  formatPill: {
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 6,
-    marginRight: 6,
-  },
-  formatText: {
+  fullText: {
     fontSize: FONT_SIZE.xs,
-    fontWeight: '800',
+    fontWeight: '600',
+  },
+  rightFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
   },
   capacityText: {
-    fontSize: FONT_SIZE.xs,
-    fontWeight: '500',
+    fontSize: 11,
+    fontWeight: '600',
   },
-  missingHighlight: {
-    fontWeight: '700',
-  },
-  joinedPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 20,
-    gap: 4,
+  joinedDotPill: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
   },
   joinedText: {
-    color: '#FFFFFF',
-    fontSize: FONT_SIZE.xs,
-    fontWeight: '800',
-  },
-  actionPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 2,
-  },
-  actionText: {
-    fontSize: FONT_SIZE.sm,
-    fontWeight: '800',
-  },
-  completedTeaser: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 10,
-    paddingVertical: 7,
-    borderRadius: 8,
-    borderWidth: 1,
-    marginTop: 8,
-    marginBottom: 4,
-  },
-  completedTeaserText: {
     fontSize: 11,
     fontWeight: '700',
   },
-  rateTeaserBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 7,
-    paddingVertical: 3,
-    borderRadius: 6,
-    gap: 3,
-  },
-  rateTeaserText: {
-    color: '#FFFFFF',
-    fontSize: 10,
-    fontWeight: '800',
-  },
 });
-
-

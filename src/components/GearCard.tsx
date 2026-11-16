@@ -4,33 +4,33 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { GearItem } from '../types';
 import { useTheme } from '../context/ThemeContext';
-import { FONT_SIZE, SPACING } from '../constants/theme';
+import { FONT_SIZE, RADIUS, SPACING } from '../constants/theme';
 
 interface GearCardProps {
   item: GearItem;
 }
 
 export const GearCard: React.FC<GearCardProps> = ({ item }) => {
-  const { colors, isDark } = useTheme();
+  const { colors } = useTheme();
   const isSold = item.status === 'Sold';
 
   const getCategoryIcon = () => {
     switch (item.category) {
       case 'Boots':
-        return 'football';
+        return 'football-outline';
       case 'Jerseys':
-        return 'shirt';
+        return 'shirt-outline';
       case 'Gloves':
-        return 'hand-left';
+        return 'hand-left-outline';
       default:
-        return 'shield-checkmark';
+        return 'shield-outline';
     }
   };
 
-  const getConditionColor = () => {
-    if (item.condition.includes('Sıfır')) return colors.success;
-    if (item.condition.includes('Çok İyi')) return colors.primary;
-    return colors.warning;
+  const getShortCondition = () => {
+    if (item.condition.includes('Sıfır')) return 'Sıfır';
+    if (item.condition.includes('Çok İyi')) return 'Çok İyi';
+    return item.condition;
   };
 
   return (
@@ -38,28 +38,20 @@ export const GearCard: React.FC<GearCardProps> = ({ item }) => {
       style={[
         styles.card,
         {
-          backgroundColor: isDark ? colors.surface : '#FFFFFF',
+          backgroundColor: colors.surface,
           borderColor: colors.surfaceBorder,
-          shadowColor: colors.cardShadow,
         },
         isSold && styles.cardSold,
       ]}
       onPress={() => router.push(`/gear/${item.id}`)}
-      activeOpacity={0.88}
+      activeOpacity={0.85}
     >
-      {/* Visual Product Box */}
-      <View
-        style={[
-          styles.imageBox,
-          { backgroundColor: isDark ? colors.surfaceLight : '#F1F5F9' },
-        ]}
-      >
-        <Ionicons name={getCategoryIcon()} size={42} color={colors.primary} />
+      <View style={[styles.imageBox, { backgroundColor: colors.surfaceLight }]}>
+        <Ionicons name={getCategoryIcon()} size={36} color={colors.textSecondary} />
 
-        {/* Condition Tag */}
-        <View style={[styles.conditionBadge, { backgroundColor: getConditionColor() }]}>
-          <Text style={styles.conditionText} numberOfLines={1}>
-            {item.condition}
+        <View style={[styles.conditionBadge, { backgroundColor: colors.surface }]}>
+          <Text style={[styles.conditionText, { color: colors.textSecondary }]} numberOfLines={1}>
+            {getShortCondition()}
           </Text>
         </View>
 
@@ -70,41 +62,23 @@ export const GearCard: React.FC<GearCardProps> = ({ item }) => {
         )}
       </View>
 
-      {/* Product Info */}
       <View style={styles.content}>
         <View style={styles.brandRow}>
           <Text style={[styles.brandText, { color: colors.textTertiary }]}>{item.brand}</Text>
-          <View
-            style={[
-              styles.sizePill,
-              { backgroundColor: isDark ? colors.surfaceLight : '#EEF2F6' },
-            ]}
-          >
-            <Text style={[styles.sizeText, { color: colors.primary }]}>{item.size}</Text>
-          </View>
+          <Text style={[styles.sizeText, { color: colors.textSecondary }]}>{item.size}</Text>
         </View>
 
         <Text style={[styles.title, { color: colors.text }]} numberOfLines={2}>
           {item.title}
         </Text>
 
-        <View
-          style={[
-            styles.footer,
-            {
-              borderTopColor: isDark ? 'rgba(255, 255, 255, 0.05)' : '#E2E8F0',
-            },
-          ]}
-        >
-          <Text style={[styles.price, { color: colors.accent }]}>
+        <View style={styles.footer}>
+          <Text style={[styles.price, { color: colors.text }]}>
             ₺{item.price.toLocaleString('tr-TR')}
           </Text>
-          <View style={styles.locationRow}>
-            <Ionicons name="location-outline" size={12} color={colors.textTertiary} />
-            <Text style={[styles.locationText, { color: colors.textTertiary }]} numberOfLines={1}>
-              {item.location.split('/')[1]?.trim() || item.location}
-            </Text>
-          </View>
+          <Text style={[styles.locationText, { color: colors.textTertiary }]} numberOfLines={1}>
+            {item.location.split('/')[1]?.trim() || item.location}
+          </Text>
         </View>
       </View>
     </TouchableOpacity>
@@ -113,22 +87,18 @@ export const GearCard: React.FC<GearCardProps> = ({ item }) => {
 
 const styles = StyleSheet.create({
   card: {
-    borderRadius: 14,
+    borderRadius: RADIUS.md,
     overflow: 'hidden',
-    borderWidth: 1,
+    borderWidth: StyleSheet.hairlineWidth,
     marginBottom: SPACING.md,
     flex: 1,
     marginHorizontal: 4,
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.1,
-    shadowRadius: 5,
-    elevation: 3,
   },
   cardSold: {
-    opacity: 0.65,
+    opacity: 0.6,
   },
   imageBox: {
-    height: 110,
+    height: 108,
     justifyContent: 'center',
     alignItems: 'center',
     position: 'relative',
@@ -137,30 +107,28 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 8,
     left: 8,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
+    paddingHorizontal: 7,
+    paddingVertical: 3,
     borderRadius: 6,
-    maxWidth: '85%',
   },
   conditionText: {
-    color: '#FFFFFF',
     fontSize: 10,
-    fontWeight: '800',
+    fontWeight: '700',
   },
   soldOverlay: {
     ...StyleSheet.absoluteFill,
-    backgroundColor: 'rgba(0,0,0,0.65)',
+    backgroundColor: 'rgba(0,0,0,0.6)',
     justifyContent: 'center',
     alignItems: 'center',
   },
   soldText: {
-    color: '#EF4444',
-    fontSize: FONT_SIZE.md,
-    fontWeight: '900',
-    letterSpacing: 1.5,
+    color: '#FFFFFF',
+    fontSize: FONT_SIZE.sm,
+    fontWeight: '800',
+    letterSpacing: 1,
   },
   content: {
-    padding: SPACING.sm + 2,
+    padding: 10,
   },
   brandRow: {
     flexDirection: 'row',
@@ -169,22 +137,18 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   brandText: {
-    fontSize: FONT_SIZE.xs,
+    fontSize: 10,
     fontWeight: '700',
     textTransform: 'uppercase',
-  },
-  sizePill: {
-    paddingHorizontal: 6,
-    paddingVertical: 1,
-    borderRadius: 4,
+    letterSpacing: 0.5,
   },
   sizeText: {
     fontSize: 10,
-    fontWeight: '800',
+    fontWeight: '600',
   },
   title: {
     fontSize: FONT_SIZE.sm,
-    fontWeight: '700',
+    fontWeight: '600',
     minHeight: 36,
     lineHeight: 18,
     marginBottom: 8,
@@ -192,22 +156,14 @@ const styles = StyleSheet.create({
   footer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingTop: 6,
-    borderTopWidth: 1,
+    alignItems: 'baseline',
   },
   price: {
     fontSize: FONT_SIZE.md,
-    fontWeight: '900',
-  },
-  locationRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    maxWidth: '50%',
+    fontWeight: '800',
   },
   locationText: {
     fontSize: 10,
-    marginLeft: 2,
+    maxWidth: '48%',
   },
 });
-

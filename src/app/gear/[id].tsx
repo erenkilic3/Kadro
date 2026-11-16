@@ -12,12 +12,13 @@ import { Ionicons } from '@expo/vector-icons';
 import { useApp } from '../../context/AppContext';
 import { useTheme } from '../../context/ThemeContext';
 import { EmptyState } from '../../components/EmptyState';
-import { FONT_SIZE, SPACING } from '../../constants/theme';
+import { FONT_SIZE, RADIUS, SPACING } from '../../constants/theme';
+import { getInitials } from '../../utils/formatters';
 
 export default function GearDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { gearItems, currentUser, markGearSold } = useApp();
-  const { colors, isDark } = useTheme();
+  const { colors } = useTheme();
 
   const item = gearItems.find((g) => g.id === id);
 
@@ -26,15 +27,11 @@ export default function GearDetailScreen() {
       <View style={[styles.notFoundContainer, { backgroundColor: colors.background }]}>
         <EmptyState
           icon="alert-circle-outline"
-          title="Ürün Bulunamadı"
+          title="Ürün bulunamadı"
           description="Bu ilan satıcı tarafından yayından kaldırılmış olabilir."
-        />
-        <TouchableOpacity
-          style={[styles.backButton, { backgroundColor: colors.primary }]}
+          buttonText="Pazara Dön"
           onPress={() => router.back()}
-        >
-          <Text style={styles.backButtonText}>Pazara Dön</Text>
-        </TouchableOpacity>
+        />
       </View>
     );
   }
@@ -45,115 +42,93 @@ export default function GearDetailScreen() {
   const getCategoryIcon = () => {
     switch (item.category) {
       case 'Boots':
-        return 'football';
+        return 'football-outline';
       case 'Jerseys':
-        return 'shirt';
+        return 'shirt-outline';
       case 'Gloves':
-        return 'hand-left';
+        return 'hand-left-outline';
       default:
-        return 'shield-checkmark';
+        return 'shield-outline';
     }
   };
 
   const handleContact = (type: 'CALL' | 'WP') => {
     if (isSold) {
-      Alert.alert('Ürün Satıldı', 'Bu ürün satılmıştır, yeni bir alıcı kabul edilmiyor.');
+      Alert.alert('Ürün Satıldı', 'Bu ürün satılmıştır.');
       return;
     }
 
     if (type === 'CALL') {
-      Alert.alert(
-        'Satıcıyı Ara',
-        `${item.sellerName} ile görüşmek için ${item.sellerPhone} numarası aranıyor.`
-      );
+      Alert.alert('Satıcıyı Ara', `${item.sellerName} (${item.sellerPhone})`);
     } else {
       Alert.alert(
-        'WhatsApp İletişimi',
-        `${item.sellerName} kişisine "${item.title}" ilanı için WhatsApp mesaj şablonu oluşturuluyor.`
+        'WhatsApp',
+        `${item.sellerName} kişisine "${item.title}" ilanı hakkında mesaj gönderiliyor.`
       );
     }
   };
 
   const handleMarkSold = () => {
-    Alert.alert(
-      'Satıldı Olarak İşaretle',
-      'Bu ilanı satıldı olarak güncellemek istiyor musunuz?',
-      [
-        { text: 'Vazgeç', style: 'cancel' },
-        {
-          text: 'Satıldı Olarak İşaretle',
-          onPress: async () => {
-            await markGearSold(item.id);
-            Alert.alert('✅ Güncellendi', 'İlan durumu satıldı olarak güncellendi.');
-          },
+    Alert.alert('Satıldı Olarak İşaretle', 'Bu ilanı satıldı olarak güncellemek istiyor musunuz?', [
+      { text: 'Vazgeç', style: 'cancel' },
+      {
+        text: 'Onayla',
+        onPress: async () => {
+          await markGearSold(item.id);
+          Alert.alert('Güncellendi', 'İlan durumu satıldı olarak güncellendi.');
         },
-      ]
-    );
+      },
+    ]);
   };
+
+  const categoryLabel =
+    item.category === 'Boots'
+      ? 'Krampon'
+      : item.category === 'Jerseys'
+      ? 'Forma'
+      : item.category === 'Gloves'
+      ? 'Kaleci Eldiveni'
+      : 'Ekipman';
 
   return (
     <ScrollView
       style={[styles.container, { backgroundColor: colors.background }]}
       contentContainerStyle={styles.content}
     >
-      {/* Product Hero Box */}
+      {/* Hero */}
       <View
         style={[
           styles.heroBox,
-          {
-            backgroundColor: isDark ? colors.surface : '#FFFFFF',
-            borderColor: colors.surfaceBorder,
-          },
+          { backgroundColor: colors.surface, borderColor: colors.surfaceBorder },
         ]}
       >
-        <View
-          style={[
-            styles.iconCircle,
-            { backgroundColor: isDark ? colors.surfaceLight : '#F1F5F9' },
-          ]}
-        >
-          <Ionicons name={getCategoryIcon()} size={64} color={colors.primary} />
+        <View style={[styles.iconCircle, { backgroundColor: colors.surfaceLight }]}>
+          <Ionicons name={getCategoryIcon()} size={48} color={colors.textSecondary} />
         </View>
 
         {isSold && (
-          <View style={styles.soldBadge}>
-            <Text style={styles.soldBadgeText}>BU ÜRÜN SATILDI</Text>
+          <View style={[styles.soldBadge, { backgroundColor: colors.danger }]}>
+            <Text style={styles.soldBadgeText}>SATILDI</Text>
           </View>
         )}
 
-        <View
-          style={[
-            styles.brandPill,
-            { backgroundColor: isDark ? colors.surfaceLight : '#EEF2F6' },
-          ]}
-        >
-          <Text style={[styles.brandPillText, { color: colors.primary }]}>{item.brand}</Text>
+        <View style={[styles.brandPill, { backgroundColor: colors.surfaceLight }]}>
+          <Text style={[styles.brandPillText, { color: colors.textSecondary }]}>{item.brand}</Text>
         </View>
       </View>
 
-      {/* Title & Price Header */}
+      {/* Price & Title */}
       <View
         style={[
           styles.detailsCard,
-          {
-            backgroundColor: isDark ? colors.surface : '#FFFFFF',
-            borderColor: colors.surfaceBorder,
-          },
+          { backgroundColor: colors.surface, borderColor: colors.surfaceBorder },
         ]}
       >
         <View style={styles.priceRow}>
-          <Text style={[styles.price, { color: colors.accent }]}>
+          <Text style={[styles.price, { color: colors.text }]}>
             ₺{item.price.toLocaleString('tr-TR')}
           </Text>
-          <View
-            style={[
-              styles.conditionPill,
-              {
-                backgroundColor: `${colors.primary}15`,
-                borderColor: colors.primary,
-              },
-            ]}
-          >
+          <View style={[styles.conditionPill, { backgroundColor: `${colors.primary}18` }]}>
             <Text style={[styles.conditionText, { color: colors.primary }]}>
               {item.condition}
             </Text>
@@ -163,90 +138,43 @@ export default function GearDetailScreen() {
         <Text style={[styles.title, { color: colors.text }]}>{item.title}</Text>
 
         <View style={styles.locationRow}>
-          <Ionicons name="location-sharp" size={15} color={colors.primary} />
+          <Ionicons name="location-outline" size={14} color={colors.textTertiary} />
           <Text style={[styles.locationText, { color: colors.textSecondary }]}>
             {item.location}
           </Text>
         </View>
       </View>
 
-      {/* Specifications Grid */}
+      {/* Specs */}
       <View
         style={[
           styles.specsCard,
-          {
-            backgroundColor: isDark ? colors.surface : '#FFFFFF',
-            borderColor: colors.surfaceBorder,
-          },
+          { backgroundColor: colors.surface, borderColor: colors.surfaceBorder },
         ]}
       >
-        <Text
-          style={[
-            styles.sectionTitle,
-            {
-              color: colors.text,
-              borderBottomColor: isDark ? 'rgba(255,255,255,0.06)' : '#E2E8F0',
-            },
-          ]}
-        >
-          Ürün Özellikleri
-        </Text>
+        <Text style={[styles.sectionTitle, { color: colors.text }]}>Ürün Özellikleri</Text>
 
         <View style={styles.specGrid}>
-          <View
-            style={[
-              styles.specItem,
-              { backgroundColor: isDark ? colors.surfaceLight : '#F8FAFC' },
-            ]}
-          >
-            <Text style={[styles.specKey, { color: colors.textTertiary }]}>Kategori</Text>
-            <Text style={[styles.specVal, { color: colors.text }]}>
-              {item.category === 'Boots'
-                ? 'Krampon'
-                : item.category === 'Jerseys'
-                ? 'Forma'
-                : item.category === 'Gloves'
-                ? 'Kaleci Eldiveni'
-                : 'Ekipman'}
-            </Text>
-          </View>
-
-          <View
-            style={[
-              styles.specItem,
-              { backgroundColor: isDark ? colors.surfaceLight : '#F8FAFC' },
-            ]}
-          >
-            <Text style={[styles.specKey, { color: colors.textTertiary }]}>Beden / No</Text>
-            <Text style={[styles.specVal, { color: colors.text }]}>{item.size}</Text>
-          </View>
-
-          <View
-            style={[
-              styles.specItem,
-              { backgroundColor: isDark ? colors.surfaceLight : '#F8FAFC' },
-            ]}
-          >
-            <Text style={[styles.specKey, { color: colors.textTertiary }]}>Marka</Text>
-            <Text style={[styles.specVal, { color: colors.text }]}>{item.brand}</Text>
-          </View>
-
-          <View
-            style={[
-              styles.specItem,
-              { backgroundColor: isDark ? colors.surfaceLight : '#F8FAFC' },
-            ]}
-          >
-            <Text style={[styles.specKey, { color: colors.textTertiary }]}>Durum</Text>
-            <Text
-              style={[
-                styles.specVal,
-                { color: isSold ? colors.danger : colors.success },
-              ]}
+          {[
+            { key: 'Kategori', val: categoryLabel },
+            { key: 'Beden / No', val: item.size },
+            { key: 'Marka', val: item.brand },
+            {
+              key: 'Durum',
+              val: isSold ? 'Satıldı' : 'Satışta',
+              color: isSold ? colors.danger : colors.success,
+            },
+          ].map((spec) => (
+            <View
+              key={spec.key}
+              style={[styles.specItem, { backgroundColor: colors.surfaceLight }]}
             >
-              {isSold ? 'Satıldı' : 'Satışta'}
-            </Text>
-          </View>
+              <Text style={[styles.specKey, { color: colors.textTertiary }]}>{spec.key}</Text>
+              <Text style={[styles.specVal, { color: spec.color || colors.text }]}>
+                {spec.val}
+              </Text>
+            </View>
+          ))}
         </View>
       </View>
 
@@ -254,68 +182,53 @@ export default function GearDetailScreen() {
       <View
         style={[
           styles.descCard,
-          {
-            backgroundColor: isDark ? colors.surface : '#FFFFFF',
-            borderColor: colors.surfaceBorder,
-          },
+          { backgroundColor: colors.surface, borderColor: colors.surfaceBorder },
         ]}
       >
-        <Text style={[styles.sectionTitle, { color: colors.text, borderBottomColor: isDark ? 'rgba(255,255,255,0.06)' : '#E2E8F0' }]}>
-          Satıcı Açıklaması
-        </Text>
-        <Text style={[styles.descBody, { color: colors.textSecondary }]}>
-          {item.description}
-        </Text>
+        <Text style={[styles.sectionTitle, { color: colors.text }]}>Açıklama</Text>
+        <Text style={[styles.descBody, { color: colors.textSecondary }]}>{item.description}</Text>
       </View>
 
-      {/* Seller Profile Card */}
+      {/* Seller */}
       <View
         style={[
           styles.sellerCard,
-          {
-            backgroundColor: isDark ? colors.surface : '#FFFFFF',
-            borderColor: colors.surfaceBorder,
-          },
+          { backgroundColor: colors.surface, borderColor: colors.surfaceBorder },
         ]}
       >
-        <View
-          style={[
-            styles.sellerAvatar,
-            { backgroundColor: isDark ? colors.surfaceLight : '#EDF2F7' },
-          ]}
-        >
-          <Ionicons name="person" size={24} color={colors.primary} />
+        <View style={[styles.sellerAvatar, { backgroundColor: colors.surfaceLight }]}>
+          <Text style={[styles.sellerInitials, { color: colors.text }]}>
+            {getInitials(item.sellerName)}
+          </Text>
         </View>
         <View style={{ flex: 1, marginLeft: 10 }}>
-          <Text style={[styles.sellerSubtitle, { color: colors.textTertiary }]}>İlan Sahibi</Text>
+          <Text style={[styles.sellerSubtitle, { color: colors.textTertiary }]}>Satıcı</Text>
           <Text style={[styles.sellerName, { color: colors.text }]}>{item.sellerName}</Text>
-          <Text style={[styles.sellerPhone, { color: colors.primary }]}>{item.sellerPhone}</Text>
+          <Text style={[styles.sellerPhone, { color: colors.textSecondary }]}>
+            {item.sellerPhone}
+          </Text>
         </View>
         {isSeller && (
-          <View style={[styles.myListingTag, { backgroundColor: `${colors.primary}20` }]}>
+          <View style={[styles.myListingTag, { backgroundColor: `${colors.primary}18` }]}>
             <Text style={[styles.myListingText, { color: colors.primary }]}>Senin İlanın</Text>
           </View>
         )}
       </View>
 
-      {/* Action Buttons */}
+      {/* Actions */}
       <View style={styles.actionContainer}>
         {isSeller ? (
           !isSold ? (
-            <TouchableOpacity style={styles.soldActionBtn} onPress={handleMarkSold}>
-              <Ionicons name="checkmark-done" size={20} color="#FFFFFF" />
+            <TouchableOpacity
+              style={[styles.soldActionBtn, { backgroundColor: colors.primary }]}
+              onPress={handleMarkSold}
+            >
               <Text style={styles.soldActionText}>Satıldı Olarak İşaretle</Text>
             </TouchableOpacity>
           ) : (
-            <View
-              style={[
-                styles.alreadySoldBox,
-                { backgroundColor: isDark ? colors.surfaceLight : '#EDF2F7' },
-              ]}
-            >
-              <Ionicons name="lock-closed" size={18} color={colors.textTertiary} />
+            <View style={[styles.alreadySoldBox, { backgroundColor: colors.surfaceLight }]}>
               <Text style={[styles.alreadySoldText, { color: colors.textTertiary }]}>
-                İlan tamamlandı ve kapandı.
+                İlan tamamlandı
               </Text>
             </View>
           )
@@ -324,23 +237,26 @@ export default function GearDetailScreen() {
             <TouchableOpacity
               style={[
                 styles.contactBtn,
-                styles.callBtn,
-                { backgroundColor: colors.accent },
+                { backgroundColor: colors.surfaceLight },
                 isSold && styles.btnDisabled,
               ]}
               onPress={() => handleContact('CALL')}
               disabled={isSold}
             >
-              <Ionicons name="call" size={18} color="#FFFFFF" />
-              <Text style={styles.contactBtnText}>Satıcıyı Ara</Text>
+              <Ionicons name="call-outline" size={17} color={colors.text} />
+              <Text style={[styles.contactBtnText, { color: colors.text }]}>Ara</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={[styles.contactBtn, styles.wpBtn, isSold && styles.btnDisabled]}
+              style={[
+                styles.contactBtn,
+                { backgroundColor: colors.primary },
+                isSold && styles.btnDisabled,
+              ]}
               onPress={() => handleContact('WP')}
               disabled={isSold}
             >
-              <Ionicons name="logo-whatsapp" size={18} color="#FFFFFF" />
+              <Ionicons name="logo-whatsapp" size={17} color="#FFFFFF" />
               <Text style={[styles.contactBtnText, { color: '#FFFFFF' }]}>WhatsApp</Text>
             </TouchableOpacity>
           </View>
@@ -362,31 +278,20 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: SPACING.xl,
-  },
-  backButton: {
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: 8,
-    marginTop: 16,
-  },
-  backButtonText: {
-    color: '#FFFFFF',
-    fontWeight: '800',
   },
   heroBox: {
-    height: 190,
-    borderRadius: 16,
+    height: 180,
+    borderRadius: RADIUS.lg,
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 1,
+    borderWidth: StyleSheet.hairlineWidth,
     marginBottom: SPACING.md,
     position: 'relative',
   },
   iconCircle: {
-    width: 96,
-    height: 96,
-    borderRadius: 48,
+    width: 88,
+    height: 88,
+    borderRadius: 44,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -394,7 +299,6 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 12,
     right: 12,
-    backgroundColor: '#EF4444',
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 6,
@@ -402,7 +306,7 @@ const styles = StyleSheet.create({
   soldBadgeText: {
     color: '#FFFFFF',
     fontSize: 10,
-    fontWeight: '900',
+    fontWeight: '800',
   },
   brandPill: {
     position: 'absolute',
@@ -414,13 +318,13 @@ const styles = StyleSheet.create({
   },
   brandPillText: {
     fontSize: 11,
-    fontWeight: '800',
+    fontWeight: '700',
     textTransform: 'uppercase',
   },
   detailsCard: {
-    borderRadius: 16,
+    borderRadius: RADIUS.lg,
     padding: SPACING.lg,
-    borderWidth: 1,
+    borderWidth: StyleSheet.hairlineWidth,
     marginBottom: SPACING.md,
   },
   priceRow: {
@@ -430,89 +334,90 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   price: {
-    fontSize: FONT_SIZE.title,
-    fontWeight: '900',
+    fontSize: FONT_SIZE.xxl,
+    fontWeight: '800',
   },
   conditionPill: {
-    paddingHorizontal: 10,
+    paddingHorizontal: 9,
     paddingVertical: 4,
-    borderRadius: 8,
-    borderWidth: 1,
+    borderRadius: 6,
   },
   conditionText: {
-    fontSize: FONT_SIZE.xs,
+    fontSize: 11,
     fontWeight: '700',
   },
   title: {
-    fontSize: FONT_SIZE.xl,
-    fontWeight: '800',
-    lineHeight: 26,
+    fontSize: FONT_SIZE.lg,
+    fontWeight: '700',
+    lineHeight: 24,
     marginBottom: SPACING.sm,
   },
   locationRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 4,
   },
   locationText: {
     fontSize: FONT_SIZE.xs,
-    marginLeft: 4,
   },
   specsCard: {
-    borderRadius: 16,
+    borderRadius: RADIUS.lg,
     padding: SPACING.lg,
-    borderWidth: 1,
+    borderWidth: StyleSheet.hairlineWidth,
     marginBottom: SPACING.md,
   },
   sectionTitle: {
-    fontSize: FONT_SIZE.md,
-    fontWeight: '800',
+    fontSize: FONT_SIZE.sm,
+    fontWeight: '700',
     marginBottom: SPACING.md,
-    borderBottomWidth: 1,
-    paddingBottom: 6,
   },
   specGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 12,
+    gap: 10,
   },
   specItem: {
-    width: '46%',
+    width: '48%',
     padding: 10,
-    borderRadius: 8,
+    borderRadius: RADIUS.sm,
   },
   specKey: {
     fontSize: 10,
     fontWeight: '600',
   },
   specVal: {
-    fontSize: FONT_SIZE.sm,
+    fontSize: FONT_SIZE.xs,
     fontWeight: '700',
     marginTop: 2,
   },
   descCard: {
-    borderRadius: 16,
+    borderRadius: RADIUS.lg,
     padding: SPACING.lg,
-    borderWidth: 1,
+    borderWidth: StyleSheet.hairlineWidth,
     marginBottom: SPACING.md,
   },
   descBody: {
-    fontSize: FONT_SIZE.sm,
-    lineHeight: 22,
+    fontSize: FONT_SIZE.xs,
+    lineHeight: 20,
   },
   sellerCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderRadius: 16,
+    borderRadius: RADIUS.lg,
     padding: SPACING.lg,
-    borderWidth: 1,
+    borderWidth: StyleSheet.hairlineWidth,
     marginBottom: SPACING.lg,
   },
   sellerAvatar: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 42,
+    height: 42,
+    borderRadius: 21,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  sellerInitials: {
+    fontSize: 13,
+    fontWeight: '800',
   },
   sellerSubtitle: {
     fontSize: 10,
@@ -524,23 +429,22 @@ const styles = StyleSheet.create({
   },
   sellerPhone: {
     fontSize: FONT_SIZE.xs,
-    fontWeight: '600',
   },
   myListingTag: {
     paddingHorizontal: 8,
-    paddingVertical: 3,
+    paddingVertical: 4,
     borderRadius: 6,
   },
   myListingText: {
-    fontSize: 10,
-    fontWeight: '800',
+    fontSize: 11,
+    fontWeight: '700',
   },
   actionContainer: {
     marginTop: SPACING.xs,
   },
   buyerActionRow: {
     flexDirection: 'row',
-    gap: 12,
+    gap: 10,
   },
   contactBtn: {
     flex: 1,
@@ -548,46 +452,35 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 14,
-    borderRadius: 12,
-    gap: 8,
-  },
-  callBtn: {},
-  wpBtn: {
-    backgroundColor: '#25D366',
+    borderRadius: RADIUS.md,
+    gap: 7,
   },
   contactBtnText: {
-    color: '#FFFFFF',
     fontSize: FONT_SIZE.sm,
-    fontWeight: '800',
+    fontWeight: '700',
   },
   btnDisabled: {
-    opacity: 0.4,
+    opacity: 0.45,
   },
   soldActionBtn: {
-    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#F59E0B',
     paddingVertical: 14,
-    borderRadius: 12,
-    gap: 8,
+    borderRadius: RADIUS.md,
   },
   soldActionText: {
     color: '#FFFFFF',
-    fontSize: FONT_SIZE.md,
-    fontWeight: '800',
+    fontSize: FONT_SIZE.sm,
+    fontWeight: '700',
   },
   alreadySoldBox: {
-    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 14,
-    borderRadius: 12,
-    gap: 8,
+    borderRadius: RADIUS.md,
   },
   alreadySoldText: {
     fontSize: FONT_SIZE.sm,
     fontWeight: '600',
   },
 });
-

@@ -14,12 +14,12 @@ function RootStack() {
       <Stack
         screenOptions={{
           headerStyle: {
-            backgroundColor: colors.surface,
+            backgroundColor: colors.background,
           },
           headerTintColor: colors.text,
           headerTitleStyle: {
-            fontWeight: '800',
-            fontSize: 17,
+            fontWeight: '700',
+            fontSize: 16,
           },
           headerShadowVisible: false,
           contentStyle: {
@@ -36,28 +36,28 @@ function RootStack() {
         <Stack.Screen
           name="match/[id]"
           options={{
-            title: 'Maç & Kadro Detayı',
+            title: 'Maç Detayı',
             headerBackTitle: 'Geri',
           }}
         />
         <Stack.Screen
           name="gear/[id]"
           options={{
-            title: 'Ekipman Detayı',
+            title: 'Ekipman',
             headerBackTitle: 'Geri',
           }}
         />
         <Stack.Screen
           name="league/[id]"
           options={{
-            title: 'Bölgesel Lig & Puan Durumu',
+            title: 'Lig Detayı',
             headerBackTitle: 'Geri',
           }}
         />
         <Stack.Screen
           name="league/create"
           options={{
-            title: 'Yeni Bölgesel Lig Kur',
+            title: 'Yeni Lig',
             headerBackTitle: 'Geri',
           }}
         />
@@ -77,4 +77,3 @@ export default function RootLayout() {
     </SafeAreaProvider>
   );
 }
-

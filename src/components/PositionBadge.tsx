@@ -14,7 +14,7 @@ export const PositionBadge: React.FC<PositionBadgeProps> = ({
   size = 'md',
   showLabel = true,
 }) => {
-  const color = POSITION_COLORS[position] || '#10B981';
+  const color = POSITION_COLORS[position] || '#16A34A';
   const label = POSITION_LABELS[position] || position;
 
   const isSmall = size === 'sm';
@@ -25,10 +25,9 @@ export const PositionBadge: React.FC<PositionBadgeProps> = ({
       style={[
         styles.badge,
         {
-          borderColor: color,
-          backgroundColor: `${color}20`,
-          paddingHorizontal: isSmall ? 6 : isLarge ? 12 : 8,
-          paddingVertical: isSmall ? 2 : isLarge ? 5 : 3,
+          backgroundColor: `${color}18`,
+          paddingHorizontal: isSmall ? 7 : isLarge ? 12 : 9,
+          paddingVertical: isSmall ? 3 : isLarge ? 5 : 4,
         },
       ]}
     >
@@ -37,13 +36,13 @@ export const PositionBadge: React.FC<PositionBadgeProps> = ({
         style={[
           styles.text,
           {
-            color: color,
-            fontSize: isSmall ? FONT_SIZE.xs : isLarge ? FONT_SIZE.md : FONT_SIZE.sm,
-            fontWeight: '700',
+            color,
+            fontSize: isSmall ? 11 : isLarge ? FONT_SIZE.sm : FONT_SIZE.xs,
           },
         ]}
       >
-        {position} {showLabel && !isSmall ? `• ${label}` : ''}
+        {position}
+        {showLabel && !isSmall ? ` · ${label}` : ''}
       </Text>
     </View>
   );
@@ -53,17 +52,17 @@ const styles = StyleSheet.create({
   badge: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderRadius: 8,
-    borderWidth: 1,
+    borderRadius: 6,
     alignSelf: 'flex-start',
   },
   dot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
+    width: 5,
+    height: 5,
+    borderRadius: 2.5,
     marginRight: 5,
   },
   text: {
-    letterSpacing: 0.3,
+    fontWeight: '700',
+    letterSpacing: 0.2,
   },
 });
