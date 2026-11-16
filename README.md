@@ -1,12 +1,12 @@
-# ⚽ Kadro — Amateur Football Matchmaking, Squad Organizer & Gear Marketplace
+# ⚽ Kadro — Amateur Football Matchmaking, Regional Leagues & Gear Marketplace
 
-[![Platform](https://img.shields.io/badge/Platform-React%20Native%20%7C%20Expo-000020?logo=expo)](https://expo.dev)
+[![Platform](https://img.shields.io/badge/Platform-React%20Native%20%7C%20Expo%20SDK%2058-000020?logo=expo)](https://expo.dev)
 [![Language](https://img.shields.io/badge/Language-TypeScript-3178C6?logo=typescript)](https://www.typescriptlang.org)
 [![Router](https://img.shields.io/badge/Router-Expo%20Router-black)](https://docs.expo.dev/router/introduction/)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![Status](https://img.shields.io/badge/Status-Runnable%20%26%20Complete-success.svg)]()
 
-> **Kadro** is a universal cross-platform mobile application designed to solve persistent logistical hurdles in amateur football (*halı saha* culture). It empowers players and squad captains to complete match lineups, find last-minute players, schedule games on an interactive tactical pitch, and **buy or sell second-hand football gear** (cleats, jerseys, goalkeeper gloves, and equipment) within a trusted local community.
+> **Kadro** is a universal cross-platform mobile and web application (iOS, Android, and Web) designed to solve persistent logistical hurdles in amateur football (*halı saha* culture). It empowers players and squad captains to complete match lineups on an interactive tactical pitch, compare **pre-match opponent statistics**, vote on **community match predictions**, organize **regional amateur leagues**, submit **post-match Fair-Play & skill evaluations**, and **buy or sell second-hand football gear** within a trusted local community.
 
 ---
 
@@ -18,7 +18,7 @@
 5. [Tech Stack & Architecture](#-tech-stack--architecture)
 6. [Data Management & Persistence](#-data-management--persistence)
 7. [Getting Started & Installation](#-getting-started--installation)
-8. [Git Workflow & Commit Guidelines](#-git-workflow--commit-guidelines)
+8. [Git Workflow & Recent Milestones](#-git-workflow--recent-milestones)
 9. [Future Roadmap](#-future-roadmap)
 10. [Academic Integrity & Originality](#-academic-integrity--originality)
 11. [Author & Contact](#-author--contact)
@@ -30,19 +30,20 @@
 In amateur football and local mini-pitch matches, players and organizers encounter recurrent challenges:
 * **Last-Minute Dropouts:** A team member cancels hours before kick-off, putting the entire reservation and game at risk.
 * **Scattered Communication:** Disorganized messaging groups make it hard to confirm attendance, positions, and fees.
-* **Unbalanced Teams:** Organizers struggle to match player skill levels and find specialized roles (e.g., goalkeepers or defenders).
+* **No Pre-Match Context or League Structure:** Matched teams lack visibility into their opponents' previous match form, goals scored/conceded, or organized regional standings and fixtures.
+* **Lack of Accountability & Fair-Play Tracking:** There is no structured post-match feedback loop to reward respectful opponents and reliable players.
 * **High Equipment Costs & Idle Gear:** Football boots, goalkeeper gloves, and original kits are expensive. Players frequently have outgrown or barely-used gear sitting idle with no targeted, reliable platform to sell or trade locally.
 
-**Kadro** unites both needs into a single ecosystem: a **matchmaking & squad organizer** combined with a **community second-hand football marketplace**.
+**Kadro** unites all of these workflows into a single ecosystem: **matchmaking & tactical squad organization**, **pre-match analytics & predictions**, **regional leagues**, **post-match player/Fair-Play ratings**, and a **second-hand football gear marketplace**.
 
 ---
 
 ## 👥 Target Audience
 
-* **Squad Captains / Organizers:** Users who book local pitches and need a reliable tool to manage line-ups and fill missing player spots.
-* **Amateur Football Players:** Individuals looking for games in their neighborhood matching their skill level, position, and schedule.
-* **Sports Gear Buyers & Sellers:** Footballers seeking affordable, pre-owned boots, authentic kits, gloves, and equipment, or looking to declutter their own sports bags.
-* **Pitch Operators / Communities:** Local sports enthusiasts creating recreational tournaments and leagues.
+* **Squad Captains / Organizers:** Users who book local pitches and need a reliable tool to manage line-ups, recruit missing positions, and review opposing teams.
+* **Amateur Football Players:** Individuals looking for games in their neighborhood matching their skill level, position, and Fair-Play reputation.
+* **Regional League Coordinators & Teams:** Local communities organizing structured multi-team tournaments with live standings, fixtures, and prize pools.
+* **Sports Gear Buyers & Sellers:** Footballers seeking affordable, pre-owned boots, authentic kits, gloves, and equipment locally.
 
 ---
 
@@ -50,138 +51,156 @@ In amateur football and local mini-pitch matches, players and organizers encount
 
 | Category | Feature | Description |
 | :--- | :--- | :--- |
-| **Auth & Profile** | **🔐 Player Profile & Stats** | Detailed player identity with preferred position (GK, DEF, MID, FWD), rating (⭐ 4.9), matches played, attendance rate, and editable bio. |
-| **Matchmaking** | **🏟️ Match Discovery Feed** | Explore upcoming matches with real-time badges for missing slots, pitch venue, date/time, and player fee share. |
-| **Matchmaking** | **📋 Interactive Tactical Pitch** | Visual green pitch showing squad formation (7v7 / 6v6). Tapping any open slot lets players claim that position instantly. |
-| **Matchmaking** | **➕ Match Creation & RSVP** | Multi-attribute form with validation to publish matches with custom format, missing roles, venue address, and participation fees. |
-| **Marketplace** | **🛒 Second-Hand Gear Bazaar** | Community catalog to browse, search, and filter pre-owned boots, jerseys, goalkeeper gloves, balls, and protective gear. |
-| **Marketplace** | **🏷️ Sell Gear / Listing Form** | Easy-to-use form with category selection, brand, size, price in TL, and condition grades (*Sıfır*, *Çok İyi*, *İyi*). |
-| **Marketplace** | **💬 Direct Seller Contact** | Buyers can call the seller or start a conversation via WhatsApp with pre-filled match/item details. |
-| **Storage** | **💾 Offline Persistence** | AsyncStorage persistent layer saves match rosters, marketplace items, and profile changes across app restarts. |
-| **Demo Ready** | **🔄 1-Click Demo Reset** | Settings tab features an instant demo data reset button tailored for live classroom presentations and grading. |
+| **Matchmaking** | **🏟️ Match Discovery Feed** | Search and filter upcoming matches by district (`Kadıköy`, `Beşiktaş`), missing positions (`GK`, `DEF`, `MID`, `FWD`), or prediction status with a live vacant-slot counter. |
+| **Matchmaking** | **📋 Interactive Tactical Pitch** | Visual green pitch showing squad formation (`5v5`, `6v6`, `7v7`, `8v8`). Tapping any open slot lets players join or leave a position instantly. |
+| **Analytics** | **📊 Pre-Match Opponent Statistics** | Side-by-side comparison of matched teams' previous matches (played, won, drawn, lost, goals for/against, goal difference, goals per match, last 5 form `G/B/M`, Head-to-Head history, and recent match logs) in both Match Detail and League Fixtures. |
+| **Community** | **🏆 Match Predictions (`1 - X - 2`)** | Interactive pre-match voting with live community percentage distribution bars and `+25` Kadro point rewards. |
+| **Leagues** | **🥇 Regional Leagues & Standings** | Browse regional leagues, inspect full standings tables (`O`, `G`, `B`, `M`, `AV`, `P`, `FORM`), weekly fixtures, team rosters, and rules, register your team, or create a new league. |
+| **Reputation** | **⭐ Post-Match Player & Fair-Play Rating** | Rate opponents and teammates on Skill (`1–5`) and Fair-Play (`1–5`), gift community badges (*MVP*, *Centilmen Rakip*, *Oyun Kurucu*, etc.), leave comments, and earn `+15` Kadro points. |
+| **Marketplace** | **🛒 Second-Hand Gear Bazaar** | 2-column catalog to browse, search, filter by category (`Boots`, `Jerseys`, `Gloves`, `Equipment`), and sort pre-owned gear by price or recency. |
+| **Marketplace** | **🏷️ Sell Gear & Direct Contact** | Publish gear listings with condition grades, call sellers or open WhatsApp templates, and mark listings as sold (`Satıldı`). |
+| **Experience** | **🌗 Dark & Light Themes** | Persistent Dark Carbon (`DARK_COLORS`) and Light Arena (`LIGHT_COLORS`) themes with instant header and settings toggles. |
+| **Storage & Demo** | **💾 Offline Persistence & 1-Click Reset** | AsyncStorage layer persists matches, leagues, evaluations, marketplace items, user profile, and theme preference, with a 1-click demo reset in Settings. |
 
 ---
 
 ## 📱 App Screens & Navigation Flow
 
-The application follows Expo Router file-based routing with **6 navigable screens**:
+The application uses **Expo Router** file-based routing with **9 navigable screens** (5 bottom tabs + 4 stack detail/creation routes):
 
 ```
-                  [Root Layout (Stack Navigator)]
-                             │
-                             ▼
-              [Main App Shell (Tabs Navigator)]
- ┌─────────────────┬─────────────────┬──────────────────┬─────────────────┐
- ▼                 ▼                 ▼                  ▼                 ▼
-⚽ Maçlar          🛍️ 2. El Pazar    ➕ İlan / Maç      👤 Profil        [Dynamic Modals]
-(Feed & Search)   (Gear Bazaar)     (Create Forms)     (Stats & Setup)   ├─ 📋 match/[id] (Pitch Detail)
-                                                                         └─ 📦 gear/[id]  (Item Detail)
+                      [Root Layout (Stack Navigator)]
+                                     │
+         ┌───────────────────────────┼───────────────────────────┐
+         ▼                           ▼                           ▼
+[Main Tabs Navigator]       [Dynamic Detail Screens]      [League Creation]
+├─ ⚽ Maçlar (index)        ├─ 📋 match/[id]              └─ 🏆 league/create
+├─ 🏆 Ligler (leagues)      ├─ 📦 gear/[id]
+├─ ➕ Lig & İlan (create)   └─ 🥇 league/[id]
+├─ 🛍️ 2. El Pazar (market)
+└─ 👤 Profil (profile)
 ```
 
 ### 1. Match Discovery Feed (`src/app/(tabs)/index.tsx`)
-* Live search by venue, title, or district.
-* Position filter chips: `Tüm Maçlar`, `🧤 Kaleci (GK)`, `🛡️ Defans (DEF)`, `🎯 Orta Saha (MID)`, `⚡ Forvet (FWD)`, `Kadıköy`, `Beşiktaş`.
-* Live missing player banner counting total vacant spots across Istanbul.
-* Pull-to-refresh support.
+* Live search by match title, venue, or district.
+* Filter chips: `Tüm Maçlar`, `🏆 Maç Tahmini Yap`, `🧤 Kaleci (GK)`, `🛡️ Defans (DEF)`, `🎯 Orta Saha (MID)`, `⚡ Forvet (FWD)`, `📍 Kadıköy`, `📍 Beşiktaş`.
+* Header theme toggle (`sunny` / `moon`), live missing-player banner, regional league highlight card, and featured **Günün Maç Tahmini** widget.
 
-### 2. Second-Hand Gear Marketplace (`src/app/(tabs)/market.tsx`)
-* 2-column responsive product card grid (`GearCard`).
-* Category filters: `Tümü`, `👟 Kramponlar`, `👕 Formalar`, `🧤 Kaleci Eldiveni`, `🛡️ Ekipman`.
-* Price sort toggle (Fiyat: Artan / Fiyat: Azalan / En Yeniler).
-* Direct "+ İlan Ver" navigation button.
+### 2. Regional Leagues Hub (`src/app/(tabs)/leagues.tsx`)
+* Filter regional tournaments by district and status (`Tüm Ligler`, `🟢 Kayıtlar Açık`, `⚽ Devam Ediyor`).
+* Displays [`LeagueCard`](src/components/LeagueCard.tsx) items with team capacity progress bars, current leader highlight, entry fee, and prize banner.
 
-### 3. Create Match & Sell Gear (`src/app/(tabs)/create.tsx`)
-* Segmented tab switcher: "⚽ Maç Oluştur" vs "🛍️ 2. El Eşya Sat".
-* Form validation with user-friendly error banners and submission alerts.
-* Date-time inputs, format selectors (5v5, 6v6, 7v7, 8v8), and multi-select missing positions.
+### 3. Unified Creation Hub (`src/app/(tabs)/create.tsx`)
+* 3-mode segmented switcher (`Maç Aç`, `Lig Kur 🏆`, `2. El Sat`) supporting deep-linked `?tab=` parameters.
+* Validated forms for publishing matches (`5v5`–`8v8`, open/indoor pitch, missing positions), launching regional leagues (team cap, rules checklist, theme color), and listing second-hand gear.
 
-### 4. Player Profile & Settings (`src/app/(tabs)/profile.tsx`)
-* Player card with rating, attendance rate, and editable bio/phone/position.
-* Tab views for "⚽ Maçlarım" and "🛍️ İlanlarım".
-* Mark items as "Satıldı" (Sold).
-* One-click "Demo Verilerini Sıfırla" button to reset initial seed data.
+### 4. Second-Hand Gear Marketplace (`src/app/(tabs)/market.tsx`)
+* 2-column responsive product grid ([`GearCard`](src/components/GearCard.tsx)).
+* Category pills (`Tümü`, `👟 Kramponlar`, `👕 Formalar`, `🧤 Kaleci Eldiveni`, `🛡️ Ekipman & Top`) and sort cycling (`En Yeniler`, `Fiyat: Artan`, `Fiyat: Azalan`).
 
-### 5. Match Detail & Tactical Pitch Screen (`src/app/match/[id].tsx`)
-* Venue address, surface type (Açık/Kapalı), fee per player, and organizer contact.
-* **Interactive Pitch Lineup (`PitchLineup`):** Visual tactical soccer pitch with goal boxes, center circle, and player nodes.
-* Tap any vacant position slot to join or leave the lineup.
-* Team roster list with confirmation badges.
+### 5. Player Profile & Settings (`src/app/(tabs)/profile.tsx`)
+* Displays Skill rating, Fair-Play percentage, matches played, evaluation count, and opponent-awarded badges showcase.
+* Editable profile fields (name, phone, primary position, bio).
+* 5 inner tabs: `⚽ Maçlarım`, `🏆 Tahmin`, `💬 Yorumlar`, `🛍️ İlanlarım`, and `⚙️ Ayarlar` (Aydınlık/Karanlık theme switcher & 1-click `Demo Verilerini Sıfırla`).
 
-### 6. Gear Item Detail Screen (`src/app/gear/[id].tsx`)
-* Product illustration hero, condition badge, brand, and size specification table.
-* Full seller notes and location.
-* Direct action buttons: "Satıcıyı Ara" and "WhatsApp".
-* Seller action: "Satıldı Olarak İşaretle".
+### 6. Match Detail, Pre-Match Stats & Post-Match Evaluation (`src/app/match/[id].tsx`)
+* **Pre-Match Opponent Statistics ([`PreMatchStatsCard`](src/components/PreMatchStatsCard.tsx)):** Compares both matched teams' previous matches (wins, draws, losses, goals for/against, goal difference, goals per match, last 5 form, Head-to-Head record, and recent match history).
+* **Community Match Prediction ([`MatchPredictionCard`](src/components/MatchPredictionCard.tsx)):** `1 - X - 2` outcome voting with live vote percentages.
+* **Interactive Pitch Lineup ([`PitchLineup`](src/components/PitchLineup.tsx)):** Tap any vacant slot to join or tap your own slot to leave, paired with a full player roster list.
+* **Post-Match Evaluation ([`PostMatchEvaluationSection`](src/components/PostMatchEvaluationSection.tsx) & [`PlayerEvaluationModal`](src/components/PlayerEvaluationModal.tsx)):** Rate opponents and teammates on performance and Fair-Play and award badges.
+
+### 7. Regional League Detail (`src/app/league/[id].tsx`)
+* 4-tab view: `📊 Puan Durumu` (sortable standings table with form dots), `🗓️ Fikstür` (week selector + tappable fixture cards opening a **Pre-Match Opponent Statistics** modal), `🛡️ Takımlar`, and `📜 Kurallar`.
+* Share league details via native share sheet and register a new team via the modal form.
+
+### 8. Standalone League Creation (`src/app/league/create.tsx`)
+* Dedicated stack screen for configuring and launching a new regional league with rules checklist and badge color selection.
+
+### 9. Gear Item Detail (`src/app/gear/[id].tsx`)
+* Product hero, condition badge, brand/size/status specification grid, seller card, direct Call / WhatsApp actions, and seller `Satıldı Olarak İşaretle` action.
 
 ---
 
 ## 🛠️ Tech Stack & Architecture
 
 ### Technology Stack
-* **Framework:** [React Native](https://reactnative.dev) with [Expo](https://expo.dev) (SDK 57)
-* **Language:** [TypeScript](https://www.typescriptlang.org) (`v5.x` strict mode)
-* **Routing & Navigation:** [Expo Router](https://docs.expo.dev/router/introduction/) (File-based typed navigation)
-* **State Management:** React Context API (`AppContext`) + custom hooks (`useApp`)
-* **Data Persistence:** `@react-native-async-storage/async-storage`
-* **Icons:** `@expo/vector-icons` (Ionicons)
-* **Layout:** `react-native-safe-area-context`
-* **Styling:** React Native StyleSheet with central Design Tokens
+* **Framework:** [React Native](https://reactnative.dev) (`0.88.1`) with [Expo](https://expo.dev) (**SDK 58** / `~58.0.23`) and **React** (`19.3.0`)
+* **Language:** [TypeScript](https://www.typescriptlang.org) (`~6.0.3`, `strict: true`)
+* **Routing & Navigation:** [Expo Router](https://docs.expo.dev/router/introduction/) (`~58.0.30`, file-based typed navigation)
+* **Web & Tunneling Support:** `react-dom` (`19.3.0`), `react-native-web` (`~0.21.4`), `@expo/metro-runtime` (`~58.0.17`), `@expo/ngrok` (`^4.1.3`)
+* **State Management:** React Context API ([`AppContext`](src/context/AppContext.tsx), [`ThemeContext`](src/context/ThemeContext.tsx)) + custom hooks (`useApp`, `useTheme`)
+* **Data Persistence:** `@react-native-async-storage/async-storage` (`2.2.0`)
+* **UI & Layout:** `@expo/vector-icons` (`^15.0.2`), `react-native-safe-area-context` (`~5.11.1`), `react-native-screens` (`~4.30.1`), `expo-status-bar`
+* **Linting & Quality:** ESLint (`^9.0.0`) with `eslint-config-expo` (`~58.0.4`, configured in `eslint.config.js`)
 
 ### Project Directory Organization
 ```
 src/
-├── app/                  # Expo Router file-based screens
-│   ├── (tabs)/           # Main bottom tabs navigator
-│   │   ├── index.tsx     # Match Feed & Search Screen
-│   │   ├── market.tsx    # Second-Hand Football Gear Bazaar
-│   │   ├── create.tsx    # Create Match / Sell Gear Form
-│   │   ├── profile.tsx   # Player Profile, Activity & Settings
-│   │   └── _layout.tsx   # Tabs layout & custom icons
-│   ├── match/[id].tsx    # Match Detail & Interactive Tactical Pitch
-│   ├── gear/[id].tsx     # Gear Item Detail & Seller Contact
-│   └── _layout.tsx       # Root stack navigator & providers
-├── components/           # Reusable UI components
-│   ├── PitchLineup.tsx   # Interactive tactical 7v7 football pitch
-│   ├── MatchCard.tsx     # Match listing card with missing positions
-│   ├── GearCard.tsx      # Second-hand product card
-│   ├── PositionBadge.tsx # GK, DEF, MID, FWD color-coded badges
-│   └── EmptyState.tsx    # Edge-case fallback view
+├── app/                              # Expo Router file-based screens
+│   ├── (tabs)/                       # Main 5-tab bottom navigator
+│   │   ├── index.tsx                 # Match Discovery Feed & Featured Prediction
+│   │   ├── leagues.tsx               # Regional Leagues Discovery & Filters
+│   │   ├── create.tsx                # Unified Match / League / Gear Creation
+│   │   ├── market.tsx                # Second-Hand Football Gear Bazaar
+│   │   ├── profile.tsx               # Player Profile, Reviews, Theme & Settings
+│   │   └── _layout.tsx               # Bottom Tabs navigator configuration
+│   ├── match/[id].tsx                # Match Detail, Pre-Match Stats, Pitch & Evaluations
+│   ├── gear/[id].tsx                 # Gear Item Detail & Seller Contact
+│   ├── league/[id].tsx               # League Standings, Fixtures (with Stats Modal) & Rules
+│   ├── league/create.tsx             # Dedicated Regional League Creation Screen
+│   └── _layout.tsx                   # Root Stack navigator & Context Providers
+├── components/                       # Reusable UI components
+│   ├── PreMatchStatsCard.tsx         # Pre-match opponent comparison, H2H & recent matches
+│   ├── MatchPredictionCard.tsx       # 1-X-2 prediction voting card with live bars
+│   ├── PostMatchEvaluationSection.tsx# Post-match opponent/teammate rating list
+│   ├── PlayerEvaluationModal.tsx     # Skill, Fair-Play & badge evaluation modal
+│   ├── LeagueCard.tsx                # Regional league summary card
+│   ├── PitchLineup.tsx               # Interactive tactical pitch formation view
+│   ├── MatchCard.tsx                 # Match card with quick vote & missing positions
+│   ├── GearCard.tsx                  # Second-hand gear product card
+│   ├── PositionBadge.tsx             # GK, DEF, MID, FWD color-coded badges
+│   └── EmptyState.tsx                # Edge-case fallback view
 ├── constants/
-│   ├── theme.ts          # Color palette, spacing, and typography tokens
-│   └── mockData.ts       # Rich seed data for matches and gear
+│   ├── theme.ts                      # DARK_COLORS, LIGHT_COLORS, spacing & typography tokens
+│   └── mockData.ts                   # Seed data for matches, stats, leagues, gear & reviews
 ├── context/
-│   └── AppContext.tsx    # Global reactive state provider
+│   ├── AppContext.tsx                # Global application state & AsyncStorage sync
+│   └── ThemeContext.tsx              # Persistent Dark/Light theme provider
 ├── services/
-│   └── storageService.ts # AsyncStorage persistence layer
+│   └── storageService.ts             # AsyncStorage CRUD & demo reset service
+├── utils/
+│   └── matchupStats.ts               # Resolves pre-match & league fixture matchup statistics
 └── types/
-    └── index.ts          # TypeScript interfaces & domain models
+    └── index.ts                      # Domain models & TypeScript interfaces
 ```
 
 ---
 
 ## 💾 Data Management & Persistence
 
-Kadro implements a clean, relational data modeling schema backed by `@react-native-async-storage/async-storage`:
+Kadro persists domain data locally via `@react-native-async-storage/async-storage` across six storage keys (`@kadro_matches_v1`, `@kadro_gear_v1`, `@kadro_user_v1`, `@kadro_leagues_v1`, `@kadro_evaluations_v1`, `@kadro_theme_mode_v1`):
 
-### Key Data Entities
-* **`User`:** `id`, `name`, `email`, `phone`, `position`, `rating`, `matchesPlayed`, `bio`, `city`, `district`
-* **`Match`:** `id`, `title`, `organizerId`, `venueName`, `address`, `date`, `time`, `format`, `pitchType`, `feePerPlayer`, `missingPositions`, `roster`
-* **`RosterSlot`:** `id`, `position`, `isFilled`, `assignedPlayer` (id, name, rating), `isOrganizer`
+### Key Data Entities (`src/types/index.ts`)
+* **`User`:** `id`, `name`, `email`, `phone`, `position`, `rating`, `fairPlayRating`, `matchesPlayed`, `preferredFoot`, `city`, `district`, `bio`, `predictionScore`, `totalPredictions`, `correctPredictions`, `badges`, `evaluationsCount`
+* **`Match` & `RosterSlot`:** `id`, `title`, `organizerId`, `venueName`, `address`, `date`, `time`, `format`, `pitchType`, `feePerPlayer`, `totalSlots`, `roster`, `missingPositions`, `isJoined`, `isCompleted`, `finalScore`, `prediction`, `matchupStats`
+* **`MatchupStats` & `TeamMatchStats`:** `teamName`, `logoEmoji`, `played`, `won`, `drawn`, `lost`, `goalsFor`, `goalsAgainst`, `cleanSheets`, `form`, `recentMatches`, and `headToHead` (`totalMatches`, `team1Wins`, `draws`, `team2Wins`, `team1Goals`, `team2Goals`, `recentMeetings`)
+* **`RegionalLeague`, `LeagueTeam` & `LeagueFixture`:** Standings metrics (`played`, `won`, `drawn`, `lost`, `goalsFor`, `goalsAgainst`, `goalDifference`, `points`, `form`), fixtures, rules, prize, and registration capacity
+* **`PlayerEvaluation`:** `matchId`, `evaluatorId`, `targetPlayerId`, `isOpponent`, `skillRating`, `fairPlayRating`, `badges`, `comment`
 * **`GearItem`:** `id`, `sellerId`, `sellerName`, `sellerPhone`, `title`, `description`, `category`, `brand`, `size`, `price`, `condition`, `location`, `status`
 
 ### Edge-Case Handling & Reliability
-* **Offline Access:** All matches, rosters, and marketplace listings remain persistent and accessible without active internet.
-* **Empty State Messages:** Informative placeholders are shown when searches yield 0 results or filters are empty.
-* **Input Validation:** Prevents submission of invalid fees, empty titles, or missing positions.
+* **Offline Access & Cache Fallback:** All matches, leagues, evaluations, and gear listings persist offline; [`resolveMatchupStats`](src/utils/matchupStats.ts) seamlessly resolves seeded matchup history even when upgrading from older local storage caches.
+* **Empty State Fallbacks:** Informative placeholders appear when searches, filters, H2H histories, or recent match lists are empty.
+* **Input Validation:** Prevents submission of empty titles/venues, invalid fees/prices, or missing positions.
 
 ---
 
 ## 🚀 Getting Started & Installation
 
 ### Prerequisites
-* [Node.js](https://nodejs.org/) (`v18.0.0` or later — tested on `v24.21.0`)
-* [npm](https://www.npmjs.com/) (`v9.0.0` or later — tested on `v11.19.0`)
-* Physical iOS or Android smartphone with the free **Expo Go** app installed, or Android/iOS Simulator.
+* [Node.js](https://nodejs.org/) (`v22.13.0` or later recommended for Expo SDK 58 — tested on `v24.21.0`)
+* [npm](https://www.npmjs.com/) (`v9.0.0` or later)
+* Physical iOS or Android smartphone with **Expo Go** (SDK 58 compatible), Android/iOS Simulator, or a modern web browser.
 
 ### Step-by-Step Setup
 
@@ -196,10 +215,11 @@ Kadro implements a clean, relational data modeling schema backed by `@react-nati
    npm install
    ```
 
-3. **Verify project health and TypeScript:**
+3. **Verify project health, TypeScript, and ESLint:**
    ```bash
    npx expo-doctor
    npx tsc --noEmit
+   npx expo lint
    ```
 
 4. **Start the development server:**
@@ -207,35 +227,33 @@ Kadro implements a clean, relational data modeling schema backed by `@react-nati
    npx expo start
    ```
    * Open the **Expo Go** app on your phone and scan the displayed QR code.
-   * Or press `w` to run in web browser for an instant live presentation demo.
-   * Or press `a` for Android Emulator / `i` for iOS Simulator.
+   * Or press `w` (`npm run web`) to run in a web browser.
+   * Or press `a` (`npm run android`) / `i` (`npm run ios`) for Android Emulator / iOS Simulator.
 
 ---
 
-## 🌿 Git Workflow & Commit Guidelines
+## 🌿 Git Workflow & Recent Milestones
 
-The project maintains clean, traceable Git history reflecting iterative development:
+The project maintains a clean, traceable Git history reflecting iterative feature development and SDK maintenance:
 
-### Commit Format Convention
-```
-<type>(<scope>): <subject>
-
-Examples:
-feat(feed): implement match listing card with missing position badges
-feat(pitch): build interactive 7v7 lineup view with missing slot tags
-feat(market): implement second-hand football gear catalog and filters
-fix(auth): correct form validation on phone number input
-docs(readme): add comprehensive project documentation and setup instructions
-```
+* `f69786a` — `chore(setup): initialize Expo SDK 57 project with TypeScript and configuration`
+* `8c087f9` — `feat(core): add TypeScript domain models, theme tokens, storage service, and AppContext`
+* `0e04fc1` — `feat(components): implement tactical PitchLineup, MatchCard, GearCard, and PositionBadge`
+* `6422a98` — `feat(screens): implement Expo Router screens for match feed, gear bazaar, squad builder, and profile`
+* `d1d2c29` — `feat(web): add react-dom and react-native-web for browser execution`
+* `d6d5ac7` — `feat: modern UI overhaul, light/dark mode, match predictions, regional leagues, and post-match player evaluation system`
+* `d37e265` — `chore: update expo packages patch versions and install @expo/ngrok`
+* `d59e57f` — `Upgrade to Expo SDK 58 and resolve TypeScript and lint errors`
+* `10b28e7` — `Add pre-match opponent statistics comparison UI`
 
 ---
 
 ## 🔮 Future Roadmap
 
-- [ ] **In-App Messaging & Match Lobby:** Group chat for confirmed match players and direct messaging for gear buyers/sellers.
+- [ ] **In-App Messaging & Match Lobby:** Real-time group chat for confirmed match players and direct messaging for gear buyers/sellers.
 - [ ] **Pitch Booking API:** Direct reservation integration with municipal and private sports facilities.
 - [ ] **Secure Escrow Payments:** Optional in-app payment protection for second-hand gear sales.
-- [ ] **Proximity Alerts:** Push notifications when someone within 5 km lists boots in your size or needs your playing position.
+- [ ] **Proximity Alerts:** Push notifications when someone nearby lists boots in your size or needs your playing position.
 - [ ] **Multi-language Support (i18n):** Turkish (TR) and English (EN) full interface localization.
 
 ---
