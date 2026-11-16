@@ -17,9 +17,11 @@ import { useApp } from '../../context/AppContext';
 import { useTheme } from '../../context/ThemeContext';
 import { EmptyState } from '../../components/EmptyState';
 import { PreMatchStatsCard } from '../../components/PreMatchStatsCard';
+import { AiPredictionBotCard } from '../../components/AiPredictionBotCard';
 import { FONT_SIZE, SPACING } from '../../constants/theme';
 import { LeagueFixture } from '../../types';
 import { resolveLeagueFixtureMatchupStats } from '../../utils/matchupStats';
+import { generateAiMatchPrediction } from '../../utils/aiPredictor';
 
 export default function LeagueDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -69,6 +71,13 @@ export default function LeagueDetailScreen() {
     if (!league || !selectedFixture) return null;
     return resolveLeagueFixtureMatchupStats(selectedFixture, league);
   }, [league, selectedFixture]);
+
+  const selectedFixtureAiPrediction = useMemo(() => {
+    if (!league || !selectedFixtureStats) return null;
+    return generateAiMatchPrediction(selectedFixtureStats, {
+      format: league.format,
+    });
+  }, [league, selectedFixtureStats]);
 
   if (!league) {
     return (
@@ -825,6 +834,23 @@ export default function LeagueDetailScreen() {
             </View>
 
             <ScrollView showsVerticalScrollIndicator={false}>
+              {selectedFixtureStats && selectedFixtureAiPrediction && (
+                <AiPredictionBotCard
+                  stats={selectedFixtureStats}
+                  prediction={selectedFixtureAiPrediction}
+                  isCompleted={selectedFixture?.isFinished}
+                  finalScore={
+                    selectedFixture?.isFinished &&
+                    typeof selectedFixture.homeScore === 'number' &&
+                    typeof selectedFixture.awayScore === 'number'
+                      ? {
+                          team1: selectedFixture.homeScore,
+                          team2: selectedFixture.awayScore,
+                        }
+                      : undefined
+                  }
+                />
+              )}
               {selectedFixtureStats && (
                 <PreMatchStatsCard
                   stats={selectedFixtureStats}

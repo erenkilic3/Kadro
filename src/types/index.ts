@@ -62,6 +62,24 @@ export interface MatchupStats {
   headToHead?: HeadToHeadStats;
 }
 
+export interface AiMatchPrediction {
+  predictedScore1: number;
+  predictedScore2: number;
+  recommendedOutcome: PredictionChoice;
+  recommendedLabel: string;
+  probTeam1: number;
+  probDraw: number;
+  probTeam2: number;
+  confidence: number;
+  dataQuality: 'Yüksek Veri' | 'Orta Veri' | 'İlk Analiz';
+  expectedTotalGoals: number;
+  overUnderLine: number;
+  overUnderPick: 'ÜST' | 'ALT';
+  bttsYes: boolean;
+  bttsProbability: number;
+  insights: string[];
+}
+
 export interface PlayerBadge {
   id: string;
   label: string;

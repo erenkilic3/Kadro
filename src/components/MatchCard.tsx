@@ -7,6 +7,8 @@ import { useTheme } from '../context/ThemeContext';
 import { useApp } from '../context/AppContext';
 import { FONT_SIZE, SPACING } from '../constants/theme';
 import { PositionBadge } from './PositionBadge';
+import { resolveMatchupStats } from '../utils/matchupStats';
+import { generateAiMatchPrediction } from '../utils/aiPredictor';
 
 interface MatchCardProps {
   match: Match;
@@ -15,7 +17,7 @@ interface MatchCardProps {
 
 export const MatchCard: React.FC<MatchCardProps> = ({ match, currentUserId }) => {
   const { colors, isDark } = useTheme();
-  const { votePrediction } = useApp();
+  const { leagues, votePrediction } = useApp();
 
   const isJoined = match.isJoined || match.roster.some((s) => s.assignedPlayer?.id === currentUserId);
   const filledCount = match.roster.filter((s) => s.isFilled).length;
@@ -23,6 +25,11 @@ export const MatchCard: React.FC<MatchCardProps> = ({ match, currentUserId }) =>
 
   const pred = match.prediction;
   const totalVotes = pred ? (pred.votesTeam1 || 0) + (pred.votesDraw || 0) + (pred.votesTeam2 || 0) : 0;
+  const matchupStats = resolveMatchupStats(match, leagues);
+  const aiPred = generateAiMatchPrediction(matchupStats, {
+    format: match.format,
+    roster: match.roster,
+  });
 
   const handleQuickVote = (e: any, choice: PredictionChoice) => {
     e.stopPropagation();
@@ -94,6 +101,16 @@ export const MatchCard: React.FC<MatchCardProps> = ({ match, currentUserId }) =>
               <Text style={[styles.predTagText, { color: colors.warning }]}>
                 {pred.category === 'Derbi' ? 'Derbi Tahmini' : 'Maç Tahmini'}
               </Text>
+              <View
+                style={[
+                  styles.aiMiniBadge,
+                  { backgroundColor: isDark ? 'rgba(167, 139, 250, 0.18)' : 'rgba(124, 58, 237, 0.12)' },
+                ]}
+              >
+                <Text style={[styles.aiMiniText, { color: isDark ? '#A78BFA' : '#7C3AED' }]}>
+                  🤖 AI: {aiPred.predictedScore1}-{aiPred.predictedScore2} ({aiPred.recommendedOutcome})
+                </Text>
+              </View>
             </View>
             <Text style={[styles.predVotesText, { color: colors.textTertiary }]}>
               {totalVotes} oy • {pred.userVote ? `Tahminin: ${pred.userVote}` : 'Tahmin Yap'}
@@ -340,7 +357,19 @@ const styles = StyleSheet.create({
   predTag: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 3,
+    gap: 5,
+    flexWrap: 'wrap',
+    flex: 1,
+    paddingRight: 6,
+  },
+  aiMiniBadge: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  aiMiniText: {
+    fontSize: 9,
+    fontWeight: '800',
   },
   predTagText: {
     fontSize: 10,

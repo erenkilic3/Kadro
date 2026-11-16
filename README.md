@@ -54,6 +54,7 @@ In amateur football and local mini-pitch matches, players and organizers encount
 | **Matchmaking** | **🏟️ Match Discovery Feed** | Search and filter upcoming matches by district (`Kadıköy`, `Beşiktaş`), missing positions (`GK`, `DEF`, `MID`, `FWD`), or prediction status with a live vacant-slot counter. |
 | **Matchmaking** | **📋 Interactive Tactical Pitch** | Visual green pitch showing squad formation (`5v5`, `6v6`, `7v7`, `8v8`). Tapping any open slot lets players join or leave a position instantly. |
 | **Analytics** | **📊 Pre-Match Opponent Statistics** | Side-by-side comparison of matched teams' previous matches (played, won, drawn, lost, goals for/against, goal difference, goals per match, last 5 form `G/B/M`, Head-to-Head history, and recent match logs) in both Match Detail and League Fixtures. |
+| **AI Assistant** | **🤖 KadroAI Prediction Robot** | On-device statistical AI robot (`KadroAI`) that analyzes team attack/defense averages, recent form, H2H history, format pace, and squad ratings to predict match scores, `1 - X - 2` outcomes, win probabilities, Over/Under lines, and BTTS (`KG Var/Yok`) with natural-language reasoning. |
 | **Community** | **🏆 Match Predictions (`1 - X - 2`)** | Interactive pre-match voting with live community percentage distribution bars and `+25` Kadro point rewards. |
 | **Leagues** | **🥇 Regional Leagues & Standings** | Browse regional leagues, inspect full standings tables (`O`, `G`, `B`, `M`, `AV`, `P`, `FORM`), weekly fixtures, team rosters, and rules, register your team, or create a new league. |
 | **Reputation** | **⭐ Post-Match Player & Fair-Play Rating** | Rate opponents and teammates on Skill (`1–5`) and Fair-Play (`1–5`), gift community badges (*MVP*, *Centilmen Rakip*, *Oyun Kurucu*, etc.), leave comments, and earn `+15` Kadro points. |
@@ -84,7 +85,7 @@ The application uses **Expo Router** file-based routing with **9 navigable scree
 ### 1. Match Discovery Feed (`src/app/(tabs)/index.tsx`)
 * Live search by match title, venue, or district.
 * Filter chips: `Tüm Maçlar`, `🏆 Maç Tahmini Yap`, `🧤 Kaleci (GK)`, `🛡️ Defans (DEF)`, `🎯 Orta Saha (MID)`, `⚡ Forvet (FWD)`, `📍 Kadıköy`, `📍 Beşiktaş`.
-* Header theme toggle (`sunny` / `moon`), live missing-player banner, regional league highlight card, and featured **Günün Maç Tahmini** widget.
+* Header theme toggle (`sunny` / `moon`), live missing-player banner, regional league highlight card, featured **Günün Maç Tahmini** widget, and compact AI score badges (`🤖 AI: 3-2 (1)`) on match cards.
 
 ### 2. Regional Leagues Hub (`src/app/(tabs)/leagues.tsx`)
 * Filter regional tournaments by district and status (`Tüm Ligler`, `🟢 Kayıtlar Açık`, `⚽ Devam Ediyor`).
@@ -103,14 +104,15 @@ The application uses **Expo Router** file-based routing with **9 navigable scree
 * Editable profile fields (name, phone, primary position, bio).
 * 5 inner tabs: `⚽ Maçlarım`, `🏆 Tahmin`, `💬 Yorumlar`, `🛍️ İlanlarım`, and `⚙️ Ayarlar` (Aydınlık/Karanlık theme switcher & 1-click `Demo Verilerini Sıfırla`).
 
-### 6. Match Detail, Pre-Match Stats & Post-Match Evaluation (`src/app/match/[id].tsx`)
+### 6. Match Detail, Pre-Match Stats, AI Robot & Post-Match Evaluation (`src/app/match/[id].tsx`)
 * **Pre-Match Opponent Statistics ([`PreMatchStatsCard`](src/components/PreMatchStatsCard.tsx)):** Compares both matched teams' previous matches (wins, draws, losses, goals for/against, goal difference, goals per match, last 5 form, Head-to-Head record, and recent match history).
+* **KadroAI Prediction Robot ([`AiPredictionBotCard`](src/components/AiPredictionBotCard.tsx)):** Generates pre-match predicted scores, `1 - X - 2` outcome probabilities, Over/Under & BTTS insights, confidence score, re-scan animation, and 1-tap **AI Tahminine Katıl** voting (plus predicted vs. actual score comparison on completed matches).
 * **Community Match Prediction ([`MatchPredictionCard`](src/components/MatchPredictionCard.tsx)):** `1 - X - 2` outcome voting with live vote percentages.
 * **Interactive Pitch Lineup ([`PitchLineup`](src/components/PitchLineup.tsx)):** Tap any vacant slot to join or tap your own slot to leave, paired with a full player roster list.
 * **Post-Match Evaluation ([`PostMatchEvaluationSection`](src/components/PostMatchEvaluationSection.tsx) & [`PlayerEvaluationModal`](src/components/PlayerEvaluationModal.tsx)):** Rate opponents and teammates on performance and Fair-Play and award badges.
 
 ### 7. Regional League Detail (`src/app/league/[id].tsx`)
-* 4-tab view: `📊 Puan Durumu` (sortable standings table with form dots), `🗓️ Fikstür` (week selector + tappable fixture cards opening a **Pre-Match Opponent Statistics** modal), `🛡️ Takımlar`, and `📜 Kurallar`.
+* 4-tab view: `📊 Puan Durumu` (sortable standings table with form dots), `🗓️ Fikstür` (week selector + tappable fixture cards opening a **KadroAI Prediction Robot** & **Pre-Match Opponent Statistics** modal), `🛡️ Takımlar`, and `📜 Kurallar`.
 * Share league details via native share sheet and register a new team via the modal form.
 
 ### 8. Standalone League Creation (`src/app/league/create.tsx`)
@@ -150,6 +152,7 @@ src/
 │   ├── league/create.tsx             # Dedicated Regional League Creation Screen
 │   └── _layout.tsx                   # Root Stack navigator & Context Providers
 ├── components/                       # Reusable UI components
+│   ├── AiPredictionBotCard.tsx       # KadroAI score, outcome & probability robot card
 │   ├── PreMatchStatsCard.tsx         # Pre-match opponent comparison, H2H & recent matches
 │   ├── MatchPredictionCard.tsx       # 1-X-2 prediction voting card with live bars
 │   ├── PostMatchEvaluationSection.tsx# Post-match opponent/teammate rating list
@@ -169,6 +172,7 @@ src/
 ├── services/
 │   └── storageService.ts             # AsyncStorage CRUD & demo reset service
 ├── utils/
+│   ├── aiPredictor.ts                # Poisson-based on-device AI score & outcome predictor
 │   └── matchupStats.ts               # Resolves pre-match & league fixture matchup statistics
 └── types/
     └── index.ts                      # Domain models & TypeScript interfaces
@@ -184,6 +188,7 @@ Kadro persists domain data locally via `@react-native-async-storage/async-storag
 * **`User`:** `id`, `name`, `email`, `phone`, `position`, `rating`, `fairPlayRating`, `matchesPlayed`, `preferredFoot`, `city`, `district`, `bio`, `predictionScore`, `totalPredictions`, `correctPredictions`, `badges`, `evaluationsCount`
 * **`Match` & `RosterSlot`:** `id`, `title`, `organizerId`, `venueName`, `address`, `date`, `time`, `format`, `pitchType`, `feePerPlayer`, `totalSlots`, `roster`, `missingPositions`, `isJoined`, `isCompleted`, `finalScore`, `prediction`, `matchupStats`
 * **`MatchupStats` & `TeamMatchStats`:** `teamName`, `logoEmoji`, `played`, `won`, `drawn`, `lost`, `goalsFor`, `goalsAgainst`, `cleanSheets`, `form`, `recentMatches`, and `headToHead` (`totalMatches`, `team1Wins`, `draws`, `team2Wins`, `team1Goals`, `team2Goals`, `recentMeetings`)
+* **`AiMatchPrediction`:** `predictedScore1`, `predictedScore2`, `recommendedOutcome`, `recommendedLabel`, `probTeam1`, `probDraw`, `probTeam2`, `confidence`, `dataQuality`, `expectedTotalGoals`, `overUnderLine`, `overUnderPick`, `bttsYes`, `bttsProbability`, `insights`
 * **`RegionalLeague`, `LeagueTeam` & `LeagueFixture`:** Standings metrics (`played`, `won`, `drawn`, `lost`, `goalsFor`, `goalsAgainst`, `goalDifference`, `points`, `form`), fixtures, rules, prize, and registration capacity
 * **`PlayerEvaluation`:** `matchId`, `evaluatorId`, `targetPlayerId`, `isOpponent`, `skillRating`, `fairPlayRating`, `badges`, `comment`
 * **`GearItem`:** `id`, `sellerId`, `sellerName`, `sellerPhone`, `title`, `description`, `category`, `brand`, `size`, `price`, `condition`, `location`, `status`
@@ -245,6 +250,7 @@ The project maintains a clean, traceable Git history reflecting iterative featur
 * `d37e265` — `chore: update expo packages patch versions and install @expo/ngrok`
 * `d59e57f` — `Upgrade to Expo SDK 58 and resolve TypeScript and lint errors`
 * `10b28e7` — `Add pre-match opponent statistics comparison UI`
+* `7407b8c` — `docs(readme): update documentation with SDK 58, leagues, evaluations, and pre-match stats`
 
 ---
 

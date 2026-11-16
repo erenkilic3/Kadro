@@ -15,11 +15,13 @@ import { PitchLineup } from '../../components/PitchLineup';
 import { PositionBadge } from '../../components/PositionBadge';
 import { MatchPredictionCard } from '../../components/MatchPredictionCard';
 import { PreMatchStatsCard } from '../../components/PreMatchStatsCard';
+import { AiPredictionBotCard } from '../../components/AiPredictionBotCard';
 import { PostMatchEvaluationSection } from '../../components/PostMatchEvaluationSection';
 import { EmptyState } from '../../components/EmptyState';
 import { FONT_SIZE, SPACING } from '../../constants/theme';
 import { RosterSlot } from '../../types';
 import { resolveMatchupStats } from '../../utils/matchupStats';
+import { generateAiMatchPrediction } from '../../utils/aiPredictor';
 
 export default function MatchDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -50,6 +52,10 @@ export default function MatchDetailScreen() {
   const vacantSlots = match.roster.filter((s) => !s.isFilled);
   const filledCount = match.roster.filter((s) => s.isFilled).length;
   const matchupStats = resolveMatchupStats(match, leagues);
+  const aiPrediction = generateAiMatchPrediction(matchupStats, {
+    format: match.format,
+    roster: match.roster,
+  });
 
   const handleSlotSelect = (slot: RosterSlot) => {
     if (slot.isFilled) {
@@ -185,6 +191,18 @@ export default function MatchDetailScreen() {
 
       {/* Pre-Match Opponent Statistics Comparison */}
       <PreMatchStatsCard stats={matchupStats} isCompleted={match.isCompleted} />
+
+      {/* AI Prediction Robot */}
+      <AiPredictionBotCard
+        stats={matchupStats}
+        prediction={aiPrediction}
+        userVote={match.prediction?.userVote}
+        isCompleted={match.isCompleted}
+        finalScore={match.finalScore}
+        onApplyOutcome={
+          match.prediction ? (choice) => votePrediction(match.id, choice) : undefined
+        }
+      />
 
       {/* Match Prediction Widget Section */}
       {match.prediction && (
