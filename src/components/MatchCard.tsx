@@ -17,10 +17,23 @@ interface MatchCardProps {
 
 export const MatchCard: React.FC<MatchCardProps> = ({ match, currentUserId }) => {
   const { colors } = useTheme();
-  const { leagues, votePrediction } = useApp();
+  const { leagues, joinRequests, votePrediction } = useApp();
 
   const isJoined =
     match.isJoined || match.roster.some((s) => s.assignedPlayer?.id === currentUserId);
+  const isCaptain = Boolean(currentUserId && match.organizerId === currentUserId);
+  const incomingPendingCount = isCaptain
+    ? joinRequests.filter((r) => r.matchId === match.id && r.status === 'PENDING').length
+    : 0;
+  const hasUserPendingRequest = Boolean(
+    currentUserId &&
+      joinRequests.some(
+        (r) =>
+          r.matchId === match.id &&
+          r.requesterId === currentUserId &&
+          r.status === 'PENDING'
+      )
+  );
   const filledCount = match.roster.filter((s) => s.isFilled).length;
   const missingCount = match.totalSlots - filledCount;
 
@@ -170,9 +183,19 @@ export const MatchCard: React.FC<MatchCardProps> = ({ match, currentUserId }) =>
             ) : null}
           </Text>
 
-          {isJoined ? (
+          {incomingPendingCount > 0 ? (
+            <View style={[styles.joinedDotPill, { backgroundColor: `${colors.warning}20` }]}>
+              <Text style={[styles.joinedText, { color: colors.warning }]}>
+                {incomingPendingCount} istek
+              </Text>
+            </View>
+          ) : isJoined ? (
             <View style={[styles.joinedDotPill, { backgroundColor: `${colors.primary}20` }]}>
               <Text style={[styles.joinedText, { color: colors.primary }]}>Kadrodasın</Text>
+            </View>
+          ) : hasUserPendingRequest ? (
+            <View style={[styles.joinedDotPill, { backgroundColor: `${colors.warning}20` }]}>
+              <Text style={[styles.joinedText, { color: colors.warning }]}>Onay Bekliyor</Text>
             </View>
           ) : (
             <Ionicons name="chevron-forward" size={16} color={colors.textTertiary} />

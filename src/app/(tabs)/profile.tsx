@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { router } from 'expo-router';
 import { useApp } from '../../context/AppContext';
 import { useTheme } from '../../context/ThemeContext';
 import { MatchCard } from '../../components/MatchCard';
@@ -21,7 +22,7 @@ import { FONT_SIZE, RADIUS, SPACING } from '../../constants/theme';
 import { PlayerPosition } from '../../types';
 import { getInitials, stripLeadingSymbols } from '../../utils/formatters';
 
-type ProfileTab = 'MATCHES' | 'PREDICTIONS' | 'REVIEWS' | 'LISTINGS' | 'SETTINGS';
+type ProfileTab = 'MATCHES' | 'REQUESTS' | 'PREDICTIONS' | 'REVIEWS' | 'LISTINGS' | 'SETTINGS';
 
 export default function ProfileScreen() {
   const {
@@ -29,6 +30,10 @@ export default function ProfileScreen() {
     matches,
     gearItems,
     evaluations,
+    joinRequests,
+    approveJoinRequest,
+    rejectJoinRequest,
+    cancelJoinRequest,
     updateUser,
     resetDemoData,
     markGearSold,
@@ -51,6 +56,17 @@ export default function ProfileScreen() {
   const myPredictions = matches.filter((m) => Boolean(m.prediction?.userVote));
   const myListings = gearItems.filter((g) => g.sellerId === currentUser.id);
   const myReviews = evaluations.filter((e) => e.targetPlayerId === currentUser.id);
+
+  const captainMatchIds = new Set(
+    matches.filter((m) => m.organizerId === currentUser.id).map((m) => m.id)
+  );
+  const incomingCaptainRequests = joinRequests.filter(
+    (r) => captainMatchIds.has(r.matchId) && r.status === 'PENDING'
+  );
+  const mySentRequests = joinRequests.filter((r) => r.requesterId === currentUser.id);
+  const totalRequestsBadge =
+    incomingCaptainRequests.length +
+    mySentRequests.filter((r) => r.status === 'PENDING').length;
 
   const handleSaveProfile = async () => {
     await updateUser({
@@ -83,6 +99,7 @@ export default function ProfileScreen() {
 
   const profileTabs: { key: ProfileTab; label: string }[] = [
     { key: 'MATCHES', label: `Maçlar (${myMatches.length})` },
+    { key: 'REQUESTS', label: `Başvurular (${totalRequestsBadge})` },
     { key: 'PREDICTIONS', label: `Tahminler (${myPredictions.length})` },
     { key: 'REVIEWS', label: `Yorumlar (${myReviews.length})` },
     { key: 'LISTINGS', label: `İlanlar (${myListings.length})` },
@@ -324,6 +341,161 @@ export default function ProfileScreen() {
                 title="Henüz maça katılmadın"
                 description="Maçlar sekmesinden sana uygun kadrolara başvurabilirsin."
               />
+            )}
+          </View>
+        )}
+
+        {/* TAB: REQUESTS */}
+        {profileTab === 'REQUESTS' && (
+          <View style={styles.requestsWrap}>
+            {/* Incoming Captain Approvals */}
+            <Text style={[styles.requestsHeading, { color: colors.textSecondary }]}>
+              Kaptan Onayı Bekleyenler ({incomingCaptainRequests.length})
+            </Text>
+            {incomingCaptainRequests.length > 0 ? (
+              incomingCaptainRequests.map((req) => {
+                const match = matches.find((m) => m.id === req.matchId);
+                return (
+                  <View
+                    key={req.id}
+                    style={[
+                      styles.reqCard,
+                      { backgroundColor: colors.surface, borderColor: colors.surfaceBorder },
+                    ]}
+                  >
+                    <TouchableOpacity
+                      onPress={() => router.push(`/match/${req.matchId}`)}
+                      activeOpacity={0.8}
+                    >
+                      <Text style={[styles.reqMatchTitle, { color: colors.primary }]} numberOfLines={1}>
+                        {match?.title || 'Maç Detayı'}
+                      </Text>
+                    </TouchableOpacity>
+
+                    <View style={styles.reqTopRow}>
+                      <View style={{ flex: 1 }}>
+                        <Text style={[styles.reqPlayerName, { color: colors.text }]}>
+                          {req.requesterName}
+                        </Text>
+                        <Text style={[styles.reqSubMeta, { color: colors.textSecondary }]}>
+                          Yetenek {req.requesterRating.toFixed(1)} · Fair-Play %
+                          {Math.round(((req.requesterFairPlay || 4.9) / 5) * 100)}
+                        </Text>
+                      </View>
+                      <PositionBadge position={req.position} size="sm" />
+                    </View>
+
+                    {req.message ? (
+                      <Text style={[styles.reqMessage, { color: colors.textSecondary }]}>
+                        {`"${req.message}"`}
+                      </Text>
+                    ) : null}
+
+                    <View style={styles.reqActions}>
+                      <TouchableOpacity
+                        style={[styles.reqRejectBtn, { backgroundColor: `${colors.danger}15` }]}
+                        onPress={async () => {
+                          await rejectJoinRequest(req.id);
+                          Alert.alert('Reddedildi', `${req.requesterName} isteği reddedildi.`);
+                        }}
+                      >
+                        <Text style={[styles.reqRejectText, { color: colors.danger }]}>Reddet</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={[styles.reqApproveBtn, { backgroundColor: colors.primary }]}
+                        onPress={async () => {
+                          const ok = await approveJoinRequest(req.id);
+                          if (ok) {
+                            Alert.alert(
+                              'Onaylandı',
+                              `${req.requesterName} takıma dahil edildi.`
+                            );
+                          } else {
+                            Alert.alert('Onaylanamadı', 'Bu mevki için boş yer kalmamış.');
+                          }
+                        }}
+                      >
+                        <Text style={styles.reqApproveText}>Onayla ve Takıma Al</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                );
+              })
+            ) : (
+              <View style={[styles.reqEmptyBox, { backgroundColor: colors.surface }]}>
+                <Text style={[styles.reqEmptyText, { color: colors.textTertiary }]}>
+                  Kaptanı olduğunuz maçlar için bekleyen istek yok.
+                </Text>
+              </View>
+            )}
+
+            {/* Sent Requests */}
+            <Text style={[styles.requestsHeading, { color: colors.textSecondary, marginTop: 14 }]}>
+              Gönderdiğim İstekler ({mySentRequests.length})
+            </Text>
+            {mySentRequests.length > 0 ? (
+              mySentRequests.map((req) => {
+                const match = matches.find((m) => m.id === req.matchId);
+                const statusLabel =
+                  req.status === 'APPROVED'
+                    ? 'Onaylandı'
+                    : req.status === 'REJECTED'
+                    ? 'Reddedildi'
+                    : 'Onay Bekliyor';
+                const statusColor =
+                  req.status === 'APPROVED'
+                    ? colors.success
+                    : req.status === 'REJECTED'
+                    ? colors.danger
+                    : colors.warning;
+
+                return (
+                  <View
+                    key={req.id}
+                    style={[
+                      styles.reqCard,
+                      { backgroundColor: colors.surface, borderColor: colors.surfaceBorder },
+                    ]}
+                  >
+                    <View style={styles.reqTopRow}>
+                      <TouchableOpacity
+                        style={{ flex: 1, paddingRight: 8 }}
+                        onPress={() => router.push(`/match/${req.matchId}`)}
+                      >
+                        <Text style={[styles.reqPlayerName, { color: colors.text }]} numberOfLines={1}>
+                          {match?.title || 'Maç'}
+                        </Text>
+                        <Text style={[styles.reqSubMeta, { color: colors.textSecondary }]}>
+                          Mevki: {req.position} · Kaptan: {match?.organizerName || '-'}
+                        </Text>
+                      </TouchableOpacity>
+
+                      <View style={[styles.reqStatusPill, { backgroundColor: `${statusColor}18` }]}>
+                        <Text style={[styles.reqStatusText, { color: statusColor }]}>
+                          {statusLabel}
+                        </Text>
+                      </View>
+                    </View>
+
+                    {req.status === 'PENDING' && (
+                      <TouchableOpacity
+                        style={[styles.reqCancelLink, { borderTopColor: colors.surfaceBorder }]}
+                        onPress={() => cancelJoinRequest(req.id)}
+                      >
+                        <Text style={[styles.reqCancelText, { color: colors.danger }]}>
+                          İsteği İptal Et
+                        </Text>
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                );
+              })
+            ) : (
+              <View style={[styles.reqEmptyBox, { backgroundColor: colors.surface }]}>
+                <Text style={[styles.reqEmptyText, { color: colors.textTertiary }]}>
+                  Henüz bir takıma katılma isteği göndermediniz.
+                </Text>
+              </View>
             )}
           </View>
         )}
@@ -871,5 +1043,96 @@ const styles = StyleSheet.create({
   infoVal: {
     fontSize: FONT_SIZE.xs,
     fontWeight: '600',
+  },
+  requestsWrap: {
+    gap: 10,
+  },
+  requestsHeading: {
+    fontSize: 12,
+    fontWeight: '700',
+    marginBottom: 2,
+  },
+  reqCard: {
+    borderRadius: RADIUS.md,
+    borderWidth: StyleSheet.hairlineWidth,
+    padding: SPACING.md,
+  },
+  reqMatchTitle: {
+    fontSize: 11,
+    fontWeight: '700',
+    marginBottom: 6,
+  },
+  reqTopRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: 8,
+  },
+  reqPlayerName: {
+    fontSize: FONT_SIZE.sm,
+    fontWeight: '700',
+  },
+  reqSubMeta: {
+    fontSize: 11,
+    marginTop: 2,
+  },
+  reqMessage: {
+    fontSize: 12,
+    lineHeight: 17,
+    marginTop: 8,
+  },
+  reqActions: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 12,
+  },
+  reqRejectBtn: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 9,
+    borderRadius: RADIUS.sm,
+  },
+  reqRejectText: {
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  reqApproveBtn: {
+    flex: 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 9,
+    borderRadius: RADIUS.sm,
+  },
+  reqApproveText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  reqStatusPill: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+  },
+  reqStatusText: {
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  reqCancelLink: {
+    borderTopWidth: StyleSheet.hairlineWidth,
+    marginTop: 10,
+    paddingTop: 8,
+    alignItems: 'center',
+  },
+  reqCancelText: {
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  reqEmptyBox: {
+    borderRadius: RADIUS.md,
+    padding: SPACING.md,
+  },
+  reqEmptyText: {
+    fontSize: 12,
   },
 });

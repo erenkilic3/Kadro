@@ -9,12 +9,14 @@ interface PitchLineupProps {
   roster: RosterSlot[];
   onSelectSlot?: (slot: RosterSlot) => void;
   currentUserId?: string;
+  pendingSlotIds?: string[];
 }
 
 export const PitchLineup: React.FC<PitchLineupProps> = ({
   roster,
   onSelectSlot,
   currentUserId,
+  pendingSlotIds = [],
 }) => {
   const teamSlots = roster.slice(0, Math.ceil(roster.length / 2));
 
@@ -25,6 +27,7 @@ export const PitchLineup: React.FC<PitchLineupProps> = ({
 
   const renderSlot = (slot: RosterSlot) => {
     const isCurrentUser = slot.assignedPlayer?.id === currentUserId;
+    const isPending = !slot.isFilled && pendingSlotIds.includes(slot.id);
     const posColor = POSITION_COLORS[slot.position] || COLORS.primary;
     const playerName = slot.assignedPlayer?.name || '';
 
@@ -44,11 +47,15 @@ export const PitchLineup: React.FC<PitchLineupProps> = ({
                 ? isCurrentUser
                   ? '#FFFFFF'
                   : posColor
+                : isPending
+                ? 'rgba(234, 179, 8, 0.25)'
                 : 'rgba(17, 24, 39, 0.45)',
               borderColor: slot.isFilled
                 ? isCurrentUser
                   ? COLORS.primary
                   : 'rgba(255,255,255,0.8)'
+                : isPending
+                ? COLORS.warning
                 : 'rgba(255,255,255,0.6)',
               borderStyle: slot.isFilled ? 'solid' : 'dashed',
             },
@@ -64,7 +71,11 @@ export const PitchLineup: React.FC<PitchLineupProps> = ({
               {isCurrentUser ? 'SEN' : getInitials(playerName)}
             </Text>
           ) : (
-            <Ionicons name="add" size={18} color="#FFFFFF" />
+            <Ionicons
+              name={isPending ? 'time-outline' : 'add'}
+              size={18}
+              color={isPending ? COLORS.warning : '#FFFFFF'}
+            />
           )}
         </View>
 
@@ -74,6 +85,8 @@ export const PitchLineup: React.FC<PitchLineupProps> = ({
               ? isCurrentUser
                 ? 'Sen'
                 : playerName.split(' ')[0]
+              : isPending
+              ? 'Bekliyor'
               : slot.position}
           </Text>
         </View>

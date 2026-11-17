@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -17,6 +17,8 @@ import { MatchPredictionCard } from '../../components/MatchPredictionCard';
 import { PreMatchStatsCard } from '../../components/PreMatchStatsCard';
 import { AiPredictionBotCard } from '../../components/AiPredictionBotCard';
 import { PostMatchEvaluationSection } from '../../components/PostMatchEvaluationSection';
+import { JoinRequestModal } from '../../components/JoinRequestModal';
+import { CaptainRequestsSection } from '../../components/CaptainRequestsSection';
 import { EmptyState } from '../../components/EmptyState';
 import { FONT_SIZE, RADIUS, SPACING } from '../../constants/theme';
 import { RosterSlot } from '../../types';
@@ -26,8 +28,24 @@ import { getInitials } from '../../utils/formatters';
 
 export default function MatchDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { matches, leagues, currentUser, joinMatchSlot, leaveMatch, votePrediction } = useApp();
+  const {
+    matches,
+    leagues,
+    currentUser,
+    joinMatchSlot,
+    leaveMatch,
+    sendJoinRequest,
+    cancelJoinRequest,
+    approveJoinRequest,
+    rejectJoinRequest,
+    getMatchJoinRequests,
+    getUserMatchJoinRequest,
+    votePrediction,
+  } = useApp();
   const { colors } = useTheme();
+
+  const [requestTargetSlot, setRequestTargetSlot] = useState<RosterSlot | null>(null);
+  const [showDemoCaptainPanel, setShowDemoCaptainPanel] = useState(false);
 
   const match = matches.find((m) => m.id === id);
 
@@ -45,9 +63,18 @@ export default function MatchDetailScreen() {
     );
   }
 
+  const isCaptain = match.organizerId === currentUser.id;
   const isUserJoined = match.roster.some((s) => s.assignedPlayer?.id === currentUser.id);
-  const vacantSlots = match.roster.filter((s) => !s.isFilled);
+  const vacantSlots = match.roster
+    .slice(0, Math.ceil(match.totalSlots / 2))
+    .filter((s) => !s.isFilled);
   const filledCount = match.roster.filter((s) => s.isFilled).length;
+
+  const matchJoinRequests = getMatchJoinRequests(match.id);
+  const userRequest = getUserMatchJoinRequest(match.id);
+  const pendingSlotIds =
+    userRequest?.status === 'PENDING' ? [userRequest.slotId] : [];
+
   const matchupStats = resolveMatchupStats(match, leagues);
   const aiPrediction = generateAiMatchPrediction(matchupStats, {
     format: match.format,
@@ -64,47 +91,94 @@ export default function MatchDetailScreen() {
       return;
     }
 
-    Alert.alert(
-      'Kadroya Katıl',
-      `${slot.position} mevkisine katılmak istediğinizi onaylıyor musunuz? (Ücret: ₺${match.feePerPlayer})`,
-      [
-        { text: 'Vazgeç', style: 'cancel' },
-        {
-          text: 'Onayla',
-          onPress: async () => {
-            const ok = await joinMatchSlot(match.id, slot.id);
-            if (ok) {
-              Alert.alert('Kadroya Eklendiniz', `${slot.position} olarak kadroya katıldınız.`);
-            }
+    if (isCaptain) {
+      Alert.alert(
+        'Kadroya Ekle',
+        `Kaptan olarak ${slot.position} mevkisine kendinizi eklemek istiyor musunuz?`,
+        [
+          { text: 'Vazgeç', style: 'cancel' },
+          {
+            text: 'Kadroya Al',
+            onPress: async () => {
+              const ok = await joinMatchSlot(match.id, slot.id);
+              if (ok) {
+                Alert.alert('Eklendiniz', `${slot.position} mevkisine dahil oldunuz.`);
+              }
+            },
           },
-        },
-      ]
-    );
+        ]
+      );
+      return;
+    }
+
+    if (isUserJoined) {
+      Alert.alert('Bilgi', 'Bu maçın kadrosunda zaten yer alıyorsunuz.');
+      return;
+    }
+
+    if (userRequest?.status === 'PENDING') {
+      Alert.alert(
+        'Bekleyen İstek',
+        `${userRequest.position} mevkisi için kaptan onayı bekleyen bir isteğiniz zaten var.`,
+        [
+          { text: 'Tamam', style: 'cancel' },
+          {
+            text: 'İsteği İptal Et',
+            style: 'destructive',
+            onPress: async () => {
+              await cancelJoinRequest(userRequest.id);
+            },
+          },
+        ]
+      );
+      return;
+    }
+
+    setRequestTargetSlot(slot);
   };
 
-  const handleQuickJoin = () => {
+  const handleQuickRequest = () => {
     if (vacantSlots.length === 0) {
-      Alert.alert('Kadro Dolu', 'Bu maçta tüm mevkiler dolmuştur.');
+      Alert.alert('Kadro Dolu', 'Bu maçta boş mevki kalmamıştır.');
+      return;
+    }
+
+    if (userRequest?.status === 'PENDING') {
+      Alert.alert(
+        'Onay Bekleniyor',
+        `${userRequest.position} mevkisi için isteğiniz takım kaptanına iletildi. İptal etmek ister misiniz?`,
+        [
+          { text: 'Bekle', style: 'cancel' },
+          {
+            text: 'İsteği İptal Et',
+            style: 'destructive',
+            onPress: async () => {
+              await cancelJoinRequest(userRequest.id);
+            },
+          },
+        ]
+      );
       return;
     }
 
     const preferredSlot =
       vacantSlots.find((s) => s.position === currentUser.position) || vacantSlots[0];
+    setRequestTargetSlot(preferredSlot);
+  };
 
-    Alert.alert(
-      'Kadroya Katıl',
-      `${preferredSlot.position} mevkisine katılmak üzeresiniz. Onaylıyor musunuz?`,
-      [
-        { text: 'İptal', style: 'cancel' },
-        {
-          text: 'Katıl',
-          onPress: async () => {
-            await joinMatchSlot(match.id, preferredSlot.id);
-            Alert.alert('Katılım Başarılı', 'Kadroya başarıyla dahil oldunuz.');
-          },
-        },
-      ]
-    );
+  const handleSubmitJoinRequest = async (message?: string) => {
+    if (!requestTargetSlot) return;
+    const ok = await sendJoinRequest(match.id, requestTargetSlot.id, message);
+    setRequestTargetSlot(null);
+
+    if (ok) {
+      Alert.alert(
+        'İstek Gönderildi',
+        `${requestTargetSlot.position} mevkisi için başvurunuz kaptan ${match.organizerName} onayına gönderildi.`
+      );
+    } else {
+      Alert.alert('Gönderilemedi', 'Bu mevki dolmuş veya aktif bir isteğiniz bulunuyor.');
+    }
   };
 
   const handleLeave = () => {
@@ -119,6 +193,24 @@ export default function MatchDetailScreen() {
         },
       },
     ]);
+  };
+
+  const handleCancelPending = () => {
+    if (!userRequest) return;
+    Alert.alert(
+      'İsteği İptal Et',
+      'Takıma katılma isteğinizi geri çekmek istiyor musunuz?',
+      [
+        { text: 'Vazgeç', style: 'cancel' },
+        {
+          text: 'İptal Et',
+          style: 'destructive',
+          onPress: async () => {
+            await cancelJoinRequest(userRequest.id);
+          },
+        },
+      ]
+    );
   };
 
   return (
@@ -142,6 +234,11 @@ export default function MatchDetailScreen() {
               {match.pitchType}
             </Text>
           </View>
+          {isCaptain && (
+            <View style={[styles.formatPill, { backgroundColor: `${colors.primary}18` }]}>
+              <Text style={[styles.formatText, { color: colors.primary }]}>Kaptansın</Text>
+            </View>
+          )}
           <View style={{ flex: 1 }} />
           <Text style={[styles.feeNumber, { color: colors.text }]}>
             ₺{match.feePerPlayer}
@@ -165,6 +262,82 @@ export default function MatchDetailScreen() {
           </Text>
         </View>
       </View>
+
+      {/* Captain Approval Management (Shown directly to team captain, or in Demo Preview) */}
+      {(isCaptain || showDemoCaptainPanel) && (
+        <CaptainRequestsSection
+          requests={matchJoinRequests}
+          isDemoPreview={!isCaptain && showDemoCaptainPanel}
+          onApprove={approveJoinRequest}
+          onReject={rejectJoinRequest}
+        />
+      )}
+
+      {/* Player Pending / Rejected Request Status Card */}
+      {!isCaptain && !isUserJoined && userRequest?.status === 'PENDING' && (
+        <View
+          style={[
+            styles.requestStatusCard,
+            { backgroundColor: colors.surface, borderColor: colors.surfaceBorder },
+          ]}
+        >
+          <View style={styles.requestStatusHeader}>
+            <View style={[styles.statusBadge, { backgroundColor: `${colors.warning}20` }]}>
+              <Ionicons name="time-outline" size={14} color={colors.warning} />
+              <Text style={[styles.statusBadgeText, { color: colors.warning }]}>
+                Kaptan Onayı Bekleniyor
+              </Text>
+            </View>
+            <PositionBadge position={userRequest.position} size="sm" />
+          </View>
+
+          <Text style={[styles.requestStatusDesc, { color: colors.textSecondary }]}>
+            {match.organizerName} başvurunuzu onayladığında {userRequest.position} mevkisi ile
+            takıma dahil olacaksınız.
+          </Text>
+
+          {userRequest.message ? (
+            <Text style={[styles.requestNotePreview, { color: colors.textTertiary }]}>
+              {`Notunuz: "${userRequest.message}"`}
+            </Text>
+          ) : null}
+
+          <View style={styles.requestStatusActions}>
+            <TouchableOpacity
+              style={[styles.cancelReqBtn, { backgroundColor: `${colors.danger}15` }]}
+              onPress={handleCancelPending}
+            >
+              <Text style={[styles.cancelReqText, { color: colors.danger }]}>
+                İsteği İptal Et
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.demoToggleBtn, { backgroundColor: colors.surfaceLight }]}
+              onPress={() => setShowDemoCaptainPanel((prev) => !prev)}
+            >
+              <Text style={[styles.demoToggleText, { color: colors.textSecondary }]}>
+                {showDemoCaptainPanel ? 'Kaptan Panelini Gizle' : 'Demo: Kaptan Onayı'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
+
+      {!isCaptain && !isUserJoined && userRequest?.status === 'REJECTED' && (
+        <View
+          style={[
+            styles.rejectedNotice,
+            { backgroundColor: `${colors.danger}12`, borderColor: colors.surfaceBorder },
+          ]}
+        >
+          <Ionicons name="close-circle-outline" size={17} color={colors.danger} />
+          <Text style={[styles.rejectedText, { color: colors.textSecondary }]}>
+            Önceki katılma isteğiniz kaptan tarafından onaylanmadı. Uygun başka bir mevki için
+            yeniden istek gönderebilirsiniz.
+          </Text>
+        </View>
+      )}
 
       {/* Pre-Match Opponent Statistics */}
       <PreMatchStatsCard stats={matchupStats} isCompleted={match.isCompleted} />
@@ -203,12 +376,12 @@ export default function MatchDetailScreen() {
           </Text>
         </View>
         <View style={{ flex: 1, marginLeft: 10 }}>
-          <Text style={[styles.orgLabel, { color: colors.textTertiary }]}>Organizatör</Text>
+          <Text style={[styles.orgLabel, { color: colors.textTertiary }]}>Takım Kaptanı</Text>
           <Text style={[styles.orgName, { color: colors.text }]}>{match.organizerName}</Text>
         </View>
         <TouchableOpacity
           style={[styles.callBtn, { backgroundColor: colors.surfaceLight }]}
-          onPress={() => Alert.alert('İletişim', `Organizatör Tel: ${match.organizerPhone}`)}
+          onPress={() => Alert.alert('İletişim', `Kaptan Tel: ${match.organizerPhone}`)}
           activeOpacity={0.8}
         >
           <Ionicons name="call-outline" size={15} color={colors.text} />
@@ -248,7 +421,7 @@ export default function MatchDetailScreen() {
       <View style={styles.sectionHeaderRow}>
         <Text style={[styles.sectionTitle, { color: colors.text }]}>Saha Dizilimi</Text>
         <Text style={[styles.sectionHint, { color: colors.textTertiary }]}>
-          Boş mevkiye dokunarak katıl
+          {isCaptain ? 'Boş mevkiye dokunarak katıl' : 'Boş mevkiye dokunarak istek gönder'}
         </Text>
       </View>
 
@@ -256,6 +429,7 @@ export default function MatchDetailScreen() {
         roster={match.roster}
         onSelectSlot={handleSlotSelect}
         currentUserId={currentUser.id}
+        pendingSlotIds={pendingSlotIds}
       />
 
       {/* Roster Table */}
@@ -272,40 +446,53 @@ export default function MatchDetailScreen() {
           </Text>
         </View>
 
-        {match.roster.slice(0, Math.ceil(match.totalSlots / 2)).map((slot, idx, arr) => (
-          <View
-            key={slot.id}
-            style={[
-              styles.rosterRow,
-              { borderBottomColor: colors.surfaceBorder },
-              idx === arr.length - 1 && { borderBottomWidth: 0 },
-            ]}
-          >
-            <View style={styles.slotPos}>
-              <PositionBadge position={slot.position} size="sm" />
+        {match.roster.slice(0, Math.ceil(match.totalSlots / 2)).map((slot, idx, arr) => {
+          const isPendingSlot = !slot.isFilled && pendingSlotIds.includes(slot.id);
+          return (
+            <View
+              key={slot.id}
+              style={[
+                styles.rosterRow,
+                { borderBottomColor: colors.surfaceBorder },
+                idx === arr.length - 1 && { borderBottomWidth: 0 },
+              ]}
+            >
+              <View style={styles.slotPos}>
+                <PositionBadge position={slot.position} size="sm" />
+              </View>
+              <View style={{ flex: 1, marginLeft: 8 }}>
+                <Text
+                  style={[
+                    styles.slotName,
+                    { color: slot.isFilled ? colors.text : colors.textTertiary },
+                  ]}
+                >
+                  {slot.isFilled
+                    ? slot.assignedPlayer?.name
+                    : isPendingSlot
+                    ? 'Onay bekleniyor'
+                    : 'Boş mevki'}
+                </Text>
+              </View>
+              {slot.isFilled ? (
+                <Ionicons name="checkmark" size={16} color={colors.success} />
+              ) : isPendingSlot ? (
+                <View style={[styles.pendingSlotBadge, { backgroundColor: `${colors.warning}20` }]}>
+                  <Text style={[styles.pendingSlotText, { color: colors.warning }]}>Bekliyor</Text>
+                </View>
+              ) : (
+                <TouchableOpacity
+                  style={[styles.miniJoinBtn, { backgroundColor: colors.primary }]}
+                  onPress={() => handleSlotSelect(slot)}
+                >
+                  <Text style={styles.miniJoinText}>
+                    {isCaptain ? 'Katıl' : 'İstek Gönder'}
+                  </Text>
+                </TouchableOpacity>
+              )}
             </View>
-            <View style={{ flex: 1, marginLeft: 8 }}>
-              <Text
-                style={[
-                  styles.slotName,
-                  { color: slot.isFilled ? colors.text : colors.textTertiary },
-                ]}
-              >
-                {slot.isFilled ? slot.assignedPlayer?.name : 'Boş mevki'}
-              </Text>
-            </View>
-            {slot.isFilled ? (
-              <Ionicons name="checkmark" size={16} color={colors.success} />
-            ) : (
-              <TouchableOpacity
-                style={[styles.miniJoinBtn, { backgroundColor: colors.primary }]}
-                onPress={() => handleSlotSelect(slot)}
-              >
-                <Text style={styles.miniJoinText}>Katıl</Text>
-              </TouchableOpacity>
-            )}
-          </View>
-        ))}
+          );
+        })}
       </View>
 
       {match.notes ? (
@@ -332,6 +519,15 @@ export default function MatchDetailScreen() {
           >
             <Text style={[styles.leaveBtnText, { color: colors.danger }]}>Kadrodan Ayrıl</Text>
           </TouchableOpacity>
+        ) : userRequest?.status === 'PENDING' ? (
+          <TouchableOpacity
+            style={[styles.pendingCtaBtn, { backgroundColor: `${colors.warning}18` }]}
+            onPress={handleCancelPending}
+          >
+            <Text style={[styles.pendingCtaText, { color: colors.warning }]}>
+              Kaptan Onayı Bekleniyor (İptal Et)
+            </Text>
+          </TouchableOpacity>
         ) : (
           <TouchableOpacity
             style={[
@@ -340,7 +536,11 @@ export default function MatchDetailScreen() {
                 backgroundColor: vacantSlots.length > 0 ? colors.primary : colors.surfaceLight,
               },
             ]}
-            onPress={handleQuickJoin}
+            onPress={
+              isCaptain
+                ? () => vacantSlots[0] && handleSlotSelect(vacantSlots[0])
+                : handleQuickRequest
+            }
             disabled={vacantSlots.length === 0}
           >
             <Text
@@ -349,11 +549,26 @@ export default function MatchDetailScreen() {
                 { color: vacantSlots.length > 0 ? '#FFFFFF' : colors.textTertiary },
               ]}
             >
-              {vacantSlots.length > 0 ? 'Kadroya Hemen Katıl' : 'Kadro Doldu'}
+              {vacantSlots.length > 0
+                ? isCaptain
+                  ? 'Boş Mevkiye Katıl'
+                  : 'Takıma Katılma İsteği Gönder'
+                : 'Kadro Doldu'}
             </Text>
           </TouchableOpacity>
         )}
       </View>
+
+      {/* Join Request Modal */}
+      <JoinRequestModal
+        visible={Boolean(requestTargetSlot)}
+        matchTitle={match.title}
+        captainName={match.organizerName}
+        feePerPlayer={match.feePerPlayer}
+        position={requestTargetSlot?.position || null}
+        onClose={() => setRequestTargetSlot(null)}
+        onSubmit={handleSubmitJoinRequest}
+      />
     </ScrollView>
   );
 }
@@ -418,6 +633,79 @@ const styles = StyleSheet.create({
   metaText: {
     fontSize: FONT_SIZE.xs,
     flex: 1,
+  },
+  requestStatusCard: {
+    borderRadius: RADIUS.lg,
+    padding: SPACING.lg,
+    borderWidth: StyleSheet.hairlineWidth,
+    marginBottom: SPACING.md,
+  },
+  requestStatusHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  statusBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 9,
+    paddingVertical: 4,
+    borderRadius: 6,
+    gap: 5,
+  },
+  statusBadgeText: {
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  requestStatusDesc: {
+    fontSize: 12,
+    lineHeight: 17,
+  },
+  requestNotePreview: {
+    fontSize: 11,
+    marginTop: 6,
+  },
+  requestStatusActions: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 12,
+  },
+  cancelReqBtn: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 9,
+    borderRadius: RADIUS.sm,
+  },
+  cancelReqText: {
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  demoToggleBtn: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 9,
+    borderRadius: RADIUS.sm,
+  },
+  demoToggleText: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  rejectedNotice: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: RADIUS.md,
+    borderWidth: StyleSheet.hairlineWidth,
+    padding: SPACING.md,
+    gap: 8,
+    marginBottom: SPACING.md,
+  },
+  rejectedText: {
+    flex: 1,
+    fontSize: 12,
+    lineHeight: 17,
   },
   organizerBox: {
     flexDirection: 'row',
@@ -528,6 +816,15 @@ const styles = StyleSheet.create({
     fontSize: FONT_SIZE.xs,
     fontWeight: '600',
   },
+  pendingSlotBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+  },
+  pendingSlotText: {
+    fontSize: 11,
+    fontWeight: '700',
+  },
   miniJoinBtn: {
     paddingHorizontal: 10,
     paddingVertical: 4,
@@ -563,6 +860,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   joinBtnText: {
+    fontSize: FONT_SIZE.sm,
+    fontWeight: '700',
+  },
+  pendingCtaBtn: {
+    paddingVertical: 14,
+    borderRadius: RADIUS.md,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  pendingCtaText: {
     fontSize: FONT_SIZE.sm,
     fontWeight: '700',
   },

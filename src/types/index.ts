@@ -80,6 +80,24 @@ export interface AiMatchPrediction {
   insights: string[];
 }
 
+export type JoinRequestStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
+
+export interface JoinRequest {
+  id: string;
+  matchId: string;
+  slotId: string;
+  position: PlayerPosition;
+  requesterId: string;
+  requesterName: string;
+  requesterPhone?: string;
+  requesterRating: number;
+  requesterFairPlay?: number;
+  message?: string;
+  status: JoinRequestStatus;
+  createdAt: string;
+  respondedAt?: string;
+}
+
 export interface PlayerBadge {
   id: string;
   label: string;

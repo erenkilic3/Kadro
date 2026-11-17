@@ -1,11 +1,19 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Match, GearItem, User, RegionalLeague, PlayerEvaluation } from '../types';
+import {
+  Match,
+  GearItem,
+  User,
+  RegionalLeague,
+  PlayerEvaluation,
+  JoinRequest,
+} from '../types';
 import {
   INITIAL_MATCHES,
   INITIAL_GEAR_ITEMS,
   INITIAL_USER,
   INITIAL_LEAGUES,
   INITIAL_EVALUATIONS,
+  INITIAL_JOIN_REQUESTS,
 } from '../constants/mockData';
 
 const KEYS = {
@@ -14,6 +22,7 @@ const KEYS = {
   USER: '@kadro_user_v1',
   LEAGUES: '@kadro_leagues_v1',
   EVALUATIONS: '@kadro_evaluations_v1',
+  JOIN_REQUESTS: '@kadro_join_requests_v1',
   FAVORITES: '@kadro_favorites_v1',
 };
 
@@ -22,11 +31,20 @@ export const storageService = {
     try {
       const data = await AsyncStorage.getItem(KEYS.MATCHES);
       if (!data) {
-        // Seed initial matches on first run
         await AsyncStorage.setItem(KEYS.MATCHES, JSON.stringify(INITIAL_MATCHES));
         return INITIAL_MATCHES;
       }
-      return JSON.parse(data);
+      const parsed: Match[] = JSON.parse(data);
+      const joinReqsSeeded = await AsyncStorage.getItem(KEYS.JOIN_REQUESTS);
+      if (!joinReqsSeeded) {
+        const captainMatch = INITIAL_MATCHES.find((m) => m.id === 'match_4');
+        if (captainMatch && !parsed.some((m) => m.id === 'match_4')) {
+          const merged = [captainMatch, ...parsed];
+          await AsyncStorage.setItem(KEYS.MATCHES, JSON.stringify(merged));
+          return merged;
+        }
+      }
+      return parsed;
     } catch (e) {
       console.error('Error fetching matches from storage', e);
       return INITIAL_MATCHES;
@@ -129,12 +147,35 @@ export const storageService = {
     }
   },
 
+  async getJoinRequests(): Promise<JoinRequest[]> {
+    try {
+      const data = await AsyncStorage.getItem(KEYS.JOIN_REQUESTS);
+      if (!data) {
+        await AsyncStorage.setItem(KEYS.JOIN_REQUESTS, JSON.stringify(INITIAL_JOIN_REQUESTS));
+        return INITIAL_JOIN_REQUESTS;
+      }
+      return JSON.parse(data);
+    } catch (e) {
+      console.error('Error fetching join requests from storage', e);
+      return INITIAL_JOIN_REQUESTS;
+    }
+  },
+
+  async saveJoinRequests(requests: JoinRequest[]): Promise<void> {
+    try {
+      await AsyncStorage.setItem(KEYS.JOIN_REQUESTS, JSON.stringify(requests));
+    } catch (e) {
+      console.error('Error saving join requests', e);
+    }
+  },
+
   async resetToDemoData(): Promise<{
     matches: Match[];
     gear: GearItem[];
     user: User;
     leagues: RegionalLeague[];
     evaluations: PlayerEvaluation[];
+    joinRequests: JoinRequest[];
   }> {
     try {
       await AsyncStorage.setItem(KEYS.MATCHES, JSON.stringify(INITIAL_MATCHES));
@@ -142,12 +183,14 @@ export const storageService = {
       await AsyncStorage.setItem(KEYS.USER, JSON.stringify(INITIAL_USER));
       await AsyncStorage.setItem(KEYS.LEAGUES, JSON.stringify(INITIAL_LEAGUES));
       await AsyncStorage.setItem(KEYS.EVALUATIONS, JSON.stringify(INITIAL_EVALUATIONS));
+      await AsyncStorage.setItem(KEYS.JOIN_REQUESTS, JSON.stringify(INITIAL_JOIN_REQUESTS));
       return {
         matches: INITIAL_MATCHES,
         gear: INITIAL_GEAR_ITEMS,
         user: INITIAL_USER,
         leagues: INITIAL_LEAGUES,
         evaluations: INITIAL_EVALUATIONS,
+        joinRequests: INITIAL_JOIN_REQUESTS,
       };
     } catch (e) {
       console.error('Error resetting demo data', e);
@@ -157,9 +200,8 @@ export const storageService = {
         user: INITIAL_USER,
         leagues: INITIAL_LEAGUES,
         evaluations: INITIAL_EVALUATIONS,
+        joinRequests: INITIAL_JOIN_REQUESTS,
       };
     }
   },
 };
-
-

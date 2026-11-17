@@ -14,8 +14,24 @@ import {
   LeagueTeam,
   PlayerEvaluation,
   SubmitEvaluationInput,
+  JoinRequest,
 } from '../types';
 import { storageService } from '../services/storageService';
+
+function recalculateMissingPositions(
+  roster: RosterSlot[],
+  totalSlots: number
+): PlayerPosition[] {
+  const remainingMissing: PlayerPosition[] = [];
+  const halfCount = totalSlots / 2;
+  for (let i = 0; i < halfCount; i++) {
+    const slot = roster[i];
+    if (slot && !slot.isFilled) {
+      remainingMissing.push(slot.position);
+    }
+  }
+  return remainingMissing;
+}
 
 interface CreateMatchInput {
   title: string;
@@ -47,11 +63,18 @@ interface AppContextType {
   gearItems: GearItem[];
   leagues: RegionalLeague[];
   evaluations: PlayerEvaluation[];
+  joinRequests: JoinRequest[];
   currentUser: User;
   isLoading: boolean;
   createMatch: (data: CreateMatchInput) => Promise<void>;
   joinMatchSlot: (matchId: string, slotId: string) => Promise<boolean>;
   leaveMatch: (matchId: string) => Promise<boolean>;
+  sendJoinRequest: (matchId: string, slotId: string, message?: string) => Promise<boolean>;
+  cancelJoinRequest: (requestId: string) => Promise<boolean>;
+  approveJoinRequest: (requestId: string) => Promise<boolean>;
+  rejectJoinRequest: (requestId: string) => Promise<boolean>;
+  getMatchJoinRequests: (matchId: string) => JoinRequest[];
+  getUserMatchJoinRequest: (matchId: string) => JoinRequest | undefined;
   votePrediction: (matchId: string, choice: PredictionChoice) => Promise<boolean>;
   createGearItem: (data: CreateGearInput) => Promise<void>;
   markGearSold: (gearId: string) => Promise<void>;
@@ -72,24 +95,28 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [gearItems, setGearItems] = useState<GearItem[]>([]);
   const [leagues, setLeagues] = useState<RegionalLeague[]>([]);
   const [evaluations, setEvaluations] = useState<PlayerEvaluation[]>([]);
+  const [joinRequests, setJoinRequests] = useState<JoinRequest[]>([]);
   const [currentUser, setCurrentUser] = useState<User>({} as User);
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
   const refreshData = async () => {
     setIsLoading(true);
     try {
-      const [storedMatches, storedGear, storedUser, storedLeagues, storedEvals] = await Promise.all([
-        storageService.getMatches(),
-        storageService.getGearItems(),
-        storageService.getUser(),
-        storageService.getLeagues(),
-        storageService.getEvaluations(),
-      ]);
+      const [storedMatches, storedGear, storedUser, storedLeagues, storedEvals, storedJoinReqs] =
+        await Promise.all([
+          storageService.getMatches(),
+          storageService.getGearItems(),
+          storageService.getUser(),
+          storageService.getLeagues(),
+          storageService.getEvaluations(),
+          storageService.getJoinRequests(),
+        ]);
       setMatches(storedMatches);
       setGearItems(storedGear);
       setCurrentUser(storedUser);
       setLeagues(storedLeagues);
       setEvaluations(storedEvals);
+      setJoinRequests(storedJoinReqs);
     } catch (err) {
       console.error('Failed to load initial data', err);
     } finally {
@@ -101,19 +128,22 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     let isMounted = true;
     const initData = async () => {
       try {
-        const [storedMatches, storedGear, storedUser, storedLeagues, storedEvals] = await Promise.all([
-          storageService.getMatches(),
-          storageService.getGearItems(),
-          storageService.getUser(),
-          storageService.getLeagues(),
-          storageService.getEvaluations(),
-        ]);
+        const [storedMatches, storedGear, storedUser, storedLeagues, storedEvals, storedJoinReqs] =
+          await Promise.all([
+            storageService.getMatches(),
+            storageService.getGearItems(),
+            storageService.getUser(),
+            storageService.getLeagues(),
+            storageService.getEvaluations(),
+            storageService.getJoinRequests(),
+          ]);
         if (!isMounted) return;
         setMatches(storedMatches);
         setGearItems(storedGear);
         setCurrentUser(storedUser);
         setLeagues(storedLeagues);
         setEvaluations(storedEvals);
+        setJoinRequests(storedJoinReqs);
       } catch (err) {
         console.error('Failed to load initial data', err);
       } finally {
@@ -319,15 +349,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         return slot;
       });
 
-      // Recalculate remaining missing positions
-      const remainingMissing: PlayerPosition[] = [];
-      const halfCount = m.totalSlots / 2;
-      for (let i = 0; i < halfCount; i++) {
-        const slot = updatedRoster[i];
-        if (!slot.isFilled) {
-          remainingMissing.push(slot.position);
-        }
-      }
+      const remainingMissing = recalculateMissingPositions(updatedRoster, m.totalSlots);
 
       return {
         ...m,
@@ -361,14 +383,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         return slot;
       });
 
-      const remainingMissing: PlayerPosition[] = [];
-      const halfCount = m.totalSlots / 2;
-      for (let i = 0; i < halfCount; i++) {
-        const slot = updatedRoster[i];
-        if (!slot.isFilled) {
-          remainingMissing.push(slot.position);
-        }
-      }
+      const remainingMissing = recalculateMissingPositions(updatedRoster, m.totalSlots);
 
       return {
         ...m,
@@ -381,8 +396,162 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (success) {
       setMatches(updated);
       await storageService.saveMatches(updated);
+
+      const filteredRequests = joinRequests.filter(
+        (r) => !(r.matchId === matchId && r.requesterId === currentUser.id && r.status === 'APPROVED')
+      );
+      if (filteredRequests.length !== joinRequests.length) {
+        setJoinRequests(filteredRequests);
+        await storageService.saveJoinRequests(filteredRequests);
+      }
     }
     return success;
+  };
+
+  const sendJoinRequest = async (
+    matchId: string,
+    slotId: string,
+    message?: string
+  ): Promise<boolean> => {
+    const targetMatch = matches.find((m) => m.id === matchId);
+    if (!targetMatch) return false;
+
+    const alreadyInRoster = targetMatch.roster.some(
+      (s) => s.assignedPlayer?.id === currentUser.id
+    );
+    if (alreadyInRoster) return false;
+
+    const hasPending = joinRequests.some(
+      (r) =>
+        r.matchId === matchId &&
+        r.requesterId === currentUser.id &&
+        r.status === 'PENDING'
+    );
+    if (hasPending) return false;
+
+    const targetSlot = targetMatch.roster.find((s) => s.id === slotId && !s.isFilled);
+    if (!targetSlot) return false;
+
+    const newRequest: JoinRequest = {
+      id: `jr_${Date.now()}`,
+      matchId,
+      slotId: targetSlot.id,
+      position: targetSlot.position,
+      requesterId: currentUser.id,
+      requesterName: currentUser.name,
+      requesterPhone: currentUser.phone,
+      requesterRating: currentUser.rating || 4.8,
+      requesterFairPlay: currentUser.fairPlayRating || 4.9,
+      message: message?.trim() || undefined,
+      status: 'PENDING',
+      createdAt: new Date().toISOString(),
+    };
+
+    const updatedRequests = [
+      newRequest,
+      ...joinRequests.filter(
+        (r) => !(r.matchId === matchId && r.requesterId === currentUser.id && r.status === 'REJECTED')
+      ),
+    ];
+    setJoinRequests(updatedRequests);
+    await storageService.saveJoinRequests(updatedRequests);
+    return true;
+  };
+
+  const cancelJoinRequest = async (requestId: string): Promise<boolean> => {
+    const exists = joinRequests.some(
+      (r) => r.id === requestId && r.requesterId === currentUser.id && r.status === 'PENDING'
+    );
+    if (!exists) return false;
+
+    const updatedRequests = joinRequests.filter((r) => r.id !== requestId);
+    setJoinRequests(updatedRequests);
+    await storageService.saveJoinRequests(updatedRequests);
+    return true;
+  };
+
+  const approveJoinRequest = async (requestId: string): Promise<boolean> => {
+    const req = joinRequests.find((r) => r.id === requestId && r.status === 'PENDING');
+    if (!req) return false;
+
+    const targetMatch = matches.find((m) => m.id === req.matchId);
+    if (!targetMatch) return false;
+
+    const alreadyInRoster = targetMatch.roster.some(
+      (s) => s.assignedPlayer?.id === req.requesterId
+    );
+    if (alreadyInRoster) return false;
+
+    const team1Count = Math.ceil(targetMatch.totalSlots / 2);
+    const team1Slots = targetMatch.roster.slice(0, team1Count);
+    const chosenSlot =
+      team1Slots.find((s) => s.id === req.slotId && !s.isFilled) ||
+      team1Slots.find((s) => s.position === req.position && !s.isFilled);
+
+    if (!chosenSlot) return false;
+
+    const updatedMatches = matches.map((m) => {
+      if (m.id !== req.matchId) return m;
+      const updatedRoster = m.roster.map((slot) => {
+        if (slot.id !== chosenSlot.id) return slot;
+        return {
+          ...slot,
+          isFilled: true,
+          assignedPlayer: {
+            id: req.requesterId,
+            name: req.requesterName,
+            phone: req.requesterPhone,
+            rating: req.requesterRating,
+            fairPlayRating: req.requesterFairPlay,
+          },
+        };
+      });
+
+      return {
+        ...m,
+        roster: updatedRoster,
+        missingPositions: recalculateMissingPositions(updatedRoster, m.totalSlots),
+        isJoined: m.isJoined || req.requesterId === currentUser.id,
+      };
+    });
+
+    const now = new Date().toISOString();
+    const updatedRequests = joinRequests.map((r) =>
+      r.id === requestId
+        ? { ...r, slotId: chosenSlot.id, status: 'APPROVED' as const, respondedAt: now }
+        : r
+    );
+
+    setMatches(updatedMatches);
+    setJoinRequests(updatedRequests);
+    await Promise.all([
+      storageService.saveMatches(updatedMatches),
+      storageService.saveJoinRequests(updatedRequests),
+    ]);
+    return true;
+  };
+
+  const rejectJoinRequest = async (requestId: string): Promise<boolean> => {
+    const exists = joinRequests.some((r) => r.id === requestId && r.status === 'PENDING');
+    if (!exists) return false;
+
+    const now = new Date().toISOString();
+    const updatedRequests = joinRequests.map((r) =>
+      r.id === requestId ? { ...r, status: 'REJECTED' as const, respondedAt: now } : r
+    );
+    setJoinRequests(updatedRequests);
+    await storageService.saveJoinRequests(updatedRequests);
+    return true;
+  };
+
+  const getMatchJoinRequests = (matchId: string): JoinRequest[] => {
+    return joinRequests.filter((r) => r.matchId === matchId);
+  };
+
+  const getUserMatchJoinRequest = (matchId: string): JoinRequest | undefined => {
+    return joinRequests.find(
+      (r) => r.matchId === matchId && r.requesterId === currentUser.id
+    );
   };
 
   const createGearItem = async (data: CreateGearInput) => {
@@ -593,6 +762,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setCurrentUser(res.user);
     setLeagues(res.leagues);
     setEvaluations(res.evaluations);
+    setJoinRequests(res.joinRequests);
     setIsLoading(false);
   };
 
@@ -603,11 +773,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         gearItems,
         leagues,
         evaluations,
+        joinRequests,
         currentUser,
         isLoading,
         createMatch,
         joinMatchSlot,
         leaveMatch,
+        sendJoinRequest,
+        cancelJoinRequest,
+        approveJoinRequest,
+        rejectJoinRequest,
+        getMatchJoinRequests,
+        getUserMatchJoinRequest,
         votePrediction,
         createGearItem,
         markGearSold,
