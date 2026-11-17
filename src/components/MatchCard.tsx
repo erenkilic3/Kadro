@@ -5,7 +5,7 @@ import { router } from 'expo-router';
 import { Match, PredictionChoice } from '../types';
 import { useTheme } from '../context/ThemeContext';
 import { useApp } from '../context/AppContext';
-import { FONT_SIZE, RADIUS, SPACING } from '../constants/theme';
+import { FONT_SIZE, NUMERIC_STYLE, RADIUS, SPACING } from '../constants/theme';
 import { PositionBadge } from './PositionBadge';
 import { resolveMatchupStats } from '../utils/matchupStats';
 import { generateAiMatchPrediction } from '../utils/aiPredictor';
@@ -97,7 +97,15 @@ export const MatchCard: React.FC<MatchCardProps> = ({ match, currentUserId }) =>
 
       {/* Matchup & Quick Vote Strip */}
       {pred && (
-        <View style={[styles.matchupBox, { backgroundColor: colors.surfaceLight }]}>
+        <View
+          style={[
+            styles.matchupBox,
+            {
+              backgroundColor: colors.surfaceLight,
+              borderColor: colors.surfaceBorder,
+            },
+          ]}
+        >
           <View style={styles.matchupTop}>
             <Text style={[styles.matchupTeams, { color: colors.text }]} numberOfLines={1}>
               {pred.team1Name} — {pred.team2Name}
@@ -208,16 +216,16 @@ export const MatchCard: React.FC<MatchCardProps> = ({ match, currentUserId }) =>
 
 const styles = StyleSheet.create({
   card: {
-    borderRadius: RADIUS.lg,
-    padding: SPACING.lg,
-    marginBottom: SPACING.md,
-    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: RADIUS.md,
+    padding: SPACING.md + 2,
+    marginBottom: SPACING.sm + 2,
+    borderWidth: 1,
   },
   topRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: 6,
   },
   dateRow: {
     flexDirection: 'row',
@@ -235,20 +243,23 @@ const styles = StyleSheet.create({
   timeText: {
     fontSize: FONT_SIZE.xs,
     fontWeight: '500',
+    ...NUMERIC_STYLE,
   },
   formatChip: {
     marginLeft: 8,
     paddingHorizontal: 6,
     paddingVertical: 2,
-    borderRadius: 5,
+    borderRadius: 4,
   },
   formatText: {
     fontSize: 10,
     fontWeight: '700',
+    ...NUMERIC_STYLE,
   },
   feeText: {
     fontSize: FONT_SIZE.md,
     fontWeight: '800',
+    ...NUMERIC_STYLE,
   },
   feeSub: {
     fontSize: 11,
@@ -257,6 +268,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: FONT_SIZE.md,
     fontWeight: '700',
+    letterSpacing: -0.2,
     marginBottom: 4,
   },
   venueRow: {
@@ -270,8 +282,9 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   matchupBox: {
-    borderRadius: RADIUS.md,
-    padding: 10,
+    borderRadius: RADIUS.sm,
+    borderWidth: 1,
+    padding: 9,
     marginBottom: SPACING.md,
   },
   matchupTop: {
@@ -279,7 +292,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     gap: 8,
-    marginBottom: 8,
+    marginBottom: 7,
   },
   matchupTeams: {
     fontSize: 12,
@@ -287,8 +300,9 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   analysisHint: {
-    fontSize: 10,
+    fontSize: 10.5,
     fontWeight: '600',
+    ...NUMERIC_STYLE,
   },
   quickVoteRow: {
     flexDirection: 'row',
@@ -297,9 +311,9 @@ const styles = StyleSheet.create({
   quickBtn: {
     flex: 1,
     alignItems: 'center',
-    paddingVertical: 6,
+    paddingVertical: 7,
     borderRadius: RADIUS.sm,
-    borderWidth: StyleSheet.hairlineWidth,
+    borderWidth: 1,
   },
   quickBtnText: {
     fontSize: 11,
@@ -312,12 +326,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 8,
     borderRadius: RADIUS.sm,
-    borderWidth: StyleSheet.hairlineWidth,
+    borderWidth: 1,
     marginBottom: SPACING.md,
   },
   completedText: {
     fontSize: 12,
     fontWeight: '700',
+    ...NUMERIC_STYLE,
   },
   evaluateLink: {
     fontSize: 11,
@@ -328,7 +343,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingTop: SPACING.sm,
-    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopWidth: 1,
   },
   positionsWrap: {
     flexDirection: 'row',
@@ -348,14 +363,15 @@ const styles = StyleSheet.create({
   capacityText: {
     fontSize: 11,
     fontWeight: '600',
+    ...NUMERIC_STYLE,
   },
   joinedDotPill: {
-    paddingHorizontal: 8,
+    paddingHorizontal: 7,
     paddingVertical: 3,
-    borderRadius: 6,
+    borderRadius: 4,
   },
   joinedText: {
-    fontSize: 11,
+    fontSize: 10.5,
     fontWeight: '700',
   },
 });

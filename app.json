@@ -1,18 +1,23 @@
 {
   "expo": {
     "name": "Kadro",
-    "slug": "Kadro",
+    "slug": "kadro",
     "scheme": "kadro",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "userInterfaceStyle": "light",
+    "userInterfaceStyle": "automatic",
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.erenkilic.kadro",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
+      "package": "com.erenkilic.kadro",
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
+        "backgroundColor": "#09090B",
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
@@ -24,7 +29,36 @@
     },
     "plugins": [
       "expo-font",
-      "expo-router"
+      "expo-router",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Kadro, profil fotoğrafı ve ekipman görselleri yükleyebilmeniz için fotoğraf galerinize erişim ister.",
+          "cameraPermission": "Kadro, yeni profil veya ekipman fotoğrafı çekebilmeniz için kameranıza erişim ister.",
+          "microphonePermission": false
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "color": "#16A34A",
+          "enableRemoteNotifications": true
+        }
+      ],
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash-icon.png",
+          "imageWidth": 200,
+          "resizeMode": "contain",
+          "backgroundColor": "#FFFFFF",
+          "dark": {
+            "image": "./assets/splash-icon.png",
+            "backgroundColor": "#09090B"
+          }
+        }
+      ],
+      "expo-status-bar"
     ]
   }
 }

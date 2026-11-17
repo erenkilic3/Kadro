@@ -346,9 +346,9 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.lg,
   },
   backBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: RADIUS.md,
+    width: 38,
+    height: 38,
+    borderRadius: RADIUS.sm,
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
@@ -357,15 +357,16 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   title: {
-    fontSize: FONT_SIZE.xxl,
+    fontSize: FONT_SIZE.xl,
     fontWeight: '800',
+    letterSpacing: -0.3,
   },
   subtitle: {
     marginTop: 2,
     fontSize: FONT_SIZE.xs,
   },
   card: {
-    borderRadius: RADIUS.lg,
+    borderRadius: RADIUS.md,
     borderWidth: 1,
     padding: SPACING.xl,
     gap: SPACING.md,
@@ -375,6 +376,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: SPACING.sm,
     borderWidth: 1,
+    borderLeftWidth: 3,
     borderRadius: RADIUS.sm,
     paddingHorizontal: SPACING.md,
     paddingVertical: SPACING.sm,
@@ -397,7 +399,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: SPACING.sm,
     borderWidth: 1,
-    borderRadius: RADIUS.md,
+    borderRadius: RADIUS.sm,
     paddingHorizontal: SPACING.md,
     height: 46,
   },
@@ -413,7 +415,7 @@ const styles = StyleSheet.create({
   chip: {
     paddingHorizontal: SPACING.md,
     paddingVertical: 7,
-    borderRadius: RADIUS.pill,
+    borderRadius: RADIUS.sm,
     borderWidth: 1,
   },
   chipText: {

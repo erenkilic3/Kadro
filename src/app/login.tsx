@@ -19,7 +19,7 @@ import { FONT_SIZE, RADIUS, SPACING } from '../constants/theme';
 
 export default function LoginScreen() {
   const { colors } = useTheme();
-  const { signInWithEmail, signInAsDemo, isSupabaseAuthEnabled } = useAuth();
+  const { signInWithEmail, isSupabaseAuthEnabled } = useAuth();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -35,16 +35,6 @@ export default function LoginScreen() {
       if (result.error) {
         setErrorMessage(result.error);
       }
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  const handleDemoSignIn = async () => {
-    setErrorMessage(null);
-    setSubmitting(true);
-    try {
-      await signInAsDemo();
     } finally {
       setSubmitting(false);
     }
@@ -129,7 +119,16 @@ export default function LoginScreen() {
             </View>
 
             <View style={styles.fieldGroup}>
-              <Text style={[styles.label, { color: colors.textSecondary }]}>Şifre</Text>
+              <View style={styles.labelRow}>
+                <Text style={[styles.label, { color: colors.textSecondary }]}>Şifre</Text>
+                <Link href="/forgot-password" asChild>
+                  <TouchableOpacity hitSlop={14}>
+                    <Text style={[styles.forgotLink, { color: colors.primary }]}>
+                      Şifremi Unuttum
+                    </Text>
+                  </TouchableOpacity>
+                </Link>
+              </View>
               <View
                 style={[
                   styles.inputWrap,
@@ -191,18 +190,10 @@ export default function LoginScreen() {
                 ]}
               >
                 <Text style={[styles.demoNoticeText, { color: colors.textSecondary }]}>
-                  Supabase `.env` anahtarları henüz eklenmemiş. Yerel demo hesabıyla
-                  devam edebilirsin.
+                  Supabase yapılandırması bulunamadı. Lütfen `.env` dosyasında
+                  EXPO_PUBLIC_SUPABASE_URL ve EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY
+                  değerlerini tanımlayın.
                 </Text>
-                <TouchableOpacity
-                  style={[styles.secondaryBtn, { borderColor: colors.primary }]}
-                  onPress={handleDemoSignIn}
-                  disabled={submitting}
-                >
-                  <Text style={[styles.secondaryBtnText, { color: colors.primary }]}>
-                    Demo Hesabıyla Devam Et
-                  </Text>
-                </TouchableOpacity>
               </View>
             )}
           </View>
@@ -241,18 +232,18 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.xxl,
   },
   brandBadge: {
-    width: 56,
-    height: 56,
-    borderRadius: RADIUS.lg,
+    width: 48,
+    height: 48,
+    borderRadius: RADIUS.md,
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: SPACING.md,
   },
   brandTitle: {
-    fontSize: FONT_SIZE.title,
+    fontSize: 26,
     fontWeight: '800',
-    letterSpacing: -0.5,
+    letterSpacing: -0.6,
   },
   brandSubtitle: {
     marginTop: SPACING.xs,
@@ -262,14 +253,15 @@ const styles = StyleSheet.create({
     maxWidth: 300,
   },
   card: {
-    borderRadius: RADIUS.lg,
+    borderRadius: RADIUS.md,
     borderWidth: 1,
     padding: SPACING.xl,
     gap: SPACING.md,
   },
   cardTitle: {
-    fontSize: FONT_SIZE.xl,
+    fontSize: FONT_SIZE.lg,
     fontWeight: '700',
+    letterSpacing: -0.2,
     marginBottom: SPACING.xs,
   },
   errorBox: {
@@ -277,6 +269,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: SPACING.sm,
     borderWidth: 1,
+    borderLeftWidth: 3,
     borderRadius: RADIUS.sm,
     paddingHorizontal: SPACING.md,
     paddingVertical: SPACING.sm,
@@ -289,6 +282,15 @@ const styles = StyleSheet.create({
   fieldGroup: {
     gap: 6,
   },
+  labelRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  forgotLink: {
+    fontSize: FONT_SIZE.xs,
+    fontWeight: '700',
+  },
   label: {
     fontSize: FONT_SIZE.xs,
     fontWeight: '600',
@@ -298,9 +300,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: SPACING.sm,
     borderWidth: 1,
-    borderRadius: RADIUS.md,
+    borderRadius: RADIUS.sm,
     paddingHorizontal: SPACING.md,
-    height: 48,
+    height: 46,
   },
   input: {
     flex: 1,

@@ -9,7 +9,6 @@ import {
   TeamMatchStats,
   TeamRecentMatch,
 } from '../types';
-import { INITIAL_MATCHES } from '../constants/mockData';
 
 function normalizeName(name: string): string {
   return name.trim().toLocaleLowerCase('tr-TR');
@@ -147,8 +146,8 @@ function computeHeadToHeadFromFixtures(
 }
 
 /**
- * Resolves pre-match team comparison statistics for a match.
- * Falls back to cached initial mock data, league records, or zeroed starter stats.
+ * Resolves pre-match team comparison statistics for a match from stored stats
+ * or live league records, defaulting to clean zeroed stats for new teams.
  */
 export function resolveMatchupStats(
   match: Match,
@@ -156,11 +155,6 @@ export function resolveMatchupStats(
 ): MatchupStats {
   if (match.matchupStats) {
     return match.matchupStats;
-  }
-
-  const seededMatch = INITIAL_MATCHES.find((m) => m.id === match.id);
-  if (seededMatch?.matchupStats) {
-    return seededMatch.matchupStats;
   }
 
   const team1Name =

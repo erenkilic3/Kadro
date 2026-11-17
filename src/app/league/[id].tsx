@@ -10,6 +10,8 @@ import {
   Alert,
   Share,
   Platform,
+  ActivityIndicator,
+  KeyboardAvoidingView,
 } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -18,11 +20,14 @@ import { useTheme } from '../../context/ThemeContext';
 import { EmptyState } from '../../components/EmptyState';
 import { PreMatchStatsCard } from '../../components/PreMatchStatsCard';
 import { AiPredictionBotCard } from '../../components/AiPredictionBotCard';
-import { FONT_SIZE, RADIUS, SPACING } from '../../constants/theme';
+import { LeagueForm } from '../../components/LeagueForm';
+import { ReportModal } from '../../components/ReportModal';
+import { FONT_SIZE, NUMERIC_STYLE, RADIUS, SPACING } from '../../constants/theme';
 import { LeagueFixture } from '../../types';
 import { resolveLeagueFixtureMatchupStats } from '../../utils/matchupStats';
 import { generateAiMatchPrediction } from '../../utils/aiPredictor';
 import { getInitials, stripLeadingSymbols } from '../../utils/formatters';
+import { validateMatchScores, validateTeamName } from '../../utils/validators';
 
 type LeagueTab = 'STANDINGS' | 'FIXTURES' | 'TEAMS' | 'RULES';
 
@@ -34,7 +39,16 @@ const FORM_LABEL: Record<'W' | 'D' | 'L', string> = {
 
 export default function LeagueDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { leagues, joinLeague, currentUser } = useApp();
+  const {
+    leagues,
+    teams,
+    joinLeague,
+    updateLeague,
+    deleteLeague,
+    generateLeagueFixtures,
+    recordFixtureResult,
+    currentUser,
+  } = useApp();
   const { colors } = useTheme();
 
   const [activeTab, setActiveTab] = useState<LeagueTab>('STANDINGS');
@@ -42,10 +56,25 @@ export default function LeagueDetailScreen() {
   const [selectedFixture, setSelectedFixture] = useState<LeagueFixture | null>(null);
 
   const [modalVisible, setModalVisible] = useState(false);
+  const [selectedTeamId, setSelectedTeamId] = useState<string | undefined>(undefined);
   const [teamName, setTeamName] = useState('');
   const [captainName, setCaptainName] = useState(currentUser.name || '');
   const [captainPhone, setCaptainPhone] = useState(currentUser.phone || '');
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const [editModalVisible, setEditModalVisible] = useState(false);
+  const [reportVisible, setReportVisible] = useState(false);
+  const [generatingFixtures, setGeneratingFixtures] = useState(false);
+
+  const [scoringFixture, setScoringFixture] = useState<LeagueFixture | null>(null);
+  const [homeScoreText, setHomeScoreText] = useState('0');
+  const [awayScoreText, setAwayScoreText] = useState('0');
+  const [isSavingScore, setIsSavingScore] = useState(false);
+
+  const myCaptainTeams = useMemo(
+    () => teams.filter((t) => t.captainId === currentUser.id),
+    [teams, currentUser.id]
+  );
 
   const league = useMemo(() => leagues.find((l) => l.id === id), [leagues, id]);
 
@@ -96,6 +125,7 @@ export default function LeagueDetailScreen() {
     );
   }
 
+  const isOrganizer = league.organizerId === currentUser.id;
   const isRegistrationOpen = league.status === 'REGISTRATION_OPEN';
   const remainingSlots = Math.max(0, league.maxTeams - league.registeredTeamsCount);
   const accentColor = league.themeColor || colors.primary;
@@ -110,13 +140,78 @@ export default function LeagueDetailScreen() {
     }
   };
 
-  const handleRegisterTeam = async () => {
-    if (!teamName.trim()) {
-      Alert.alert('Eksik Bilgi', 'Lütfen takımınızın adını giriniz.');
+  const handleDeleteLeague = () => {
+    const runDelete = async () => {
+      try {
+        await deleteLeague(league.id);
+        router.back();
+      } catch (err) {
+        Alert.alert('Hata', err instanceof Error ? err.message : 'Lig silinemedi.');
+      }
+    };
+
+    if (Platform.OS === 'web') {
+      void runDelete();
       return;
     }
-    if (!captainName.trim()) {
-      Alert.alert('Eksik Bilgi', 'Lütfen kaptan adını giriniz.');
+    Alert.alert('Ligi Sil', 'Bu ligi ve fikstür verilerini kalıcı olarak silmek istiyor musunuz?', [
+      { text: 'Vazgeç', style: 'cancel' },
+      { text: 'Ligi Sil', style: 'destructive', onPress: () => void runDelete() },
+    ]);
+  };
+
+  const handleGenerateFixtures = async () => {
+    if (league.teams.length < 2) {
+      Alert.alert('Yetersiz Takım', 'Fikstür oluşturmak için en az 2 takım kayıtlı olmalıdır.');
+      return;
+    }
+    try {
+      setGeneratingFixtures(true);
+      await generateLeagueFixtures(league);
+      Alert.alert('Fikstür Oluşturuldu', 'Tüm takımlar için devre fikstürü oluşturuldu.');
+    } catch (err) {
+      Alert.alert('Hata', err instanceof Error ? err.message : 'Fikstür oluşturulamadı.');
+    } finally {
+      setGeneratingFixtures(false);
+    }
+  };
+
+  const openScoreModal = (fixture: LeagueFixture) => {
+    setScoringFixture(fixture);
+    setHomeScoreText(typeof fixture.homeScore === 'number' ? String(fixture.homeScore) : '0');
+    setAwayScoreText(typeof fixture.awayScore === 'number' ? String(fixture.awayScore) : '0');
+  };
+
+  const handleSaveFixtureScore = async () => {
+    if (!scoringFixture) return;
+    const h = Number(homeScoreText);
+    const a = Number(awayScoreText);
+    const validation = validateMatchScores(h, a);
+    if (!validation.valid) {
+      Alert.alert('Geçersiz Skor', validation.error || 'Skorlar tam sayı olmalıdır.');
+      return;
+    }
+
+    try {
+      setIsSavingScore(true);
+      const ok = await recordFixtureResult(scoringFixture.id, h, a);
+      if (ok) {
+        setScoringFixture(null);
+        Alert.alert('Kaydedildi', 'Maç skoru ve puan durumu güncellendi.');
+      } else {
+        Alert.alert('Hata', 'Skor kaydedilemedi.');
+      }
+    } catch (err) {
+      Alert.alert('Hata', err instanceof Error ? err.message : 'Skor kaydedilirken hata oluştu.');
+    } finally {
+      setIsSavingScore(false);
+    }
+  };
+
+  const handleRegisterTeam = async () => {
+    const validation = validateTeamName(teamName, captainName);
+    if (!validation.valid) {
+      Alert.alert('Eksik Bilgi', validation.error || 'Lütfen takım ve kaptan adını kontrol edin.');
       return;
     }
 
@@ -126,20 +221,25 @@ export default function LeagueDetailScreen() {
         league.id,
         teamName.trim(),
         captainName.trim(),
-        captainPhone.trim()
+        captainPhone.trim(),
+        selectedTeamId
       );
       if (success) {
         Alert.alert(
           'Kayıt Tamamlandı',
-          `"${teamName}" takımı ${league.title} ligine kaydedildi.`,
+          `"${teamName.trim()}" takımı ${league.title} ligine kaydedildi.`,
           [{ text: 'Tamam', onPress: () => setModalVisible(false) }]
         );
         setTeamName('');
+        setSelectedTeamId(undefined);
       } else {
-        Alert.alert('Kayıt Başarısız', 'Lig kontenjanı dolmuş olabilir.');
+        Alert.alert('Kayıt Başarısız', 'Lig kontenjanı dolmuş veya takım zaten kayıtlı.');
       }
-    } catch {
-      Alert.alert('Hata', 'Kayıt sırasında bir problem oluştu.');
+    } catch (err) {
+      Alert.alert(
+        'Hata',
+        err instanceof Error ? err.message : 'Kayıt sırasında bir problem oluştu.'
+      );
     } finally {
       setIsSubmitting(false);
     }
@@ -236,6 +336,37 @@ export default function LeagueDetailScreen() {
                 Yönetici: {league.organizerName.split(' ')[0]}
               </Text>
             </View>
+
+            <View style={[styles.organizerToolbar, { borderTopColor: colors.surfaceBorder }]}>
+              {isOrganizer ? (
+                <>
+                  <TouchableOpacity
+                    style={[styles.toolbarBtn, { backgroundColor: colors.surfaceLight }]}
+                    onPress={() => setEditModalVisible(true)}
+                  >
+                    <Ionicons name="create-outline" size={14} color={colors.text} />
+                    <Text style={[styles.toolbarBtnText, { color: colors.text }]}>Düzenle</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.toolbarBtn, { backgroundColor: `${colors.danger}15` }]}
+                    onPress={handleDeleteLeague}
+                  >
+                    <Ionicons name="trash-outline" size={14} color={colors.danger} />
+                    <Text style={[styles.toolbarBtnText, { color: colors.danger }]}>Ligi Sil</Text>
+                  </TouchableOpacity>
+                </>
+              ) : (
+                <TouchableOpacity
+                  style={[styles.toolbarBtn, { backgroundColor: colors.surfaceLight }]}
+                  onPress={() => setReportVisible(true)}
+                >
+                  <Ionicons name="flag-outline" size={14} color={colors.textSecondary} />
+                  <Text style={[styles.toolbarBtnText, { color: colors.textSecondary }]}>
+                    Ligi Bildir
+                  </Text>
+                </TouchableOpacity>
+              )}
+            </View>
           </View>
         </View>
 
@@ -277,7 +408,15 @@ export default function LeagueDetailScreen() {
               { backgroundColor: colors.surface, borderColor: colors.surfaceBorder },
             ]}
           >
-            <View style={[styles.tableHeaderRow, { borderBottomColor: colors.surfaceBorder }]}>
+            <View
+              style={[
+                styles.tableHeaderRow,
+                {
+                  backgroundColor: colors.surfaceLight,
+                  borderBottomColor: colors.surfaceBorder,
+                },
+              ]}
+            >
               <Text style={[styles.thRank, { color: colors.textTertiary }]}>#</Text>
               <Text style={[styles.thTeam, { color: colors.textTertiary }]}>TAKIM</Text>
               <Text style={[styles.thNum, { color: colors.textTertiary }]}>O</Text>
@@ -298,7 +437,8 @@ export default function LeagueDetailScreen() {
                     styles.tableRow,
                     {
                       borderBottomColor: colors.surfaceBorder,
-                      backgroundColor: isLeader ? `${colors.primary}0D` : 'transparent',
+                      borderLeftWidth: isLeader ? 3 : 0,
+                      borderLeftColor: isLeader ? colors.primary : 'transparent',
                     },
                     index === sortedTeams.length - 1 && { borderBottomWidth: 0 },
                   ]}
@@ -378,6 +518,31 @@ export default function LeagueDetailScreen() {
         {/* FIXTURES */}
         {activeTab === 'FIXTURES' && (
           <View>
+            {isOrganizer && league.teams.length >= 2 && (
+              <TouchableOpacity
+                style={[
+                  styles.genFixtureBtn,
+                  {
+                    backgroundColor: `${colors.primary}15`,
+                    borderColor: `${colors.primary}35`,
+                  },
+                ]}
+                onPress={handleGenerateFixtures}
+                disabled={generatingFixtures}
+              >
+                {generatingFixtures ? (
+                  <ActivityIndicator size="small" color={colors.primary} />
+                ) : (
+                  <>
+                    <Ionicons name="calendar-outline" size={16} color={colors.primary} />
+                    <Text style={[styles.genFixtureBtnText, { color: colors.primary }]}>
+                      {league.fixtures.length > 0 ? 'Fikstürü Yenile' : 'Otomatik Fikstür Oluştur'}
+                    </Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            )}
+
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
@@ -474,11 +639,29 @@ export default function LeagueDetailScreen() {
                     >
                       {fixture.isFinished ? 'Tamamlandı' : 'Oynanacak'}
                     </Text>
-                    <View style={styles.fixtureStatsLink}>
-                      <Text style={[styles.fixtureStatsLinkText, { color: colors.primary }]}>
-                        Analiz & İstatistik
-                      </Text>
-                      <Ionicons name="chevron-forward" size={13} color={colors.primary} />
+                    <View style={styles.fixtureRightActions}>
+                      {isOrganizer && (
+                        <TouchableOpacity
+                          style={[
+                            styles.scoreEntryPill,
+                            { backgroundColor: `${colors.primary}18` },
+                          ]}
+                          onPress={(e) => {
+                            e.stopPropagation();
+                            openScoreModal(fixture);
+                          }}
+                        >
+                          <Text style={[styles.scoreEntryPillText, { color: colors.primary }]}>
+                            {fixture.isFinished ? 'Skoru Güncelle' : 'Sonuç Gir'}
+                          </Text>
+                        </TouchableOpacity>
+                      )}
+                      <View style={styles.fixtureStatsLink}>
+                        <Text style={[styles.fixtureStatsLinkText, { color: colors.primary }]}>
+                          Analiz & İstatistik
+                        </Text>
+                        <Ionicons name="chevron-forward" size={13} color={colors.primary} />
+                      </View>
                     </View>
                   </View>
                 </TouchableOpacity>
@@ -615,10 +798,70 @@ export default function LeagueDetailScreen() {
                   {league.title}
                 </Text>
               </View>
-              <TouchableOpacity onPress={() => setModalVisible(false)}>
+              <TouchableOpacity onPress={() => setModalVisible(false)} hitSlop={14}>
                 <Ionicons name="close" size={24} color={colors.textSecondary} />
               </TouchableOpacity>
             </View>
+
+            {myCaptainTeams.length > 0 && (
+              <View style={{ marginBottom: 6 }}>
+                <Text style={[styles.inputLabel, { color: colors.textSecondary, marginTop: 0 }]}>
+                  Takımlarımdan Seç
+                </Text>
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={{ gap: 8, paddingVertical: 4 }}
+                >
+                  <TouchableOpacity
+                    style={[
+                      styles.teamSelectPill,
+                      {
+                        backgroundColor: !selectedTeamId ? colors.primary : colors.surfaceLight,
+                      },
+                    ]}
+                    onPress={() => setSelectedTeamId(undefined)}
+                  >
+                    <Text
+                      style={[
+                        styles.teamSelectPillText,
+                        { color: !selectedTeamId ? '#FFFFFF' : colors.textSecondary },
+                      ]}
+                    >
+                      Yeni Takım
+                    </Text>
+                  </TouchableOpacity>
+                  {myCaptainTeams.map((t) => {
+                    const isPicked = selectedTeamId === t.id;
+                    return (
+                      <TouchableOpacity
+                        key={t.id}
+                        style={[
+                          styles.teamSelectPill,
+                          {
+                            backgroundColor: isPicked ? colors.primary : colors.surfaceLight,
+                          },
+                        ]}
+                        onPress={() => {
+                          setSelectedTeamId(t.id);
+                          setTeamName(t.name);
+                          setCaptainName(currentUser.name || '');
+                        }}
+                      >
+                        <Text
+                          style={[
+                            styles.teamSelectPillText,
+                            { color: isPicked ? '#FFFFFF' : colors.textSecondary },
+                          ]}
+                        >
+                          {t.logoEmoji} {t.name}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </ScrollView>
+              </View>
+            )}
 
             <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>Takım Adı *</Text>
             <TextInput
@@ -712,6 +955,149 @@ export default function LeagueDetailScreen() {
           </View>
         </View>
       </Modal>
+
+      {/* Organizer: Edit League Modal */}
+      <Modal
+        visible={editModalVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setEditModalVisible(false)}
+      >
+        <KeyboardAvoidingView
+          style={styles.modalOverlay}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        >
+          <View style={[styles.statsModalSheet, { backgroundColor: colors.background }]}>
+            <View style={styles.modalHeader}>
+              <Text style={[styles.modalTitle, { color: colors.text }]}>Ligi Düzenle</Text>
+              <TouchableOpacity onPress={() => setEditModalVisible(false)} hitSlop={14}>
+                <Ionicons name="close" size={24} color={colors.textSecondary} />
+              </TouchableOpacity>
+            </View>
+            <ScrollView showsVerticalScrollIndicator={false}>
+              <LeagueForm
+                isEdit
+                initialValues={{
+                  title: league.title,
+                  season: league.season,
+                  city: league.city,
+                  district: league.district,
+                  venueName: league.venueName,
+                  format: league.format,
+                  maxTeams: league.maxTeams,
+                  entryFee: league.entryFee,
+                  prize: league.prize,
+                  rules: league.rules,
+                  description: league.description,
+                  themeColor: league.themeColor,
+                }}
+                submitLabel="Değişiklikleri Kaydet"
+                onSubmit={async (values) => {
+                  await updateLeague(league.id, {
+                    title: values.title,
+                    season: values.season,
+                    city: values.city,
+                    district: values.district,
+                    venueName: values.venueName,
+                    entryFee: values.entryFee,
+                    prize: values.prize,
+                    rules: values.rules,
+                    description: values.description,
+                    themeColor: values.themeColor,
+                  });
+                  setEditModalVisible(false);
+                  Alert.alert('Güncellendi', 'Lig bilgileri kaydedildi.');
+                }}
+              />
+            </ScrollView>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
+
+      {/* Organizer: Fixture Score Entry Modal */}
+      <Modal
+        visible={Boolean(scoringFixture)}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setScoringFixture(null)}
+      >
+        <KeyboardAvoidingView
+          style={styles.modalOverlay}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        >
+          <View style={[styles.modalSheet, { backgroundColor: colors.surface }]}>
+            <View style={styles.modalHeader}>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.modalTitle, { color: colors.text }]}>Fikstür Skoru Gir</Text>
+                {scoringFixture && (
+                  <Text style={[styles.modalSub, { color: colors.textSecondary }]}>
+                    {scoringFixture.homeTeamName} vs {scoringFixture.awayTeamName}
+                  </Text>
+                )}
+              </View>
+              <TouchableOpacity onPress={() => setScoringFixture(null)} hitSlop={14}>
+                <Ionicons name="close" size={24} color={colors.textSecondary} />
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.scoreEntryRow}>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.inputLabel, { color: colors.textSecondary }]} numberOfLines={1}>
+                  {scoringFixture?.homeTeamName || 'Ev Sahibi'}
+                </Text>
+                <TextInput
+                  style={[
+                    styles.modalInput,
+                    styles.scoreBigInput,
+                    { backgroundColor: colors.surfaceLight, color: colors.text },
+                  ]}
+                  keyboardType="number-pad"
+                  value={homeScoreText}
+                  onChangeText={setHomeScoreText}
+                />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.inputLabel, { color: colors.textSecondary }]} numberOfLines={1}>
+                  {scoringFixture?.awayTeamName || 'Deplasman'}
+                </Text>
+                <TextInput
+                  style={[
+                    styles.modalInput,
+                    styles.scoreBigInput,
+                    { backgroundColor: colors.surfaceLight, color: colors.text },
+                  ]}
+                  keyboardType="number-pad"
+                  value={awayScoreText}
+                  onChangeText={setAwayScoreText}
+                />
+              </View>
+            </View>
+
+            <TouchableOpacity
+              style={[
+                styles.modalSubmitBtn,
+                { backgroundColor: colors.primary, opacity: isSavingScore ? 0.7 : 1 },
+              ]}
+              onPress={handleSaveFixtureScore}
+              disabled={isSavingScore}
+            >
+              {isSavingScore ? (
+                <ActivityIndicator color="#FFFFFF" size="small" />
+              ) : (
+                <Text style={styles.modalSubmitBtnText}>Skoru Kaydet</Text>
+              )}
+            </TouchableOpacity>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
+
+      <ReportModal
+        visible={reportVisible}
+        targetType="LEAGUE"
+        targetId={league.id}
+        targetLabel={league.title}
+        onClose={() => setReportVisible(false)}
+      />
     </View>
   );
 }
@@ -730,13 +1116,13 @@ const styles = StyleSheet.create({
     paddingBottom: 110,
   },
   heroCard: {
-    borderRadius: RADIUS.lg,
-    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: RADIUS.md,
+    borderWidth: 1,
     overflow: 'hidden',
     marginBottom: SPACING.md,
   },
   topAccent: {
-    height: 3,
+    height: 2,
     width: '100%',
   },
   heroInner: {
@@ -753,17 +1139,18 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   statusBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
+    paddingHorizontal: 7,
+    paddingVertical: 2.5,
+    borderRadius: 4,
   },
   statusText: {
-    fontSize: 11,
+    fontSize: 10.5,
     fontWeight: '700',
   },
   title: {
     fontSize: FONT_SIZE.xl,
     fontWeight: '800',
+    letterSpacing: -0.3,
   },
   subtitle: {
     fontSize: FONT_SIZE.xs,
@@ -786,7 +1173,7 @@ const styles = StyleSheet.create({
   statsGrid: {
     flexDirection: 'row',
     justifyContent: 'space-around',
-    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopWidth: 1,
     paddingTop: 12,
     paddingBottom: 6,
   },
@@ -796,13 +1183,14 @@ const styles = StyleSheet.create({
   statNum: {
     fontSize: FONT_SIZE.md,
     fontWeight: '800',
+    ...NUMERIC_STYLE,
   },
   statLabel: {
     fontSize: 11,
     marginTop: 2,
   },
   statDivider: {
-    width: StyleSheet.hairlineWidth,
+    width: 1,
     height: '80%',
   },
   actionRow: {
@@ -829,7 +1217,7 @@ const styles = StyleSheet.create({
   },
   tabsContainer: {
     flexDirection: 'row',
-    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomWidth: 1,
     marginBottom: SPACING.md,
     gap: 16,
   },
@@ -843,28 +1231,30 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   sectionCard: {
-    borderRadius: RADIUS.lg,
-    borderWidth: StyleSheet.hairlineWidth,
-    padding: SPACING.md,
+    borderRadius: RADIUS.md,
+    borderWidth: 1,
+    overflow: 'hidden',
   },
   tableHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingBottom: 8,
-    borderBottomWidth: StyleSheet.hairlineWidth,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: 9,
+    borderBottomWidth: 1,
   },
-  thRank: { width: 20, fontSize: 10, fontWeight: '700' },
-  thTeam: { flex: 1, fontSize: 10, fontWeight: '700' },
-  thNum: { width: 23, fontSize: 10, fontWeight: '700', textAlign: 'center' },
-  thPoints: { width: 24, fontSize: 10, fontWeight: '800', textAlign: 'center' },
-  thForm: { width: 48, fontSize: 10, fontWeight: '700', textAlign: 'center' },
+  thRank: { width: 20, fontSize: 10, fontWeight: '700', letterSpacing: 0.4 },
+  thTeam: { flex: 1, fontSize: 10, fontWeight: '700', letterSpacing: 0.4 },
+  thNum: { width: 23, fontSize: 10, fontWeight: '700', textAlign: 'center', letterSpacing: 0.4 },
+  thPoints: { width: 24, fontSize: 10, fontWeight: '800', textAlign: 'center', letterSpacing: 0.4 },
+  thForm: { width: 48, fontSize: 10, fontWeight: '700', textAlign: 'center', letterSpacing: 0.4 },
   tableRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    paddingHorizontal: SPACING.md,
     paddingVertical: 10,
-    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomWidth: 1,
   },
-  rankText: { width: 20, fontSize: 12, fontWeight: '700' },
+  rankText: { width: 20, fontSize: 12, fontWeight: '700', ...NUMERIC_STYLE },
   teamCell: {
     flex: 1,
     flexDirection: 'row',
@@ -875,7 +1265,7 @@ const styles = StyleSheet.create({
   miniCrest: {
     width: 22,
     height: 22,
-    borderRadius: 11,
+    borderRadius: 5,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -884,13 +1274,13 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
   teamName: { fontSize: 12, fontWeight: '600', flex: 1 },
-  tdNum: { width: 23, fontSize: 11, textAlign: 'center' },
-  tdPoints: { width: 24, fontSize: 12, fontWeight: '800', textAlign: 'center' },
+  tdNum: { width: 23, fontSize: 11, textAlign: 'center', ...NUMERIC_STYLE },
+  tdPoints: { width: 24, fontSize: 12, fontWeight: '800', textAlign: 'center', ...NUMERIC_STYLE },
   formCell: { width: 48, flexDirection: 'row', justifyContent: 'center', gap: 2 },
   formDot: {
     width: 14,
     height: 14,
-    borderRadius: 4,
+    borderRadius: 3,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -903,14 +1293,14 @@ const styles = StyleSheet.create({
     fontSize: 10,
   },
   weekChipsScroll: {
-    gap: 8,
+    gap: 6,
     paddingBottom: 10,
   },
   weekChip: {
-    paddingHorizontal: 13,
+    paddingHorizontal: 11,
     paddingVertical: 6,
-    borderRadius: RADIUS.pill,
-    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: RADIUS.sm,
+    borderWidth: 1,
   },
   weekChipText: {
     fontSize: 12,
@@ -918,7 +1308,7 @@ const styles = StyleSheet.create({
   },
   fixtureCard: {
     borderRadius: RADIUS.md,
-    borderWidth: StyleSheet.hairlineWidth,
+    borderWidth: 1,
     padding: SPACING.md,
     marginBottom: 10,
   },
@@ -1003,9 +1393,9 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   teamCardBadge: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 34,
+    height: 34,
+    borderRadius: RADIUS.sm,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -1110,14 +1500,14 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   modalSheet: {
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
+    borderTopLeftRadius: 12,
+    borderTopRightRadius: 12,
     padding: SPACING.lg,
     paddingBottom: Platform.OS === 'ios' ? 36 : 24,
   },
   statsModalSheet: {
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
+    borderTopLeftRadius: 12,
+    borderTopRightRadius: 12,
     padding: SPACING.lg,
     maxHeight: '88%',
     paddingBottom: Platform.OS === 'ios' ? 36 : 24,
@@ -1159,5 +1549,71 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: FONT_SIZE.sm,
     fontWeight: '700',
+  },
+  organizerToolbar: {
+    marginTop: SPACING.md,
+    paddingTop: SPACING.md,
+    borderTopWidth: 1,
+    flexDirection: 'row',
+    gap: 8,
+  },
+  toolbarBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 12,
+    paddingVertical: 14,
+    borderRadius: RADIUS.sm,
+  },
+  toolbarBtnText: {
+    fontSize: FONT_SIZE.xs,
+    fontWeight: '700',
+  },
+  genFixtureBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    borderWidth: 1,
+    borderRadius: RADIUS.sm,
+    paddingVertical: 14,
+    marginBottom: SPACING.sm,
+  },
+  genFixtureBtnText: {
+    fontSize: FONT_SIZE.xs,
+    fontWeight: '700',
+  },
+  fixtureRightActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  scoreEntryPill: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: RADIUS.sm,
+  },
+  scoreEntryPillText: {
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  teamSelectPill: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: RADIUS.sm,
+  },
+  teamSelectPillText: {
+    fontSize: FONT_SIZE.xs,
+    fontWeight: '700',
+  },
+  scoreEntryRow: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  scoreBigInput: {
+    textAlign: 'center',
+    fontSize: FONT_SIZE.xl,
+    fontWeight: '800',
+    ...NUMERIC_STYLE,
   },
 });

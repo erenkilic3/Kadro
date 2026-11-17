@@ -619,9 +619,9 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   summaryDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
+    width: 5,
+    height: 5,
+    borderRadius: 1,
     marginTop: 5,
   },
   summaryLineText: {
@@ -640,7 +640,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 7,
-    borderRadius: 6,
+    borderRadius: 4,
   },
   tabBtnText: {
     fontSize: 12,

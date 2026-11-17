@@ -1,12 +1,14 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { AppState, Platform } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as Linking from 'expo-linking';
 import type { Session, User as SupabaseAuthUser } from '@supabase/supabase-js';
 import { isSupabaseConfigured, supabase } from '../lib/supabase';
-import { storageService } from '../services/storageService';
 import { PlayerPosition } from '../types';
-
-const DEMO_AUTH_KEY = '@kadro_demo_auth_v1';
+import {
+  validateEmail,
+  validatePassword,
+  validateProfileInput,
+} from '../utils/validators';
 
 export interface SignUpInput {
   name: string;
@@ -27,11 +29,13 @@ interface AuthContextType {
   authUser: SupabaseAuthUser | null;
   isAuthenticated: boolean;
   isAuthLoading: boolean;
+  isPasswordRecovery: boolean;
   isSupabaseAuthEnabled: boolean;
-  isDemoSession: boolean;
   signInWithEmail: (email: string, password: string) => Promise<AuthActionResult>;
   signUpWithEmail: (input: SignUpInput) => Promise<AuthActionResult>;
-  signInAsDemo: () => Promise<void>;
+  sendPasswordReset: (email: string) => Promise<AuthActionResult>;
+  updatePassword: (newPassword: string) => Promise<AuthActionResult>;
+  clearPasswordRecovery: () => void;
   signOut: () => Promise<void>;
 }
 
@@ -43,7 +47,7 @@ function mapAuthError(message: string): string {
     return 'E-posta veya şifre hatalı.';
   }
   if (lower.includes('email not confirmed')) {
-    return 'Giriş yapmadan önce e-posta adresinizi doğrulayın.';
+    return 'Giriş yapmadan önce e-posta adresinize gönderilen bağlantıyı doğrulayın.';
   }
   if (lower.includes('user already registered')) {
     return 'Bu e-posta adresiyle kayıtlı bir hesap zaten var.';
@@ -51,43 +55,75 @@ function mapAuthError(message: string): string {
   if (lower.includes('password should be at least')) {
     return 'Şifre en az 6 karakter olmalıdır.';
   }
+  if (lower.includes('rate limit') || lower.includes('too many requests')) {
+    return 'Çok fazla deneme yaptınız. Lütfen biraz bekleyip tekrar deneyin.';
+  }
   return message;
+}
+
+async function handleAuthDeepLinkUrl(url: string): Promise<'recovery' | 'session' | null> {
+  if (!supabase || !url) return null;
+
+  const hashPart = url.includes('#') ? url.split('#')[1] : '';
+  const queryPart = url.includes('?') ? url.split('?')[1].split('#')[0] : '';
+  const hashParams = new URLSearchParams(hashPart);
+  const queryParams = new URLSearchParams(queryPart);
+
+  const accessToken = hashParams.get('access_token') || queryParams.get('access_token');
+  const refreshToken = hashParams.get('refresh_token') || queryParams.get('refresh_token');
+  const code = queryParams.get('code');
+  const type = hashParams.get('type') || queryParams.get('type');
+
+  if (accessToken && refreshToken) {
+    const { error } = await supabase.auth.setSession({
+      access_token: accessToken,
+      refresh_token: refreshToken,
+    });
+    if (!error) {
+      return type === 'recovery' || url.includes('reset-password') ? 'recovery' : 'session';
+    }
+  } else if (code) {
+    const { error } = await supabase.auth.exchangeCodeForSession(code);
+    if (!error) {
+      return type === 'recovery' || url.includes('reset-password') ? 'recovery' : 'session';
+    }
+  }
+
+  return null;
 }
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [session, setSession] = useState<Session | null>(null);
-  const [isDemoSession, setIsDemoSession] = useState<boolean>(false);
   const [isAuthLoading, setIsAuthLoading] = useState<boolean>(true);
+  const [isPasswordRecovery, setIsPasswordRecovery] = useState<boolean>(false);
 
   useEffect(() => {
     let isMounted = true;
 
     const initAuth = async () => {
-      if (isSupabaseConfigured && supabase) {
-        try {
-          const { data, error } = await supabase.auth.getSession();
-          if (error) {
-            console.warn('Supabase getSession warning:', error.message);
-          }
-          if (isMounted) {
-            setSession(data.session ?? null);
-            setIsDemoSession(false);
-          }
-        } catch (err) {
-          console.warn('Supabase auth initialization failed:', err);
-        } finally {
-          if (isMounted) setIsAuthLoading(false);
-        }
+      if (!isSupabaseConfigured || !supabase) {
+        if (isMounted) setIsAuthLoading(false);
         return;
       }
 
       try {
-        const storedDemoAuth = await AsyncStorage.getItem(DEMO_AUTH_KEY);
+        const initialUrl = await Linking.getInitialURL();
+        if (initialUrl) {
+          const linkMode = await handleAuthDeepLinkUrl(initialUrl);
+          if (isMounted && linkMode === 'recovery') {
+            setIsPasswordRecovery(true);
+          }
+        }
+
+        const { data, error } = await supabase.auth.getSession();
+        if (error) {
+          console.warn('Supabase getSession warning:', error.message);
+        }
         if (isMounted) {
-          setIsDemoSession(storedDemoAuth === 'true');
+          setSession(data.session ?? null);
         }
       } catch (err) {
-        console.warn('Demo auth restore failed:', err);
+        console.warn('Supabase auth initialization failed:', err);
       } finally {
         if (isMounted) setIsAuthLoading(false);
       }
@@ -103,13 +139,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+    } = supabase.auth.onAuthStateChange((event, nextSession) => {
       if (!isMounted) return;
       setSession(nextSession ?? null);
-      if (nextSession) {
-        setIsDemoSession(false);
+      if (event === 'PASSWORD_RECOVERY') {
+        setIsPasswordRecovery(true);
+      } else if (event === 'SIGNED_OUT') {
+        setIsPasswordRecovery(false);
       }
       setIsAuthLoading(false);
+    });
+
+    const linkingSub = Linking.addEventListener('url', async ({ url }) => {
+      const linkMode = await handleAuthDeepLinkUrl(url);
+      if (isMounted && linkMode === 'recovery') {
+        setIsPasswordRecovery(true);
+      }
     });
 
     const appStateSubscription =
@@ -127,6 +172,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return () => {
       isMounted = false;
       subscription.unsubscribe();
+      linkingSub.remove();
       appStateSubscription?.remove();
     };
   }, []);
@@ -135,100 +181,115 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     email: string,
     password: string
   ): Promise<AuthActionResult> => {
-    const trimmedEmail = email.trim().toLowerCase();
-    if (!trimmedEmail || !trimmedEmail.includes('@')) {
-      return { error: 'Geçerli bir e-posta adresi girin.' };
-    }
-    if (password.length < 6) {
-      return { error: 'Şifre en az 6 karakter olmalıdır.' };
+    const emailCheck = validateEmail(email);
+    if (!emailCheck.valid) return { error: emailCheck.error };
+
+    const pwdCheck = validatePassword(password);
+    if (!pwdCheck.valid) return { error: pwdCheck.error };
+
+    if (!isSupabaseConfigured || !supabase) {
+      return {
+        error: 'Supabase bağlantısı yapılandırılmamış (.env dosyası eksik).',
+      };
     }
 
-    if (isSupabaseConfigured && supabase) {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email: trimmedEmail,
-        password,
-      });
-      if (error) {
-        return { error: mapAuthError(error.message) };
-      }
-      setSession(data.session ?? null);
-      setIsDemoSession(false);
-      return {};
-    }
-
-    const demoUser = await storageService.getUser();
-    await storageService.saveUser({
-      ...demoUser,
-      email: trimmedEmail,
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email: email.trim().toLowerCase(),
+      password,
     });
-    await AsyncStorage.setItem(DEMO_AUTH_KEY, 'true');
-    setIsDemoSession(true);
+    if (error) {
+      return { error: mapAuthError(error.message) };
+    }
+    setSession(data.session ?? null);
+    setIsPasswordRecovery(false);
     return {};
   };
 
   const signUpWithEmail = async (input: SignUpInput): Promise<AuthActionResult> => {
-    const trimmedName = input.name.trim();
-    const trimmedEmail = input.email.trim().toLowerCase();
+    const profileCheck = validateProfileInput(input.name, input.position);
+    if (!profileCheck.valid) return { error: profileCheck.error };
 
-    if (trimmedName.length < 2) {
-      return { error: 'Ad Soyad en az 2 karakter olmalıdır.' };
-    }
-    if (!trimmedEmail || !trimmedEmail.includes('@')) {
-      return { error: 'Geçerli bir e-posta adresi girin.' };
-    }
-    if (input.password.length < 6) {
-      return { error: 'Şifre en az 6 karakter olmalıdır.' };
+    const emailCheck = validateEmail(input.email);
+    if (!emailCheck.valid) return { error: emailCheck.error };
+
+    const pwdCheck = validatePassword(input.password);
+    if (!pwdCheck.valid) return { error: pwdCheck.error };
+
+    if (!isSupabaseConfigured || !supabase) {
+      return {
+        error: 'Supabase bağlantısı yapılandırılmamış (.env dosyası eksik).',
+      };
     }
 
-    if (isSupabaseConfigured && supabase) {
-      const { data, error } = await supabase.auth.signUp({
-        email: trimmedEmail,
-        password: input.password,
-        options: {
-          data: {
-            name: trimmedName,
-            position: input.position,
-            city: input.city,
-            district: input.district,
-          },
+    const { data, error } = await supabase.auth.signUp({
+      email: input.email.trim().toLowerCase(),
+      password: input.password,
+      options: {
+        emailRedirectTo: Linking.createURL('/login'),
+        data: {
+          name: input.name.trim(),
+          position: input.position,
+          city: input.city.trim() || 'İstanbul',
+          district: input.district.trim() || 'Kadıköy',
         },
-      });
-      if (error) {
-        return { error: mapAuthError(error.message) };
-      }
-
-      if (!data.session && data.user) {
-        return { needsEmailConfirmation: true };
-      }
-
-      setSession(data.session ?? null);
-      setIsDemoSession(false);
-      return {};
+      },
+    });
+    if (error) {
+      return { error: mapAuthError(error.message) };
     }
 
-    const demoUser = await storageService.getUser();
-    await storageService.saveUser({
-      ...demoUser,
-      name: trimmedName,
-      email: trimmedEmail,
-      position: input.position,
-      city: input.city,
-      district: input.district,
-    });
-    await AsyncStorage.setItem(DEMO_AUTH_KEY, 'true');
-    setIsDemoSession(true);
+    if (!data.session && data.user) {
+      return { needsEmailConfirmation: true };
+    }
+
+    setSession(data.session ?? null);
     return {};
   };
 
-  const signInAsDemo = async (): Promise<void> => {
-    await AsyncStorage.setItem(DEMO_AUTH_KEY, 'true');
-    setIsDemoSession(true);
+  const sendPasswordReset = async (email: string): Promise<AuthActionResult> => {
+    const emailCheck = validateEmail(email);
+    if (!emailCheck.valid) return { error: emailCheck.error };
+
+    if (!isSupabaseConfigured || !supabase) {
+      return {
+        error: 'Supabase bağlantısı yapılandırılmamış (.env dosyası eksik).',
+      };
+    }
+
+    const { error } = await supabase.auth.resetPasswordForEmail(
+      email.trim().toLowerCase(),
+      {
+        redirectTo: Linking.createURL('/reset-password'),
+      }
+    );
+    if (error) {
+      return { error: mapAuthError(error.message) };
+    }
+    return {};
   };
 
-  const signOut = async (): Promise<void> => {
-    await AsyncStorage.removeItem(DEMO_AUTH_KEY);
-    setIsDemoSession(false);
+  const updatePassword = async (newPassword: string): Promise<AuthActionResult> => {
+    const pwdCheck = validatePassword(newPassword);
+    if (!pwdCheck.valid) return { error: pwdCheck.error };
 
+    if (!isSupabaseConfigured || !supabase) {
+      return {
+        error: 'Supabase bağlantısı yapılandırılmamış (.env dosyası eksik).',
+      };
+    }
+
+    const { error } = await supabase.auth.updateUser({ password: newPassword });
+    if (error) {
+      return { error: mapAuthError(error.message) };
+    }
+    setIsPasswordRecovery(false);
+    return {};
+  };
+
+  const clearPasswordRecovery = () => setIsPasswordRecovery(false);
+
+  const signOut = async (): Promise<void> => {
+    setIsPasswordRecovery(false);
     if (isSupabaseConfigured && supabase) {
       const { error } = await supabase.auth.signOut();
       if (error) {
@@ -243,13 +304,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       value={{
         session,
         authUser: session?.user ?? null,
-        isAuthenticated: Boolean(session?.user) || isDemoSession,
+        isAuthenticated: Boolean(session?.user),
         isAuthLoading,
+        isPasswordRecovery,
         isSupabaseAuthEnabled: isSupabaseConfigured,
-        isDemoSession,
         signInWithEmail,
         signUpWithEmail,
-        signInAsDemo,
+        sendPasswordReset,
+        updatePassword,
+        clearPasswordRecovery,
         signOut,
       }}
     >

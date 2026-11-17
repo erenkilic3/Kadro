@@ -1,10 +1,10 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { GearItem } from '../types';
 import { useTheme } from '../context/ThemeContext';
-import { FONT_SIZE, RADIUS, SPACING } from '../constants/theme';
+import { FONT_SIZE, NUMERIC_STYLE, RADIUS, SPACING } from '../constants/theme';
 
 interface GearCardProps {
   item: GearItem;
@@ -46,10 +46,30 @@ export const GearCard: React.FC<GearCardProps> = ({ item }) => {
       onPress={() => router.push(`/gear/${item.id}`)}
       activeOpacity={0.85}
     >
-      <View style={[styles.imageBox, { backgroundColor: colors.surfaceLight }]}>
-        <Ionicons name={getCategoryIcon()} size={36} color={colors.textSecondary} />
+      <View
+        style={[
+          styles.imageBox,
+          {
+            backgroundColor: colors.surfaceLight,
+            borderBottomColor: colors.surfaceBorder,
+          },
+        ]}
+      >
+        {item.imageUrl ? (
+          <Image source={{ uri: item.imageUrl }} style={styles.image} resizeMode="cover" />
+        ) : (
+          <Ionicons name={getCategoryIcon()} size={34} color={colors.textSecondary} />
+        )}
 
-        <View style={[styles.conditionBadge, { backgroundColor: colors.surface }]}>
+        <View
+          style={[
+            styles.conditionBadge,
+            {
+              backgroundColor: colors.surface,
+              borderColor: colors.surfaceBorder,
+            },
+          ]}
+        >
           <Text style={[styles.conditionText, { color: colors.textSecondary }]} numberOfLines={1}>
             {getShortCondition()}
           </Text>
@@ -89,8 +109,8 @@ const styles = StyleSheet.create({
   card: {
     borderRadius: RADIUS.md,
     overflow: 'hidden',
-    borderWidth: StyleSheet.hairlineWidth,
-    marginBottom: SPACING.md,
+    borderWidth: 1,
+    marginBottom: SPACING.sm + 2,
     flex: 1,
     marginHorizontal: 4,
   },
@@ -98,18 +118,25 @@ const styles = StyleSheet.create({
     opacity: 0.6,
   },
   imageBox: {
-    height: 108,
+    height: 104,
     justifyContent: 'center',
     alignItems: 'center',
     position: 'relative',
+    borderBottomWidth: 1,
+    overflow: 'hidden',
+  },
+  image: {
+    width: '100%',
+    height: '100%',
   },
   conditionBadge: {
     position: 'absolute',
     top: 8,
     left: 8,
-    paddingHorizontal: 7,
-    paddingVertical: 3,
-    borderRadius: 6,
+    paddingHorizontal: 6,
+    paddingVertical: 2.5,
+    borderRadius: 4,
+    borderWidth: 1,
   },
   conditionText: {
     fontSize: 10,
@@ -145,6 +172,7 @@ const styles = StyleSheet.create({
   sizeText: {
     fontSize: 10,
     fontWeight: '600',
+    ...NUMERIC_STYLE,
   },
   title: {
     fontSize: FONT_SIZE.sm,
@@ -161,6 +189,7 @@ const styles = StyleSheet.create({
   price: {
     fontSize: FONT_SIZE.md,
     fontWeight: '800',
+    ...NUMERIC_STYLE,
   },
   locationText: {
     fontSize: 10,

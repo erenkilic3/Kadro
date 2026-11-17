@@ -1,5 +1,4 @@
 import React from 'react';
-import { StyleSheet } from 'react-native';
 import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../context/ThemeContext';
@@ -22,9 +21,9 @@ export default function TabLayout() {
         tabBarStyle: {
           backgroundColor: colors.surface,
           borderTopColor: colors.surfaceBorder,
-          borderTopWidth: StyleSheet.hairlineWidth,
-          height: 62,
-          paddingBottom: 8,
+          borderTopWidth: 1,
+          height: 58,
+          paddingBottom: 6,
           paddingTop: 6,
           elevation: 0,
           shadowOpacity: 0,
@@ -32,8 +31,9 @@ export default function TabLayout() {
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.textTertiary,
         tabBarLabelStyle: {
-          fontSize: 11,
+          fontSize: 10.5,
           fontWeight: '600',
+          letterSpacing: 0.1,
         },
       }}
     >
@@ -46,7 +46,7 @@ export default function TabLayout() {
             tabBarIcon: ({ color, focused }) => (
               <Ionicons
                 name={focused ? tab.activeIcon : tab.inactiveIcon}
-                size={22}
+                size={20}
                 color={typeof color === 'string' ? color : undefined}
               />
             ),

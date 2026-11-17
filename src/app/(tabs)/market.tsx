@@ -16,7 +16,7 @@ import { useApp } from '../../context/AppContext';
 import { useTheme } from '../../context/ThemeContext';
 import { GearCard } from '../../components/GearCard';
 import { EmptyState } from '../../components/EmptyState';
-import { FONT_SIZE, RADIUS, SPACING } from '../../constants/theme';
+import { FONT_SIZE, NUMERIC_STYLE, RADIUS, SPACING } from '../../constants/theme';
 import { GearCategory } from '../../types';
 
 const MARKET_CATEGORIES: { key: 'ALL' | GearCategory; label: string }[] = [
@@ -33,6 +33,7 @@ export default function MarketplaceScreen() {
 
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<'ALL' | GearCategory>('ALL');
+  const [selectedDistrict, setSelectedDistrict] = useState<string>('ALL');
   const [sortBy, setSortBy] = useState<'NEWEST' | 'PRICE_LOW' | 'PRICE_HIGH'>('NEWEST');
   const [refreshing, setRefreshing] = useState(false);
 
@@ -42,9 +43,23 @@ export default function MarketplaceScreen() {
     setRefreshing(false);
   };
 
+  const availableItems = useMemo(
+    () => gearItems.filter((item) => item.status === 'Available'),
+    [gearItems]
+  );
+
+  const districtOptions = useMemo(() => {
+    const unique = new Set<string>();
+    availableItems.forEach((item) => {
+      const dist = (item.district || item.location.split('/').pop() || '').trim();
+      if (dist) unique.add(dist);
+    });
+    return ['ALL', ...Array.from(unique)];
+  }, [availableItems]);
+
   const filteredItems = useMemo(() => {
-    let items = gearItems.filter((item) => {
-      const q = searchQuery.toLowerCase();
+    const q = searchQuery.toLowerCase();
+    let items = availableItems.filter((item) => {
       const matchesSearch =
         item.title.toLowerCase().includes(q) ||
         item.brand.toLowerCase().includes(q) ||
@@ -53,6 +68,12 @@ export default function MarketplaceScreen() {
       if (!matchesSearch) return false;
       if (selectedCategory !== 'ALL' && item.category !== selectedCategory) {
         return false;
+      }
+      if (selectedDistrict !== 'ALL') {
+        const dist = (item.district || item.location.split('/').pop() || '').trim();
+        if (dist.toLowerCase() !== selectedDistrict.toLowerCase()) {
+          return false;
+        }
       }
       return true;
     });
@@ -64,7 +85,7 @@ export default function MarketplaceScreen() {
     }
 
     return items;
-  }, [gearItems, searchQuery, selectedCategory, sortBy]);
+  }, [availableItems, searchQuery, selectedCategory, selectedDistrict, sortBy]);
 
   return (
     <SafeAreaView
@@ -116,7 +137,7 @@ export default function MarketplaceScreen() {
           onChangeText={setSearchQuery}
         />
         {searchQuery.length > 0 && (
-          <TouchableOpacity onPress={() => setSearchQuery('')}>
+          <TouchableOpacity onPress={() => setSearchQuery('')} hitSlop={14}>
             <Ionicons name="close-circle" size={17} color={colors.textTertiary} />
           </TouchableOpacity>
         )}
@@ -150,13 +171,50 @@ export default function MarketplaceScreen() {
                   ]}
                 >
                   {cat.label}
-                  {cat.key === 'ALL' ? ` (${gearItems.length})` : ''}
+                  {cat.key === 'ALL' ? ` (${availableItems.length})` : ''}
                 </Text>
               </TouchableOpacity>
             );
           })}
         </ScrollView>
       </View>
+
+      {/* Location District Chips */}
+      {districtOptions.length > 1 && (
+        <View style={styles.filterSection}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.filterScroll}
+          >
+            {districtOptions.map((dist) => {
+              const isSelected = selectedDistrict === dist;
+              return (
+                <TouchableOpacity
+                  key={dist}
+                  style={[
+                    styles.filterChip,
+                    {
+                      backgroundColor: isSelected ? `${colors.primary}18` : colors.surface,
+                      borderColor: isSelected ? colors.primary : colors.surfaceBorder,
+                    },
+                  ]}
+                  onPress={() => setSelectedDistrict(dist)}
+                >
+                  <Text
+                    style={[
+                      styles.filterChipText,
+                      { color: isSelected ? colors.primary : colors.textSecondary },
+                    ]}
+                  >
+                    {dist === 'ALL' ? 'Tüm İlçeler' : dist}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
+        </View>
+      )}
 
       {/* Sort Row */}
       <View style={styles.sortRow}>
@@ -207,6 +265,10 @@ export default function MarketplaceScreen() {
             icon="pricetag-outline"
             title="Ürün bulunamadı"
             description="Arama filtrenizi temizleyebilir veya yeni bir ekipman ilanı verebilirsiniz."
+            buttonText="İlan Ver"
+            onPress={() =>
+              router.push({ pathname: '/(tabs)/create', params: { tab: 'GEAR' } } as any)
+            }
           />
         }
       />
@@ -227,7 +289,7 @@ const styles = StyleSheet.create({
     paddingBottom: SPACING.md,
   },
   headerTitle: {
-    fontSize: 26,
+    fontSize: 24,
     fontWeight: '800',
     letterSpacing: -0.6,
   },
@@ -241,7 +303,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 14,
     paddingVertical: 14,
-    borderRadius: RADIUS.pill,
+    borderRadius: RADIUS.sm,
     gap: 4,
   },
   sellButtonText: {
@@ -252,11 +314,11 @@ const styles = StyleSheet.create({
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderRadius: RADIUS.md,
+    borderRadius: RADIUS.sm,
     marginHorizontal: SPACING.lg,
     paddingHorizontal: SPACING.md,
-    height: 42,
-    borderWidth: StyleSheet.hairlineWidth,
+    height: 40,
+    borderWidth: 1,
     marginBottom: SPACING.sm,
   },
   searchIcon: {
@@ -273,14 +335,14 @@ const styles = StyleSheet.create({
   },
   filterScroll: {
     paddingHorizontal: SPACING.lg,
-    gap: 8,
+    gap: 6,
     paddingVertical: 4,
   },
   filterChip: {
-    paddingHorizontal: 13,
-    paddingVertical: 7,
-    borderRadius: RADIUS.pill,
-    borderWidth: StyleSheet.hairlineWidth,
+    paddingHorizontal: 11,
+    paddingVertical: 6,
+    borderRadius: RADIUS.sm,
+    borderWidth: 1,
   },
   filterChipText: {
     fontSize: FONT_SIZE.xs,
@@ -297,13 +359,14 @@ const styles = StyleSheet.create({
   resultCount: {
     fontSize: FONT_SIZE.xs,
     fontWeight: '600',
+    ...NUMERIC_STYLE,
   },
   sortButton: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
     paddingHorizontal: 10,
-    paddingVertical: 5,
+    paddingVertical: 6,
     borderRadius: RADIUS.sm,
   },
   sortText: {

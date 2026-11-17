@@ -4,7 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { RegionalLeague } from '../types';
 import { useTheme } from '../context/ThemeContext';
-import { FONT_SIZE, RADIUS, SPACING } from '../constants/theme';
+import { FONT_SIZE, NUMERIC_STYLE, RADIUS, SPACING } from '../constants/theme';
 import { getInitials, stripLeadingSymbols } from '../utils/formatters';
 
 interface LeagueCardProps {
@@ -140,40 +140,41 @@ export const LeagueCard: React.FC<LeagueCardProps> = ({ league }) => {
 
 const styles = StyleSheet.create({
   cardContainer: {
-    borderRadius: RADIUS.lg,
-    borderWidth: StyleSheet.hairlineWidth,
-    marginBottom: SPACING.md,
+    borderRadius: RADIUS.md,
+    borderWidth: 1,
+    marginBottom: SPACING.sm + 2,
     overflow: 'hidden',
   },
   topAccent: {
-    height: 3,
+    height: 2,
     width: '100%',
   },
   cardContent: {
-    padding: SPACING.lg,
+    padding: SPACING.md + 2,
   },
   headerRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: 6,
   },
   locationMeta: {
     fontSize: 11,
     fontWeight: '600',
   },
   statusBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
+    paddingHorizontal: 7,
+    paddingVertical: 2.5,
+    borderRadius: 4,
   },
   statusText: {
-    fontSize: 11,
+    fontSize: 10.5,
     fontWeight: '700',
   },
   leagueTitle: {
     fontSize: FONT_SIZE.md,
     fontWeight: '700',
+    letterSpacing: -0.2,
   },
   leagueSeason: {
     fontSize: FONT_SIZE.xs,
@@ -203,25 +204,27 @@ const styles = StyleSheet.create({
   progressLabel: {
     fontSize: 11,
     fontWeight: '600',
+    ...NUMERIC_STYLE,
   },
   progressRemaining: {
     fontSize: 11,
     fontWeight: '700',
+    ...NUMERIC_STYLE,
   },
   progressBarBg: {
-    height: 4,
-    borderRadius: 2,
+    height: 3,
+    borderRadius: 1.5,
     overflow: 'hidden',
   },
   progressBarFill: {
     height: '100%',
-    borderRadius: 2,
+    borderRadius: 1.5,
   },
   metaFooter: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopWidth: 1,
     paddingTop: 10,
   },
   leaderRow: {
@@ -234,7 +237,7 @@ const styles = StyleSheet.create({
   leaderCrest: {
     width: 22,
     height: 22,
-    borderRadius: 11,
+    borderRadius: 5,
     alignItems: 'center',
     justifyContent: 'center',
   },

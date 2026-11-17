@@ -8,6 +8,8 @@ import {
   Alert,
   TextInput,
   Platform,
+  Image,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -20,9 +22,11 @@ import { MatchPredictionCard } from '../../components/MatchPredictionCard';
 import { GearCard } from '../../components/GearCard';
 import { PositionBadge } from '../../components/PositionBadge';
 import { EmptyState } from '../../components/EmptyState';
-import { FONT_SIZE, RADIUS, SPACING } from '../../constants/theme';
+import { FONT_SIZE, NUMERIC_STYLE, RADIUS, SPACING } from '../../constants/theme';
 import { PlayerPosition } from '../../types';
 import { getInitials, stripLeadingSymbols } from '../../utils/formatters';
+import { pickImageFromLibrary, uploadImageToBucket } from '../../services/mediaService';
+import { validateProfileInput } from '../../utils/validators';
 
 type ProfileTab = 'MATCHES' | 'REQUESTS' | 'PREDICTIONS' | 'REVIEWS' | 'LISTINGS' | 'SETTINGS';
 
@@ -37,20 +41,41 @@ export default function ProfileScreen() {
     rejectJoinRequest,
     cancelJoinRequest,
     updateUser,
-    resetDemoData,
+    refreshData,
     markGearSold,
     votePrediction,
+    unreadNotificationsCount,
     isSupabaseActive,
   } = useApp();
-  const { authUser, isDemoSession, signOut } = useAuth();
+  const { authUser, signOut } = useAuth();
   const { colors, isDark, setThemeMode } = useTheme();
 
   const [profileTab, setProfileTab] = useState<ProfileTab>('MATCHES');
   const [isEditing, setIsEditing] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [name, setName] = useState(currentUser.name || '');
   const [phone, setPhone] = useState(currentUser.phone || '');
   const [bio, setBio] = useState(currentUser.bio || '');
   const [position, setPosition] = useState<PlayerPosition>(currentUser.position || 'MID');
+  const [city, setCity] = useState(currentUser.city || 'İstanbul');
+  const [district, setDistrict] = useState(currentUser.district || 'Kadıköy');
+  const [preferredFoot, setPreferredFoot] = useState<'Right' | 'Left' | 'Both'>(
+    currentUser.preferredFoot || 'Right'
+  );
+
+  const handleToggleEdit = () => {
+    if (!isEditing) {
+      setName(currentUser.name || '');
+      setPhone(currentUser.phone || '');
+      setBio(currentUser.bio || '');
+      setPosition(currentUser.position || 'MID');
+      setCity(currentUser.city || 'İstanbul');
+      setDistrict(currentUser.district || 'Kadıköy');
+      setPreferredFoot(currentUser.preferredFoot || 'Right');
+    }
+    setIsEditing((prev) => !prev);
+  };
 
   const myMatches = matches.filter(
     (m) =>
@@ -72,33 +97,57 @@ export default function ProfileScreen() {
     incomingCaptainRequests.length +
     mySentRequests.filter((r) => r.status === 'PENDING').length;
 
-  const handleSaveProfile = async () => {
-    await updateUser({
-      name: name.trim(),
-      phone: phone.trim(),
-      bio: bio.trim(),
-      position,
-    });
-    setIsEditing(false);
-    Alert.alert('Güncellendi', 'Profil bilgileriniz kaydedildi.');
+  const handlePickAvatar = async () => {
+    const picked = await pickImageFromLibrary();
+    if (picked.error) {
+      Alert.alert('Galeri Hatası', picked.error);
+      return;
+    }
+    if (!picked.asset) return;
+
+    setUploadingAvatar(true);
+    try {
+      const publicUrl = await uploadImageToBucket('avatars', currentUser.id, picked.asset);
+      await updateUser({ avatarUrl: publicUrl });
+      Alert.alert('Güncellendi', 'Profil fotoğrafın güncellendi.');
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : 'Fotoğraf yüklenemedi.';
+      Alert.alert('Yükleme Hatası', msg);
+    } finally {
+      setUploadingAvatar(false);
+    }
   };
 
-  const handleResetData = () => {
-    Alert.alert(
-      'Demo Verilerini Sıfırla',
-      'Tüm maç, lig, tahmin ve pazar verileri başlangıç durumuna döndürülecek. Devam edilsin mi?',
-      [
-        { text: 'İptal', style: 'cancel' },
-        {
-          text: 'Sıfırla',
-          style: 'destructive',
-          onPress: async () => {
-            await resetDemoData();
-            Alert.alert('Tamamlandı', 'Demo verileri sıfırlandı.');
-          },
-        },
-      ]
-    );
+  const handleSaveProfile = async () => {
+    const validation = validateProfileInput(name, position);
+    if (!validation.valid) {
+      Alert.alert('Geçersiz Bilgi', validation.error || 'Lütfen alanları kontrol edin.');
+      return;
+    }
+    setIsSaving(true);
+    try {
+      await updateUser({
+        name: name.trim(),
+        phone: phone.trim(),
+        bio: bio.trim(),
+        position,
+        city: city.trim() || 'İstanbul',
+        district: district.trim() || 'Kadıköy',
+        preferredFoot,
+      });
+      setIsEditing(false);
+      Alert.alert('Güncellendi', 'Profil bilgileriniz kaydedildi.');
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : 'Profil kaydedilemedi.';
+      Alert.alert('Kayıt Hatası', msg);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleRefreshData = async () => {
+    await refreshData();
+    Alert.alert('Senkronize Edildi', 'Veriler sunucudan güncellendi.');
   };
 
   const profileTabs: { key: ProfileTab; label: string }[] = [
@@ -110,12 +159,7 @@ export default function ProfileScreen() {
     { key: 'SETTINGS', label: 'Ayarlar' },
   ];
 
-  const userBadges = currentUser.badges || [
-    { id: 'mvp', label: 'Maçın Adamı', icon: '', count: 6 },
-    { id: 'fairplay', label: 'Centilmen Rakip', icon: '', count: 18 },
-    { id: 'maestro', label: 'Oyun Kurucu', icon: '', count: 12 },
-    { id: 'engine', label: 'Yorulmaz Ciğer', icon: '', count: 8 },
-  ];
+  const userBadges = currentUser.badges || [];
 
   return (
     <SafeAreaView
@@ -123,8 +167,45 @@ export default function ProfileScreen() {
       edges={['top']}
     >
       <ScrollView contentContainerStyle={styles.scrollContent}>
-        {/* Header Title */}
-        <Text style={[styles.screenTitle, { color: colors.text }]}>Profil</Text>
+        {/* Header Title + Shortcuts */}
+        <View style={styles.headerTopBar}>
+          <Text style={[styles.screenTitle, { color: colors.text, marginBottom: 0 }]}>Profil</Text>
+          <View style={styles.headerActions}>
+            <TouchableOpacity
+              onPress={() => router.push('/teams')}
+              style={[
+                styles.headerActionBtn,
+                {
+                  backgroundColor: colors.surface,
+                  borderColor: colors.surfaceBorder,
+                },
+              ]}
+            >
+              <Ionicons name="shield-outline" size={15} color={colors.text} />
+              <Text style={[styles.headerActionText, { color: colors.text }]}>Takımlar</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={() => router.push('/notifications')}
+              style={[
+                styles.headerActionBtn,
+                {
+                  backgroundColor: colors.surface,
+                  borderColor: colors.surfaceBorder,
+                },
+              ]}
+            >
+              <Ionicons name="notifications-outline" size={16} color={colors.text} />
+              {unreadNotificationsCount > 0 && (
+                <View style={[styles.notifBadge, { backgroundColor: colors.primary }]}>
+                  <Text style={styles.notifBadgeText}>
+                    {unreadNotificationsCount > 9 ? '9+' : unreadNotificationsCount}
+                  </Text>
+                </View>
+              )}
+            </TouchableOpacity>
+          </View>
+        </View>
 
         {/* Identity Card */}
         <View
@@ -137,11 +218,30 @@ export default function ProfileScreen() {
           ]}
         >
           <View style={styles.avatarRow}>
-            <View style={[styles.avatarCircle, { backgroundColor: colors.primary }]}>
-              <Text style={styles.avatarInitials}>
-                {getInitials(currentUser.name || 'EK')}
-              </Text>
-            </View>
+            <TouchableOpacity
+              onPress={handlePickAvatar}
+              disabled={uploadingAvatar}
+              activeOpacity={0.85}
+              style={[styles.avatarCircle, { backgroundColor: colors.primary }]}
+            >
+              {uploadingAvatar ? (
+                <ActivityIndicator color="#FFFFFF" size="small" />
+              ) : currentUser.avatarUrl ? (
+                <Image source={{ uri: currentUser.avatarUrl }} style={styles.avatarImage} />
+              ) : (
+                <Text style={styles.avatarInitials}>
+                  {getInitials(currentUser.name || 'EK')}
+                </Text>
+              )}
+              <View
+                style={[
+                  styles.avatarCamBadge,
+                  { backgroundColor: colors.surface, borderColor: colors.surfaceBorder },
+                ]}
+              >
+                <Ionicons name="camera" size={10} color={colors.text} />
+              </View>
+            </TouchableOpacity>
 
             <View style={{ flex: 1, marginLeft: SPACING.md }}>
               <View style={styles.nameRow}>
@@ -149,9 +249,15 @@ export default function ProfileScreen() {
                   {currentUser.name}
                 </Text>
                 <TouchableOpacity
-                  onPress={() => setIsEditing(!isEditing)}
+                  onPress={handleToggleEdit}
                   hitSlop={14}
-                  style={[styles.editIconBtn, { backgroundColor: colors.surfaceLight }]}
+                  style={[
+                    styles.editIconBtn,
+                    {
+                      backgroundColor: colors.surfaceLight,
+                      borderColor: colors.surfaceBorder,
+                    },
+                  ]}
                 >
                   <Ionicons
                     name={isEditing ? 'close' : 'pencil-outline'}
@@ -171,7 +277,15 @@ export default function ProfileScreen() {
           </View>
 
           {/* 4-Column Stats */}
-          <View style={[styles.statsBar, { backgroundColor: colors.surfaceLight }]}>
+          <View
+            style={[
+              styles.statsBar,
+              {
+                backgroundColor: colors.surfaceLight,
+                borderColor: colors.surfaceBorder,
+              },
+            ]}
+          >
             <View style={styles.statCol}>
               <Text style={[styles.statVal, { color: colors.text }]}>{currentUser.rating}</Text>
               <Text style={[styles.statLbl, { color: colors.textTertiary }]}>Yetenek</Text>
@@ -193,7 +307,7 @@ export default function ProfileScreen() {
             <View style={[styles.statDivider, { backgroundColor: colors.surfaceBorder }]} />
             <View style={styles.statCol}>
               <Text style={[styles.statVal, { color: colors.text }]}>
-                {currentUser.evaluationsCount || myReviews.length || 22}
+                {currentUser.evaluationsCount ?? myReviews.length}
               </Text>
               <Text style={[styles.statLbl, { color: colors.textTertiary }]}>Değerlendirme</Text>
             </View>
@@ -205,7 +319,7 @@ export default function ProfileScreen() {
             </Text>
           )}
 
-          {!isEditing && (
+          {!isEditing && userBadges.length > 0 && (
             <View style={[styles.badgesShowcase, { borderTopColor: colors.surfaceBorder }]}>
               <Text style={[styles.badgesSectionHeading, { color: colors.textTertiary }]}>
                 Kazanılan Rozetler
@@ -249,8 +363,37 @@ export default function ProfileScreen() {
                 ]}
                 value={phone}
                 onChangeText={setPhone}
+                keyboardType="phone-pad"
+                placeholder="0555 000 00 00"
                 placeholderTextColor={colors.textTertiary}
               />
+
+              <View style={styles.rowInputs}>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>Şehir</Text>
+                  <TextInput
+                    style={[
+                      styles.input,
+                      { backgroundColor: colors.surfaceLight, color: colors.text },
+                    ]}
+                    value={city}
+                    onChangeText={setCity}
+                    placeholderTextColor={colors.textTertiary}
+                  />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>İlçe</Text>
+                  <TextInput
+                    style={[
+                      styles.input,
+                      { backgroundColor: colors.surfaceLight, color: colors.text },
+                    ]}
+                    value={district}
+                    onChangeText={setDistrict}
+                    placeholderTextColor={colors.textTertiary}
+                  />
+                </View>
+              </View>
 
               <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>Ana Mevki</Text>
               <View style={styles.posRow}>
@@ -278,6 +421,40 @@ export default function ProfileScreen() {
               </View>
 
               <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>
+                Tercih Edilen Ayak
+              </Text>
+              <View style={styles.posRow}>
+                {(
+                  [
+                    { key: 'Right', label: 'Sağ' },
+                    { key: 'Left', label: 'Sol' },
+                    { key: 'Both', label: 'Her İkisi' },
+                  ] as const
+                ).map((item) => (
+                  <TouchableOpacity
+                    key={item.key}
+                    style={[
+                      styles.posButton,
+                      {
+                        backgroundColor:
+                          preferredFoot === item.key ? colors.primary : colors.surfaceLight,
+                      },
+                    ]}
+                    onPress={() => setPreferredFoot(item.key)}
+                  >
+                    <Text
+                      style={[
+                        styles.posButtonText,
+                        { color: preferredFoot === item.key ? '#FFFFFF' : colors.textSecondary },
+                      ]}
+                    >
+                      {item.label}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>
                 Oyun Tarzı / Hakkımda
               </Text>
               <TextInput
@@ -292,10 +469,15 @@ export default function ProfileScreen() {
               />
 
               <TouchableOpacity
-                style={[styles.saveBtn, { backgroundColor: colors.primary }]}
+                style={[styles.saveBtn, { backgroundColor: colors.primary, opacity: isSaving ? 0.7 : 1 }]}
                 onPress={handleSaveProfile}
+                disabled={isSaving}
               >
-                <Text style={styles.saveBtnText}>Değişiklikleri Kaydet</Text>
+                {isSaving ? (
+                  <ActivityIndicator color="#FFFFFF" size="small" />
+                ) : (
+                  <Text style={styles.saveBtnText}>Değişiklikleri Kaydet</Text>
+                )}
               </TouchableOpacity>
             </View>
           )}
@@ -695,18 +877,25 @@ export default function ProfileScreen() {
 
             <View style={[styles.sectionDivider, { backgroundColor: colors.surfaceBorder }]} />
 
-            <Text style={[styles.settingsHeader, { color: colors.text }]}>Veri Yönetimi</Text>
+            <Text style={[styles.settingsHeader, { color: colors.text }]}>Veri & Hesap Yönetimi</Text>
             <Text style={[styles.settingsDesc, { color: colors.textSecondary }]}>
-              Tüm örnek maç, lig ve ilan verilerini başlangıç durumuna döndürür.
+              Sunucu ile canlı verilerini senkronize et veya oturumu kapat.
             </Text>
 
             <TouchableOpacity
-              style={[styles.resetBtn, { backgroundColor: `${colors.danger}15` }]}
-              onPress={handleResetData}
+              style={[
+                styles.resetBtn,
+                {
+                  backgroundColor: `${colors.primary}14`,
+                  borderWidth: 1,
+                  borderColor: `${colors.primary}35`,
+                },
+              ]}
+              onPress={handleRefreshData}
             >
-              <Ionicons name="refresh-outline" size={17} color={colors.danger} />
-              <Text style={[styles.resetBtnText, { color: colors.danger }]}>
-                Demo Verilerini Sıfırla
+              <Ionicons name="sync-outline" size={17} color={colors.primary} />
+              <Text style={[styles.resetBtnText, { color: colors.primary }]}>
+                Sunucudan Verileri Yenile
               </Text>
             </TouchableOpacity>
 
@@ -745,7 +934,7 @@ export default function ProfileScreen() {
             <View style={[styles.infoRow, { borderTopColor: colors.surfaceBorder }]}>
               <Text style={[styles.infoKey, { color: colors.textTertiary }]}>Oturum</Text>
               <Text style={[styles.infoVal, { color: colors.text }]}>
-                {authUser?.email || (isDemoSession ? 'Demo Oturumu' : currentUser.email || 'Aktif')}
+                {authUser?.email || currentUser.email || 'Aktif'}
               </Text>
             </View>
             <View style={[styles.infoRow, { borderTopColor: colors.surfaceBorder }]}>
@@ -789,15 +978,15 @@ const styles = StyleSheet.create({
     paddingBottom: SPACING.xxxl,
   },
   screenTitle: {
-    fontSize: 26,
+    fontSize: 24,
     fontWeight: '800',
     letterSpacing: -0.6,
     marginBottom: SPACING.md,
   },
   card: {
-    borderRadius: RADIUS.lg,
-    padding: SPACING.lg,
-    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: RADIUS.md,
+    padding: SPACING.md + 2,
+    borderWidth: 1,
     marginBottom: SPACING.md,
   },
   avatarRow: {
@@ -805,15 +994,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   avatarCircle: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
+    width: 48,
+    height: 48,
+    borderRadius: RADIUS.md,
     justifyContent: 'center',
     alignItems: 'center',
   },
   avatarInitials: {
     color: '#FFFFFF',
-    fontSize: 17,
+    fontSize: 16,
     fontWeight: '800',
   },
   nameRow: {
@@ -824,11 +1013,13 @@ const styles = StyleSheet.create({
   userName: {
     fontSize: FONT_SIZE.lg,
     fontWeight: '700',
+    letterSpacing: -0.2,
   },
   editIconBtn: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
+    width: 32,
+    height: 32,
+    borderRadius: RADIUS.sm,
+    borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -844,9 +1035,10 @@ const styles = StyleSheet.create({
   },
   statsBar: {
     flexDirection: 'row',
-    borderRadius: RADIUS.md,
+    borderRadius: RADIUS.sm,
+    borderWidth: 1,
     marginTop: SPACING.md,
-    paddingVertical: 12,
+    paddingVertical: 11,
     justifyContent: 'space-around',
     alignItems: 'center',
   },
@@ -856,6 +1048,7 @@ const styles = StyleSheet.create({
   statVal: {
     fontSize: FONT_SIZE.md,
     fontWeight: '800',
+    ...NUMERIC_STYLE,
   },
   statLbl: {
     fontSize: 11,
@@ -863,7 +1056,7 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   statDivider: {
-    width: StyleSheet.hairlineWidth,
+    width: 1,
     height: 24,
   },
   bioText: {
@@ -874,11 +1067,13 @@ const styles = StyleSheet.create({
   badgesShowcase: {
     marginTop: SPACING.md,
     paddingTop: SPACING.md,
-    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopWidth: 1,
   },
   badgesSectionHeading: {
-    fontSize: 11,
-    fontWeight: '600',
+    fontSize: 10.5,
+    fontWeight: '700',
+    letterSpacing: 0.6,
+    textTransform: 'uppercase',
     marginBottom: 8,
   },
   badgesRow: {
@@ -889,9 +1084,9 @@ const styles = StyleSheet.create({
   badgeCardPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 9,
-    paddingVertical: 5,
-    borderRadius: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 4,
     gap: 6,
   },
   badgeLabelText: {
@@ -901,10 +1096,11 @@ const styles = StyleSheet.create({
   badgeCountText: {
     fontSize: 11,
     fontWeight: '800',
+    ...NUMERIC_STYLE,
   },
   editForm: {
     marginTop: SPACING.md,
-    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopWidth: 1,
     paddingTop: SPACING.md,
   },
   inputLabel: {
@@ -916,7 +1112,7 @@ const styles = StyleSheet.create({
   input: {
     borderRadius: RADIUS.sm,
     paddingHorizontal: 12,
-    paddingVertical: 9,
+    paddingVertical: 10,
     fontSize: FONT_SIZE.sm,
   },
   posRow: {
@@ -1187,5 +1383,63 @@ const styles = StyleSheet.create({
   },
   reqEmptyText: {
     fontSize: 12,
+  },
+  headerTopBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: SPACING.md,
+  },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  headerActionBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 10,
+    paddingVertical: 14,
+    borderRadius: RADIUS.sm,
+    borderWidth: 1,
+  },
+  headerActionText: {
+    fontSize: FONT_SIZE.xs,
+    fontWeight: '700',
+  },
+  notifBadge: {
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
+    paddingHorizontal: 4,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  notifBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontWeight: '800',
+    ...NUMERIC_STYLE,
+  },
+  avatarImage: {
+    width: '100%',
+    height: '100%',
+    borderRadius: RADIUS.md,
+  },
+  avatarCamBadge: {
+    position: 'absolute',
+    right: -4,
+    bottom: -4,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  rowInputs: {
+    flexDirection: 'row',
+    gap: 10,
   },
 });

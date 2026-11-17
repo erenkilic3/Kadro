@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { MatchPrediction, PredictionChoice } from '../types';
 import { useTheme } from '../context/ThemeContext';
-import { FONT_SIZE, RADIUS, SPACING } from '../constants/theme';
+import { FONT_SIZE, NUMERIC_STYLE, RADIUS, SPACING } from '../constants/theme';
 import { getInitials } from '../utils/formatters';
 
 interface MatchPredictionCardProps {
@@ -149,20 +149,20 @@ export const MatchPredictionCard: React.FC<MatchPredictionCardProps> = ({
 
 const styles = StyleSheet.create({
   card: {
-    borderRadius: RADIUS.lg,
+    borderRadius: RADIUS.md,
     padding: SPACING.md,
-    borderWidth: StyleSheet.hairlineWidth,
+    borderWidth: 1,
     marginBottom: SPACING.md,
   },
   cardCompact: {
-    padding: SPACING.sm + 2,
+    padding: SPACING.sm + 4,
     marginBottom: SPACING.sm,
   },
   headerRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: SPACING.md,
+    marginBottom: SPACING.sm + 2,
   },
   categoryText: {
     fontSize: 12,
@@ -171,6 +171,7 @@ const styles = StyleSheet.create({
   voteCountText: {
     fontSize: 11,
     fontWeight: '600',
+    ...NUMERIC_STYLE,
   },
   matchupRow: {
     flexDirection: 'row',
@@ -184,9 +185,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   teamAvatar: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
+    width: 32,
+    height: 32,
+    borderRadius: RADIUS.sm,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 5,

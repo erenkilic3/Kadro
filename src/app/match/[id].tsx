@@ -6,6 +6,11 @@ import {
   ScrollView,
   TouchableOpacity,
   Alert,
+  Modal,
+  TextInput,
+  ActivityIndicator,
+  Platform,
+  KeyboardAvoidingView,
 } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -19,12 +24,14 @@ import { AiPredictionBotCard } from '../../components/AiPredictionBotCard';
 import { PostMatchEvaluationSection } from '../../components/PostMatchEvaluationSection';
 import { JoinRequestModal } from '../../components/JoinRequestModal';
 import { CaptainRequestsSection } from '../../components/CaptainRequestsSection';
+import { ReportModal } from '../../components/ReportModal';
 import { EmptyState } from '../../components/EmptyState';
-import { FONT_SIZE, RADIUS, SPACING } from '../../constants/theme';
+import { FONT_SIZE, NUMERIC_STYLE, RADIUS, SPACING } from '../../constants/theme';
 import { RosterSlot } from '../../types';
 import { resolveMatchupStats } from '../../utils/matchupStats';
 import { generateAiMatchPrediction } from '../../utils/aiPredictor';
 import { getInitials } from '../../utils/formatters';
+import { validateMatchInput, validateMatchScores } from '../../utils/validators';
 
 export default function MatchDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -41,11 +48,31 @@ export default function MatchDetailScreen() {
     getMatchJoinRequests,
     getUserMatchJoinRequest,
     votePrediction,
+    updateMatch,
+    completeMatch,
+    deleteMatch,
   } = useApp();
   const { colors } = useTheme();
 
   const [requestTargetSlot, setRequestTargetSlot] = useState<RosterSlot | null>(null);
-  const [showDemoCaptainPanel, setShowDemoCaptainPanel] = useState(false);
+  const [reportVisible, setReportVisible] = useState(false);
+
+  // Organizer Edit & Complete Modals
+  const [editModalVisible, setEditModalVisible] = useState(false);
+  const [completeModalVisible, setCompleteModalVisible] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [editTitle, setEditTitle] = useState('');
+  const [editVenueName, setEditVenueName] = useState('');
+  const [editCity, setEditCity] = useState('');
+  const [editDistrict, setEditDistrict] = useState('');
+  const [editAddress, setEditAddress] = useState('');
+  const [editDate, setEditDate] = useState('');
+  const [editTime, setEditTime] = useState('');
+  const [editPitchType, setEditPitchType] = useState<'Açık Saha' | 'Kapalı Saha'>('Açık Saha');
+  const [editFee, setEditFee] = useState('');
+  const [editNotes, setEditNotes] = useState('');
+  const [score1Text, setScore1Text] = useState('2');
+  const [score2Text, setScore2Text] = useState('2');
 
   const match = matches.find((m) => m.id === id);
 
@@ -64,6 +91,7 @@ export default function MatchDetailScreen() {
   }
 
   const isCaptain = match.organizerId === currentUser.id;
+  const isCompleted = Boolean(match.isCompleted);
   const isUserJoined = match.roster.some((s) => s.assignedPlayer?.id === currentUser.id);
   const vacantSlots = match.roster
     .slice(0, Math.ceil(match.totalSlots / 2))
@@ -81,7 +109,107 @@ export default function MatchDetailScreen() {
     roster: match.roster,
   });
 
+  const openEditModal = () => {
+    setEditTitle(match.title);
+    setEditVenueName(match.venueName);
+    setEditCity(match.city || 'İstanbul');
+    setEditDistrict(match.district);
+    setEditAddress(match.address);
+    setEditDate(match.date);
+    setEditTime(match.time);
+    setEditPitchType(match.pitchType);
+    setEditFee(String(match.feePerPlayer));
+    setEditNotes(match.notes || '');
+    setEditModalVisible(true);
+  };
+
+  const handleSaveEdit = async () => {
+    const parsedFee = Number(editFee);
+    const validation = validateMatchInput({
+      title: editTitle,
+      venueName: editVenueName,
+      district: editDistrict,
+      city: editCity,
+      date: editDate,
+      time: editTime,
+      format: match.format,
+      feePerPlayer: parsedFee,
+      missingPositions: match.missingPositions.length > 0 ? match.missingPositions : ['MID'],
+    });
+    if (!validation.valid) {
+      Alert.alert('Geçersiz Bilgi', validation.error || 'Lütfen alanları kontrol edin.');
+      return;
+    }
+
+    try {
+      setIsSaving(true);
+      await updateMatch(match.id, {
+        title: editTitle.trim(),
+        venueName: editVenueName.trim(),
+        city: editCity.trim() || 'İstanbul',
+        district: editDistrict.trim(),
+        address: editAddress.trim() || `${editDistrict.trim()}, ${editCity.trim() || 'İstanbul'}`,
+        date: editDate.trim(),
+        time: editTime.trim(),
+        pitchType: editPitchType,
+        feePerPlayer: parsedFee,
+        notes: editNotes.trim(),
+      });
+      setEditModalVisible(false);
+      Alert.alert('Güncellendi', 'Maç bilgileri güncellendi.');
+    } catch (err) {
+      Alert.alert('Hata', err instanceof Error ? err.message : 'Maç güncellenemedi.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleCompleteMatch = async () => {
+    const s1 = Number(score1Text);
+    const s2 = Number(score2Text);
+    const validation = validateMatchScores(s1, s2);
+    if (!validation.valid) {
+      Alert.alert('Geçersiz Skor', validation.error || 'Skorlar tam sayı olmalıdır.');
+      return;
+    }
+
+    try {
+      setIsSaving(true);
+      await completeMatch(match.id, s1, s2);
+      setCompleteModalVisible(false);
+      Alert.alert('Maç Tamamlandı', 'Skor kaydedildi ve oyuncu değerlendirmeleri açıldı.');
+    } catch (err) {
+      Alert.alert('Hata', err instanceof Error ? err.message : 'Maç tamamlanamadı.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleDeleteMatch = () => {
+    const runDelete = async () => {
+      try {
+        await deleteMatch(match.id);
+        router.back();
+      } catch (err) {
+        Alert.alert('Hata', err instanceof Error ? err.message : 'Maç silinemedi.');
+      }
+    };
+
+    if (Platform.OS === 'web') {
+      void runDelete();
+      return;
+    }
+    Alert.alert('Maçı Sil', 'Bu maç ilanını kalıcı olarak silmek istiyor musunuz?', [
+      { text: 'Vazgeç', style: 'cancel' },
+      { text: 'Sil', style: 'destructive', onPress: () => void runDelete() },
+    ]);
+  };
+
   const handleSlotSelect = (slot: RosterSlot) => {
+    if (isCompleted) {
+      Alert.alert('Maç Tamamlandı', 'Tamamlanan maçların kadrosu değiştirilemez.');
+      return;
+    }
     if (slot.isFilled) {
       if (slot.assignedPlayer?.id === currentUser.id) {
         handleLeave();
@@ -261,20 +389,74 @@ export default function MatchDetailScreen() {
             {match.venueName} ({match.address})
           </Text>
         </View>
+
+        {isCompleted && match.finalScore && (
+          <View style={[styles.scoreBanner, { backgroundColor: colors.surfaceLight }]}>
+            <Text style={[styles.scoreBannerLabel, { color: colors.textTertiary }]}>
+              MAÇ SONUCU
+            </Text>
+            <Text style={[styles.scoreBannerValue, { color: colors.text }]}>
+              {match.finalScore.team1} - {match.finalScore.team2}
+            </Text>
+          </View>
+        )}
+
+        {isCaptain ? (
+          <View style={[styles.organizerToolbar, { borderTopColor: colors.surfaceBorder }]}>
+            {!isCompleted && (
+              <>
+                <TouchableOpacity
+                  style={[styles.toolbarBtn, { backgroundColor: colors.surfaceLight }]}
+                  onPress={openEditModal}
+                >
+                  <Ionicons name="create-outline" size={14} color={colors.text} />
+                  <Text style={[styles.toolbarBtnText, { color: colors.text }]}>Düzenle</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.toolbarBtn, { backgroundColor: `${colors.primary}18` }]}
+                  onPress={() => setCompleteModalVisible(true)}
+                >
+                  <Ionicons name="checkmark-done-outline" size={14} color={colors.primary} />
+                  <Text style={[styles.toolbarBtnText, { color: colors.primary }]}>
+                    Maçı Tamamla
+                  </Text>
+                </TouchableOpacity>
+              </>
+            )}
+            <TouchableOpacity
+              style={[styles.toolbarBtn, { backgroundColor: `${colors.danger}15` }]}
+              onPress={handleDeleteMatch}
+            >
+              <Ionicons name="trash-outline" size={14} color={colors.danger} />
+              <Text style={[styles.toolbarBtnText, { color: colors.danger }]}>Sil</Text>
+            </TouchableOpacity>
+          </View>
+        ) : (
+          <View style={[styles.organizerToolbar, { borderTopColor: colors.surfaceBorder }]}>
+            <TouchableOpacity
+              style={[styles.toolbarBtn, { backgroundColor: colors.surfaceLight }]}
+              onPress={() => setReportVisible(true)}
+            >
+              <Ionicons name="flag-outline" size={14} color={colors.textSecondary} />
+              <Text style={[styles.toolbarBtnText, { color: colors.textSecondary }]}>
+                Maçı Bildir
+              </Text>
+            </TouchableOpacity>
+          </View>
+        )}
       </View>
 
-      {/* Captain Approval Management (Shown directly to team captain, or in Demo Preview) */}
-      {(isCaptain || showDemoCaptainPanel) && (
+      {/* Captain Approval Management (Shown strictly to the match organizer) */}
+      {isCaptain && (
         <CaptainRequestsSection
           requests={matchJoinRequests}
-          isDemoPreview={!isCaptain && showDemoCaptainPanel}
           onApprove={approveJoinRequest}
           onReject={rejectJoinRequest}
         />
       )}
 
       {/* Player Pending / Rejected Request Status Card */}
-      {!isCaptain && !isUserJoined && userRequest?.status === 'PENDING' && (
+      {!isCaptain && !isCompleted && !isUserJoined && userRequest?.status === 'PENDING' && (
         <View
           style={[
             styles.requestStatusCard,
@@ -311,20 +493,11 @@ export default function MatchDetailScreen() {
                 İsteği İptal Et
               </Text>
             </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[styles.demoToggleBtn, { backgroundColor: colors.surfaceLight }]}
-              onPress={() => setShowDemoCaptainPanel((prev) => !prev)}
-            >
-              <Text style={[styles.demoToggleText, { color: colors.textSecondary }]}>
-                {showDemoCaptainPanel ? 'Kaptan Panelini Gizle' : 'Demo: Kaptan Onayı'}
-              </Text>
-            </TouchableOpacity>
           </View>
         </View>
       )}
 
-      {!isCaptain && !isUserJoined && userRequest?.status === 'REJECTED' && (
+      {!isCaptain && !isCompleted && !isUserJoined && userRequest?.status === 'REJECTED' && (
         <View
           style={[
             styles.rejectedNotice,
@@ -507,12 +680,35 @@ export default function MatchDetailScreen() {
         </View>
       ) : null}
 
-      {/* Post-Match Evaluation */}
-      <PostMatchEvaluationSection match={match} currentUserId={currentUser.id} />
+      {/* Post-Match Evaluation (Enabled strictly when match is completed) */}
+      {isCompleted ? (
+        <PostMatchEvaluationSection match={match} currentUserId={currentUser.id} />
+      ) : (
+        <View
+          style={[
+            styles.evalPendingCard,
+            { backgroundColor: colors.surface, borderColor: colors.surfaceBorder },
+          ]}
+        >
+          <Ionicons name="star-outline" size={17} color={colors.textTertiary} />
+          <Text style={[styles.evalPendingText, { color: colors.textSecondary }]}>
+            Maç tamamlandıktan sonra oyuncular birbirini değerlendirebilir.
+          </Text>
+        </View>
+      )}
 
       {/* Bottom CTA */}
       <View style={styles.bottomBar}>
-        {isUserJoined ? (
+        {isCompleted ? (
+          <View style={[styles.completedBar, { backgroundColor: colors.surfaceLight }]}>
+            <Text style={[styles.completedBarText, { color: colors.textSecondary }]}>
+              Maç Tamamlandı
+              {match.finalScore
+                ? ` (${match.finalScore.team1} - ${match.finalScore.team2})`
+                : ''}
+            </Text>
+          </View>
+        ) : isUserJoined ? (
           <TouchableOpacity
             style={[styles.leaveBtn, { backgroundColor: `${colors.danger}15` }]}
             onPress={handleLeave}
@@ -569,6 +765,264 @@ export default function MatchDetailScreen() {
         onClose={() => setRequestTargetSlot(null)}
         onSubmit={handleSubmitJoinRequest}
       />
+
+      {/* Organizer Edit Match Modal */}
+      <Modal
+        visible={editModalVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setEditModalVisible(false)}
+      >
+        <KeyboardAvoidingView
+          style={styles.modalOverlay}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        >
+          <View
+            style={[
+              styles.modalSheet,
+              { backgroundColor: colors.surface, borderTopColor: colors.surfaceBorder },
+            ]}
+          >
+            <View style={[styles.modalHeader, { borderBottomColor: colors.surfaceBorder }]}>
+              <Text style={[styles.modalTitle, { color: colors.text }]}>Maçı Düzenle</Text>
+              <TouchableOpacity onPress={() => setEditModalVisible(false)} hitSlop={14}>
+                <Ionicons name="close" size={22} color={colors.textSecondary} />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView contentContainerStyle={styles.modalScroll}>
+              <Text style={[styles.modalLabel, { color: colors.textSecondary }]}>Başlık *</Text>
+              <TextInput
+                style={[
+                  styles.modalInput,
+                  { backgroundColor: colors.surfaceLight, color: colors.text },
+                ]}
+                value={editTitle}
+                onChangeText={setEditTitle}
+              />
+
+              <Text style={[styles.modalLabel, { color: colors.textSecondary }]}>Tesis Adı *</Text>
+              <TextInput
+                style={[
+                  styles.modalInput,
+                  { backgroundColor: colors.surfaceLight, color: colors.text },
+                ]}
+                value={editVenueName}
+                onChangeText={setEditVenueName}
+              />
+
+              <View style={styles.modalRow}>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.modalLabel, { color: colors.textSecondary }]}>Şehir</Text>
+                  <TextInput
+                    style={[
+                      styles.modalInput,
+                      { backgroundColor: colors.surfaceLight, color: colors.text },
+                    ]}
+                    value={editCity}
+                    onChangeText={setEditCity}
+                  />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.modalLabel, { color: colors.textSecondary }]}>İlçe *</Text>
+                  <TextInput
+                    style={[
+                      styles.modalInput,
+                      { backgroundColor: colors.surfaceLight, color: colors.text },
+                    ]}
+                    value={editDistrict}
+                    onChangeText={setEditDistrict}
+                  />
+                </View>
+              </View>
+
+              <View style={styles.modalRow}>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.modalLabel, { color: colors.textSecondary }]}>Tarih *</Text>
+                  <TextInput
+                    style={[
+                      styles.modalInput,
+                      { backgroundColor: colors.surfaceLight, color: colors.text },
+                    ]}
+                    value={editDate}
+                    onChangeText={setEditDate}
+                  />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.modalLabel, { color: colors.textSecondary }]}>Saat *</Text>
+                  <TextInput
+                    style={[
+                      styles.modalInput,
+                      { backgroundColor: colors.surfaceLight, color: colors.text },
+                    ]}
+                    value={editTime}
+                    onChangeText={setEditTime}
+                  />
+                </View>
+              </View>
+
+              <Text style={[styles.modalLabel, { color: colors.textSecondary }]}>Saha Türü</Text>
+              <View style={styles.modalRow}>
+                {(['Açık Saha', 'Kapalı Saha'] as const).map((pt) => (
+                  <TouchableOpacity
+                    key={pt}
+                    style={[
+                      styles.modalChoiceBtn,
+                      {
+                        backgroundColor:
+                          editPitchType === pt ? colors.primary : colors.surfaceLight,
+                      },
+                    ]}
+                    onPress={() => setEditPitchType(pt)}
+                  >
+                    <Text
+                      style={[
+                        styles.modalChoiceText,
+                        { color: editPitchType === pt ? '#FFFFFF' : colors.textSecondary },
+                      ]}
+                    >
+                      {pt}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              <Text style={[styles.modalLabel, { color: colors.textSecondary }]}>
+                Kişi Başı Ücret (₺) *
+              </Text>
+              <TextInput
+                style={[
+                  styles.modalInput,
+                  { backgroundColor: colors.surfaceLight, color: colors.text },
+                ]}
+                keyboardType="numeric"
+                value={editFee}
+                onChangeText={setEditFee}
+              />
+
+              <Text style={[styles.modalLabel, { color: colors.textSecondary }]}>Notlar</Text>
+              <TextInput
+                style={[
+                  styles.modalInput,
+                  styles.modalArea,
+                  { backgroundColor: colors.surfaceLight, color: colors.text },
+                ]}
+                multiline
+                value={editNotes}
+                onChangeText={setEditNotes}
+              />
+
+              <TouchableOpacity
+                style={[
+                  styles.joinBtn,
+                  { backgroundColor: colors.primary, marginTop: 14, opacity: isSaving ? 0.7 : 1 },
+                ]}
+                onPress={handleSaveEdit}
+                disabled={isSaving}
+              >
+                {isSaving ? (
+                  <ActivityIndicator color="#FFFFFF" size="small" />
+                ) : (
+                  <Text style={[styles.joinBtnText, { color: '#FFFFFF' }]}>
+                    Değişiklikleri Kaydet
+                  </Text>
+                )}
+              </TouchableOpacity>
+            </ScrollView>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
+
+      {/* Complete Match Modal */}
+      <Modal
+        visible={completeModalVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setCompleteModalVisible(false)}
+      >
+        <KeyboardAvoidingView
+          style={styles.modalOverlay}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        >
+          <View
+            style={[
+              styles.modalSheet,
+              { backgroundColor: colors.surface, borderTopColor: colors.surfaceBorder },
+            ]}
+          >
+            <View style={[styles.modalHeader, { borderBottomColor: colors.surfaceBorder }]}>
+              <Text style={[styles.modalTitle, { color: colors.text }]}>Maçı Tamamla & Skor Gir</Text>
+              <TouchableOpacity onPress={() => setCompleteModalVisible(false)} hitSlop={14}>
+                <Ionicons name="close" size={22} color={colors.textSecondary} />
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.modalScroll}>
+              <Text style={[styles.evalPendingText, { color: colors.textSecondary, marginBottom: 12 }]}>
+                Maç skorunu onayladıktan sonra oyuncular birbirini değerlendirebilir.
+              </Text>
+
+              <View style={styles.modalRow}>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.modalLabel, { color: colors.textSecondary }]}>
+                    Ev Sahibi Skoru
+                  </Text>
+                  <TextInput
+                    style={[
+                      styles.modalInput,
+                      styles.scoreInput,
+                      { backgroundColor: colors.surfaceLight, color: colors.text },
+                    ]}
+                    keyboardType="number-pad"
+                    value={score1Text}
+                    onChangeText={setScore1Text}
+                  />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.modalLabel, { color: colors.textSecondary }]}>
+                    Konuk Takım Skoru
+                  </Text>
+                  <TextInput
+                    style={[
+                      styles.modalInput,
+                      styles.scoreInput,
+                      { backgroundColor: colors.surfaceLight, color: colors.text },
+                    ]}
+                    keyboardType="number-pad"
+                    value={score2Text}
+                    onChangeText={setScore2Text}
+                  />
+                </View>
+              </View>
+
+              <TouchableOpacity
+                style={[
+                  styles.joinBtn,
+                  { backgroundColor: colors.primary, marginTop: 16, opacity: isSaving ? 0.7 : 1 },
+                ]}
+                onPress={handleCompleteMatch}
+                disabled={isSaving}
+              >
+                {isSaving ? (
+                  <ActivityIndicator color="#FFFFFF" size="small" />
+                ) : (
+                  <Text style={[styles.joinBtnText, { color: '#FFFFFF' }]}>
+                    Maçı Tamamlandı İşaretle
+                  </Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
+
+      <ReportModal
+        visible={reportVisible}
+        targetType="MATCH"
+        targetId={match.id}
+        targetLabel={match.title}
+        onClose={() => setReportVisible(false)}
+      />
     </ScrollView>
   );
 }
@@ -587,9 +1041,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   heroCard: {
-    borderRadius: RADIUS.lg,
+    borderRadius: RADIUS.md,
     padding: SPACING.lg,
-    borderWidth: StyleSheet.hairlineWidth,
+    borderWidth: 1,
     marginBottom: SPACING.md,
   },
   badgeRow: {
@@ -599,9 +1053,9 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.sm,
   },
   formatPill: {
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
+    paddingHorizontal: 7,
+    paddingVertical: 2.5,
+    borderRadius: 4,
   },
   formatText: {
     fontSize: 11,
@@ -614,6 +1068,7 @@ const styles = StyleSheet.create({
   feeNumber: {
     fontSize: FONT_SIZE.lg,
     fontWeight: '800',
+    ...NUMERIC_STYLE,
   },
   feePer: {
     fontSize: 11,
@@ -622,6 +1077,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: FONT_SIZE.xl,
     fontWeight: '800',
+    letterSpacing: -0.3,
     marginBottom: SPACING.sm,
   },
   metaRow: {
@@ -635,9 +1091,9 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   requestStatusCard: {
-    borderRadius: RADIUS.lg,
+    borderRadius: RADIUS.md,
     padding: SPACING.lg,
-    borderWidth: StyleSheet.hairlineWidth,
+    borderWidth: 1,
     marginBottom: SPACING.md,
   },
   requestStatusHeader: {
@@ -649,9 +1105,9 @@ const styles = StyleSheet.create({
   statusBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 9,
-    paddingVertical: 4,
-    borderRadius: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 4,
     gap: 5,
   },
   statusBadgeText: {
@@ -882,5 +1338,132 @@ const styles = StyleSheet.create({
   leaveBtnText: {
     fontSize: FONT_SIZE.sm,
     fontWeight: '700',
+  },
+  scoreBanner: {
+    marginTop: SPACING.md,
+    borderRadius: RADIUS.sm,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: 10,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  scoreBannerLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 0.6,
+  },
+  scoreBannerValue: {
+    fontSize: FONT_SIZE.lg,
+    fontWeight: '800',
+    ...NUMERIC_STYLE,
+  },
+  organizerToolbar: {
+    marginTop: SPACING.md,
+    paddingTop: SPACING.md,
+    borderTopWidth: 1,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  toolbarBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 12,
+    paddingVertical: 14,
+    borderRadius: RADIUS.sm,
+  },
+  toolbarBtnText: {
+    fontSize: FONT_SIZE.xs,
+    fontWeight: '700',
+  },
+  evalPendingCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    borderRadius: RADIUS.md,
+    borderWidth: 1,
+    padding: SPACING.md,
+    marginTop: SPACING.lg,
+  },
+  evalPendingText: {
+    flex: 1,
+    fontSize: FONT_SIZE.xs,
+    lineHeight: 18,
+  },
+  completedBar: {
+    paddingVertical: 14,
+    borderRadius: RADIUS.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  completedBarText: {
+    fontSize: FONT_SIZE.sm,
+    fontWeight: '700',
+    ...NUMERIC_STYLE,
+  },
+  modalOverlay: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(0,0,0,0.45)',
+  },
+  modalSheet: {
+    borderTopLeftRadius: RADIUS.lg,
+    borderTopRightRadius: RADIUS.lg,
+    borderTopWidth: 1,
+    maxHeight: '85%',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: SPACING.lg,
+    paddingVertical: SPACING.md,
+    borderBottomWidth: 1,
+  },
+  modalTitle: {
+    fontSize: FONT_SIZE.md,
+    fontWeight: '800',
+  },
+  modalScroll: {
+    padding: SPACING.lg,
+    paddingBottom: SPACING.xxl,
+  },
+  modalLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    marginTop: 8,
+    marginBottom: 4,
+  },
+  modalInput: {
+    borderRadius: RADIUS.sm,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: FONT_SIZE.sm,
+  },
+  modalArea: {
+    height: 76,
+    textAlignVertical: 'top',
+  },
+  modalRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  modalChoiceBtn: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: RADIUS.sm,
+    alignItems: 'center',
+  },
+  modalChoiceText: {
+    fontSize: FONT_SIZE.xs,
+    fontWeight: '700',
+  },
+  scoreInput: {
+    textAlign: 'center',
+    fontSize: FONT_SIZE.xl,
+    fontWeight: '800',
+    ...NUMERIC_STYLE,
   },
 });

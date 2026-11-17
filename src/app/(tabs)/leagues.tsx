@@ -66,16 +66,33 @@ export default function RegionalLeaguesScreen() {
           </Text>
         </View>
 
-        <TouchableOpacity
-          style={[styles.createBtn, { backgroundColor: colors.primary }]}
-          onPress={() =>
-            router.push({ pathname: '/(tabs)/create', params: { tab: 'LEAGUE' } } as any)
-          }
-          activeOpacity={0.85}
-        >
-          <Ionicons name="add" size={16} color="#FFFFFF" />
-          <Text style={styles.createBtnText}>Lig Kur</Text>
-        </TouchableOpacity>
+        <View style={styles.headerActions}>
+          <TouchableOpacity
+            style={[
+              styles.teamsBtn,
+              {
+                backgroundColor: colors.surface,
+                borderColor: colors.surfaceBorder,
+              },
+            ]}
+            onPress={() => router.push('/teams')}
+            activeOpacity={0.85}
+          >
+            <Ionicons name="shield-outline" size={15} color={colors.text} />
+            <Text style={[styles.teamsBtnText, { color: colors.text }]}>Takımlar</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.createBtn, { backgroundColor: colors.primary }]}
+            onPress={() =>
+              router.push({ pathname: '/(tabs)/create', params: { tab: 'LEAGUE' } } as any)
+            }
+            activeOpacity={0.85}
+          >
+            <Ionicons name="add" size={16} color="#FFFFFF" />
+            <Text style={styles.createBtnText}>Lig Kur</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* District Chips */}
@@ -203,7 +220,7 @@ const styles = StyleSheet.create({
     paddingBottom: SPACING.md,
   },
   screenTitle: {
-    fontSize: 26,
+    fontSize: 24,
     fontWeight: '800',
     letterSpacing: -0.6,
   },
@@ -217,11 +234,29 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 14,
     paddingVertical: 14,
-    borderRadius: RADIUS.pill,
+    borderRadius: RADIUS.sm,
     gap: 4,
   },
   createBtnText: {
     color: '#FFFFFF',
+    fontSize: FONT_SIZE.xs,
+    fontWeight: '700',
+  },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  teamsBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 14,
+    borderRadius: RADIUS.sm,
+    borderWidth: 1,
+    gap: 5,
+  },
+  teamsBtnText: {
     fontSize: FONT_SIZE.xs,
     fontWeight: '700',
   },
@@ -230,14 +265,14 @@ const styles = StyleSheet.create({
   },
   chipScroll: {
     paddingHorizontal: SPACING.lg,
-    gap: 8,
+    gap: 6,
     paddingVertical: 4,
   },
   chip: {
-    paddingHorizontal: 13,
-    paddingVertical: 7,
-    borderRadius: RADIUS.pill,
-    borderWidth: StyleSheet.hairlineWidth,
+    paddingHorizontal: 11,
+    paddingVertical: 6,
+    borderRadius: RADIUS.sm,
+    borderWidth: 1,
   },
   chipText: {
     fontSize: FONT_SIZE.xs,
@@ -246,7 +281,7 @@ const styles = StyleSheet.create({
   statusTabsRow: {
     flexDirection: 'row',
     paddingHorizontal: SPACING.lg,
-    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomWidth: 1,
     gap: 20,
   },
   statusTab: {

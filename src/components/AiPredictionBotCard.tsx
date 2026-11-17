@@ -13,7 +13,7 @@ import {
   PredictionChoice,
 } from '../types';
 import { useTheme } from '../context/ThemeContext';
-import { FONT_SIZE, RADIUS, SPACING } from '../constants/theme';
+import { FONT_SIZE, NUMERIC_STYLE, RADIUS, SPACING } from '../constants/theme';
 
 interface AiPredictionBotCardProps {
   stats: MatchupStats;
@@ -309,20 +309,21 @@ const styles = StyleSheet.create({
     marginTop: 1,
   },
   confidenceBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+    borderRadius: 4,
   },
   confidenceText: {
     fontSize: 11,
     fontWeight: '700',
+    ...NUMERIC_STYLE,
   },
   scanningBox: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 22,
-    borderRadius: RADIUS.md,
+    borderRadius: RADIUS.sm,
     gap: 10,
   },
   scanningText: {
@@ -330,7 +331,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   scoreHeroBox: {
-    borderRadius: RADIUS.md,
+    borderRadius: RADIUS.sm,
     padding: SPACING.md,
     marginBottom: SPACING.md,
   },
@@ -356,6 +357,7 @@ const styles = StyleSheet.create({
     fontSize: FONT_SIZE.xl,
     fontWeight: '800',
     letterSpacing: 1,
+    ...NUMERIC_STYLE,
   },
   outcomeRow: {
     alignItems: 'center',
@@ -368,13 +370,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopWidth: 1,
     marginTop: 10,
     paddingTop: 8,
   },
   actualText: {
     fontSize: 11,
     fontWeight: '600',
+    ...NUMERIC_STYLE,
   },
   actualStatus: {
     fontSize: 11,
@@ -391,6 +394,7 @@ const styles = StyleSheet.create({
   probText: {
     fontSize: 11,
     fontWeight: '700',
+    ...NUMERIC_STYLE,
   },
   probBarTrack: {
     flexDirection: 'row',
@@ -409,19 +413,20 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.sm,
   },
   marketChip: {
-    paddingHorizontal: 9,
-    paddingVertical: 5,
-    borderRadius: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 4,
   },
   marketChipText: {
     fontSize: 11,
     fontWeight: '600',
+    ...NUMERIC_STYLE,
   },
   reasoningToggle: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopWidth: 1,
     paddingTop: SPACING.sm + 2,
     paddingBottom: 6,
     marginTop: 4,
@@ -442,7 +447,7 @@ const styles = StyleSheet.create({
   insightDot: {
     width: 4,
     height: 4,
-    borderRadius: 2,
+    borderRadius: 1,
     marginTop: 6,
   },
   insightText: {

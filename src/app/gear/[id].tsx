@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -6,21 +6,49 @@ import {
   ScrollView,
   TouchableOpacity,
   Alert,
+  Image,
+  Modal,
+  TextInput,
+  ActivityIndicator,
+  Platform,
+  KeyboardAvoidingView,
 } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useApp } from '../../context/AppContext';
 import { useTheme } from '../../context/ThemeContext';
 import { EmptyState } from '../../components/EmptyState';
-import { FONT_SIZE, RADIUS, SPACING } from '../../constants/theme';
+import { ReportModal } from '../../components/ReportModal';
+import { FONT_SIZE, NUMERIC_STYLE, RADIUS, SPACING } from '../../constants/theme';
+import { GearCategory, GearCondition } from '../../types';
 import { getInitials } from '../../utils/formatters';
+import {
+  PickedImageAsset,
+  pickImageFromLibrary,
+  uploadImageToBucket,
+} from '../../services/mediaService';
+import { validateGearInput } from '../../utils/validators';
 
 export default function GearDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { gearItems, currentUser, markGearSold } = useApp();
+  const { gearItems, currentUser, markGearSold, updateGearItem, deleteGearItem } = useApp();
   const { colors } = useTheme();
 
   const item = gearItems.find((g) => g.id === id);
+
+  const [editModalVisible, setEditModalVisible] = useState(false);
+  const [reportVisible, setReportVisible] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [editTitle, setEditTitle] = useState('');
+  const [editCategory, setEditCategory] = useState<GearCategory>('Boots');
+  const [editBrand, setEditBrand] = useState('');
+  const [editSize, setEditSize] = useState('');
+  const [editPrice, setEditPrice] = useState('');
+  const [editCondition, setEditCondition] = useState<GearCondition>('Çok İyi (Az Kullanılmış)');
+  const [editCity, setEditCity] = useState('');
+  const [editDistrict, setEditDistrict] = useState('');
+  const [editDescription, setEditDescription] = useState('');
+  const [pickedAsset, setPickedAsset] = useState<PickedImageAsset | null>(null);
 
   if (!item) {
     return (
@@ -38,6 +66,99 @@ export default function GearDetailScreen() {
 
   const isSeller = item.sellerId === currentUser.id;
   const isSold = item.status === 'Sold';
+
+  const openEditModal = () => {
+    setEditTitle(item.title);
+    setEditCategory(item.category);
+    setEditBrand(item.brand);
+    setEditSize(item.size);
+    setEditPrice(String(item.price));
+    setEditCondition(item.condition);
+    setEditCity(item.city || 'İstanbul');
+    setEditDistrict(item.district || item.location.split('/').pop()?.trim() || 'Kadıköy');
+    setEditDescription(item.description);
+    setPickedAsset(null);
+    setEditModalVisible(true);
+  };
+
+  const handlePickImage = async () => {
+    const res = await pickImageFromLibrary();
+    if (res.error) {
+      Alert.alert('Galeri Hatası', res.error);
+      return;
+    }
+    if (res.asset) setPickedAsset(res.asset);
+  };
+
+  const handleSaveEdit = async () => {
+    const parsedPrice = Number(editPrice);
+    const validation = validateGearInput({
+      title: editTitle,
+      brand: editBrand,
+      size: editSize,
+      price: parsedPrice,
+      description: editDescription,
+      category: editCategory,
+      condition: editCondition,
+    });
+    if (!validation.valid) {
+      Alert.alert('Geçersiz Bilgi', validation.error || 'Lütfen tüm alanları kontrol edin.');
+      return;
+    }
+
+    const cityVal = editCity.trim() || 'İstanbul';
+    const districtVal = editDistrict.trim() || 'Kadıköy';
+
+    try {
+      setIsSaving(true);
+      let imageUrl = item.imageUrl;
+      if (pickedAsset) {
+        imageUrl = await uploadImageToBucket('gear-images', currentUser.id, pickedAsset);
+      }
+      await updateGearItem(item.id, {
+        title: editTitle.trim(),
+        category: editCategory,
+        brand: editBrand.trim(),
+        size: editSize.trim(),
+        price: parsedPrice,
+        condition: editCondition,
+        city: cityVal,
+        district: districtVal,
+        location: `${cityVal} / ${districtVal}`,
+        description: editDescription.trim(),
+        imageUrl,
+      });
+      setEditModalVisible(false);
+      Alert.alert('Güncellendi', 'İlan bilgileri güncellendi.');
+    } catch (err) {
+      Alert.alert(
+        'Hata',
+        err instanceof Error ? err.message : 'İlan güncellenirken hata oluştu.'
+      );
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleDelete = () => {
+    const performDelete = async () => {
+      try {
+        await deleteGearItem(item.id);
+        router.back();
+      } catch (err) {
+        Alert.alert('Hata', err instanceof Error ? err.message : 'İlan silinemedi.');
+      }
+    };
+
+    if (Platform.OS === 'web') {
+      void performDelete();
+      return;
+    }
+    Alert.alert('İlanı Sil', 'Bu ekipman ilanını kalıcı olarak kaldırmak istiyor musunuz?', [
+      { text: 'Vazgeç', style: 'cancel' },
+      { text: 'İlanı Sil', style: 'destructive', onPress: () => void performDelete() },
+    ]);
+  };
 
   const getCategoryIcon = () => {
     switch (item.category) {
@@ -102,9 +223,13 @@ export default function GearDetailScreen() {
           { backgroundColor: colors.surface, borderColor: colors.surfaceBorder },
         ]}
       >
-        <View style={[styles.iconCircle, { backgroundColor: colors.surfaceLight }]}>
-          <Ionicons name={getCategoryIcon()} size={48} color={colors.textSecondary} />
-        </View>
+        {item.imageUrl ? (
+          <Image source={{ uri: item.imageUrl }} style={styles.heroImage} resizeMode="cover" />
+        ) : (
+          <View style={[styles.iconCircle, { backgroundColor: colors.surfaceLight }]}>
+            <Ionicons name={getCategoryIcon()} size={48} color={colors.textSecondary} />
+          </View>
+        )}
 
         {isSold && (
           <View style={[styles.soldBadge, { backgroundColor: colors.danger }]}>
@@ -218,50 +343,272 @@ export default function GearDetailScreen() {
       {/* Actions */}
       <View style={styles.actionContainer}>
         {isSeller ? (
-          !isSold ? (
-            <TouchableOpacity
-              style={[styles.soldActionBtn, { backgroundColor: colors.primary }]}
-              onPress={handleMarkSold}
-            >
-              <Text style={styles.soldActionText}>Satıldı Olarak İşaretle</Text>
-            </TouchableOpacity>
-          ) : (
-            <View style={[styles.alreadySoldBox, { backgroundColor: colors.surfaceLight }]}>
-              <Text style={[styles.alreadySoldText, { color: colors.textTertiary }]}>
-                İlan tamamlandı
-              </Text>
+          <View style={styles.sellerActionCol}>
+            {!isSold ? (
+              <TouchableOpacity
+                style={[styles.soldActionBtn, { backgroundColor: colors.primary }]}
+                onPress={handleMarkSold}
+              >
+                <Text style={styles.soldActionText}>Satıldı Olarak İşaretle</Text>
+              </TouchableOpacity>
+            ) : (
+              <View style={[styles.alreadySoldBox, { backgroundColor: colors.surfaceLight }]}>
+                <Text style={[styles.alreadySoldText, { color: colors.textTertiary }]}>
+                  İlan tamamlandı
+                </Text>
+              </View>
+            )}
+
+            <View style={styles.buyerActionRow}>
+              {!isSold && (
+                <TouchableOpacity
+                  style={[
+                    styles.contactBtn,
+                    {
+                      backgroundColor: colors.surface,
+                      borderWidth: 1,
+                      borderColor: colors.surfaceBorder,
+                    },
+                  ]}
+                  onPress={openEditModal}
+                >
+                  <Ionicons name="create-outline" size={17} color={colors.text} />
+                  <Text style={[styles.contactBtnText, { color: colors.text }]}>Düzenle</Text>
+                </TouchableOpacity>
+              )}
+
+              <TouchableOpacity
+                style={[styles.contactBtn, { backgroundColor: `${colors.danger}16` }]}
+                onPress={handleDelete}
+              >
+                <Ionicons name="trash-outline" size={17} color={colors.danger} />
+                <Text style={[styles.contactBtnText, { color: colors.danger }]}>İlanı Sil</Text>
+              </TouchableOpacity>
             </View>
-          )
+          </View>
         ) : (
-          <View style={styles.buyerActionRow}>
-            <TouchableOpacity
-              style={[
-                styles.contactBtn,
-                { backgroundColor: colors.surfaceLight },
-                isSold && styles.btnDisabled,
-              ]}
-              onPress={() => handleContact('CALL')}
-              disabled={isSold}
-            >
-              <Ionicons name="call-outline" size={17} color={colors.text} />
-              <Text style={[styles.contactBtnText, { color: colors.text }]}>Ara</Text>
-            </TouchableOpacity>
+          <View style={styles.sellerActionCol}>
+            <View style={styles.buyerActionRow}>
+              <TouchableOpacity
+                style={[
+                  styles.contactBtn,
+                  { backgroundColor: colors.surfaceLight },
+                  isSold && styles.btnDisabled,
+                ]}
+                onPress={() => handleContact('CALL')}
+                disabled={isSold}
+              >
+                <Ionicons name="call-outline" size={17} color={colors.text} />
+                <Text style={[styles.contactBtnText, { color: colors.text }]}>Ara</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[
+                  styles.contactBtn,
+                  { backgroundColor: colors.primary },
+                  isSold && styles.btnDisabled,
+                ]}
+                onPress={() => handleContact('WP')}
+                disabled={isSold}
+              >
+                <Ionicons name="logo-whatsapp" size={17} color="#FFFFFF" />
+                <Text style={[styles.contactBtnText, { color: '#FFFFFF' }]}>WhatsApp</Text>
+              </TouchableOpacity>
+            </View>
 
             <TouchableOpacity
               style={[
-                styles.contactBtn,
-                { backgroundColor: colors.primary },
-                isSold && styles.btnDisabled,
+                styles.reportLinkBtn,
+                { borderColor: colors.surfaceBorder, backgroundColor: colors.surface },
               ]}
-              onPress={() => handleContact('WP')}
-              disabled={isSold}
+              onPress={() => setReportVisible(true)}
             >
-              <Ionicons name="logo-whatsapp" size={17} color="#FFFFFF" />
-              <Text style={[styles.contactBtnText, { color: '#FFFFFF' }]}>WhatsApp</Text>
+              <Ionicons name="flag-outline" size={15} color={colors.textSecondary} />
+              <Text style={[styles.reportLinkText, { color: colors.textSecondary }]}>
+                İlanı Bildir
+              </Text>
             </TouchableOpacity>
           </View>
         )}
       </View>
+
+      {/* Edit Modal */}
+      <Modal
+        visible={editModalVisible}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setEditModalVisible(false)}
+      >
+        <KeyboardAvoidingView
+          style={styles.modalOverlay}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        >
+          <View
+            style={[
+              styles.modalSheet,
+              { backgroundColor: colors.surface, borderTopColor: colors.surfaceBorder },
+            ]}
+          >
+            <View style={[styles.modalHeader, { borderBottomColor: colors.surfaceBorder }]}>
+              <Text style={[styles.modalTitle, { color: colors.text }]}>İlanı Düzenle</Text>
+              <TouchableOpacity onPress={() => setEditModalVisible(false)} hitSlop={14}>
+                <Ionicons name="close" size={22} color={colors.textSecondary} />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView contentContainerStyle={styles.modalScroll}>
+              <TouchableOpacity
+                style={[
+                  styles.photoRowBtn,
+                  { backgroundColor: colors.surfaceLight, borderColor: colors.surfaceBorder },
+                ]}
+                onPress={handlePickImage}
+              >
+                {pickedAsset?.uri || item.imageUrl ? (
+                  <Image
+                    source={{ uri: pickedAsset?.uri || item.imageUrl }}
+                    style={styles.modalThumb}
+                  />
+                ) : (
+                  <Ionicons name="camera-outline" size={20} color={colors.textSecondary} />
+                )}
+                <Text style={[styles.photoRowText, { color: colors.text }]}>
+                  {pickedAsset || item.imageUrl ? 'Fotoğrafı Değiştir' : 'Fotoğraf Ekle'}
+                </Text>
+              </TouchableOpacity>
+
+              <Text style={[styles.editLabel, { color: colors.textSecondary }]}>Başlık *</Text>
+              <TextInput
+                style={[
+                  styles.editInput,
+                  { backgroundColor: colors.surfaceLight, color: colors.text },
+                ]}
+                value={editTitle}
+                onChangeText={setEditTitle}
+              />
+
+              <View style={styles.buyerActionRow}>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.editLabel, { color: colors.textSecondary }]}>Marka *</Text>
+                  <TextInput
+                    style={[
+                      styles.editInput,
+                      { backgroundColor: colors.surfaceLight, color: colors.text },
+                    ]}
+                    value={editBrand}
+                    onChangeText={setEditBrand}
+                  />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.editLabel, { color: colors.textSecondary }]}>Beden *</Text>
+                  <TextInput
+                    style={[
+                      styles.editInput,
+                      { backgroundColor: colors.surfaceLight, color: colors.text },
+                    ]}
+                    value={editSize}
+                    onChangeText={setEditSize}
+                  />
+                </View>
+              </View>
+
+              <View style={styles.buyerActionRow}>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.editLabel, { color: colors.textSecondary }]}>Fiyat (₺) *</Text>
+                  <TextInput
+                    style={[
+                      styles.editInput,
+                      { backgroundColor: colors.surfaceLight, color: colors.text },
+                    ]}
+                    keyboardType="numeric"
+                    value={editPrice}
+                    onChangeText={setEditPrice}
+                  />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.editLabel, { color: colors.textSecondary }]}>İlçe</Text>
+                  <TextInput
+                    style={[
+                      styles.editInput,
+                      { backgroundColor: colors.surfaceLight, color: colors.text },
+                    ]}
+                    value={editDistrict}
+                    onChangeText={setEditDistrict}
+                  />
+                </View>
+              </View>
+
+              <Text style={[styles.editLabel, { color: colors.textSecondary }]}>Durum</Text>
+              <View style={styles.condRow}>
+                {(
+                  [
+                    'Sıfır (Etiketli)',
+                    'Çok İyi (Az Kullanılmış)',
+                    'İyi',
+                    'Kullanılmış',
+                  ] as GearCondition[]
+                ).map((cond) => (
+                  <TouchableOpacity
+                    key={cond}
+                    style={[
+                      styles.condChip,
+                      {
+                        backgroundColor:
+                          editCondition === cond ? colors.primary : colors.surfaceLight,
+                      },
+                    ]}
+                    onPress={() => setEditCondition(cond)}
+                  >
+                    <Text
+                      style={[
+                        styles.condChipText,
+                        { color: editCondition === cond ? '#FFFFFF' : colors.textSecondary },
+                      ]}
+                    >
+                      {cond}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              <Text style={[styles.editLabel, { color: colors.textSecondary }]}>Açıklama *</Text>
+              <TextInput
+                style={[
+                  styles.editInput,
+                  styles.editArea,
+                  { backgroundColor: colors.surfaceLight, color: colors.text },
+                ]}
+                multiline
+                value={editDescription}
+                onChangeText={setEditDescription}
+              />
+
+              <TouchableOpacity
+                style={[
+                  styles.soldActionBtn,
+                  { backgroundColor: colors.primary, marginTop: 14, opacity: isSaving ? 0.7 : 1 },
+                ]}
+                onPress={handleSaveEdit}
+                disabled={isSaving}
+              >
+                {isSaving ? (
+                  <ActivityIndicator color="#FFFFFF" size="small" />
+                ) : (
+                  <Text style={styles.soldActionText}>Değişiklikleri Kaydet</Text>
+                )}
+              </TouchableOpacity>
+            </ScrollView>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
+
+      <ReportModal
+        visible={reportVisible}
+        targetType="GEAR"
+        targetId={item.id}
+        targetLabel={item.title}
+        onClose={() => setReportVisible(false)}
+      />
     </ScrollView>
   );
 }
@@ -280,18 +627,23 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   heroBox: {
-    height: 180,
-    borderRadius: RADIUS.lg,
+    height: 200,
+    borderRadius: RADIUS.md,
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: StyleSheet.hairlineWidth,
+    borderWidth: 1,
     marginBottom: SPACING.md,
     position: 'relative',
+    overflow: 'hidden',
+  },
+  heroImage: {
+    width: '100%',
+    height: '100%',
   },
   iconCircle: {
-    width: 88,
-    height: 88,
-    borderRadius: 44,
+    width: 80,
+    height: 80,
+    borderRadius: RADIUS.md,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -299,9 +651,9 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 12,
     right: 12,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 4,
   },
   soldBadgeText: {
     color: '#FFFFFF',
@@ -312,9 +664,9 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: 12,
     left: 12,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 4,
   },
   brandPillText: {
     fontSize: 11,
@@ -322,9 +674,9 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
   },
   detailsCard: {
-    borderRadius: RADIUS.lg,
+    borderRadius: RADIUS.md,
     padding: SPACING.lg,
-    borderWidth: StyleSheet.hairlineWidth,
+    borderWidth: 1,
     marginBottom: SPACING.md,
   },
   priceRow: {
@@ -336,11 +688,12 @@ const styles = StyleSheet.create({
   price: {
     fontSize: FONT_SIZE.xxl,
     fontWeight: '800',
+    ...NUMERIC_STYLE,
   },
   conditionPill: {
-    paddingHorizontal: 9,
-    paddingVertical: 4,
-    borderRadius: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 4,
   },
   conditionText: {
     fontSize: 11,
@@ -361,9 +714,9 @@ const styles = StyleSheet.create({
     fontSize: FONT_SIZE.xs,
   },
   specsCard: {
-    borderRadius: RADIUS.lg,
+    borderRadius: RADIUS.md,
     padding: SPACING.lg,
-    borderWidth: StyleSheet.hairlineWidth,
+    borderWidth: 1,
     marginBottom: SPACING.md,
   },
   sectionTitle: {
@@ -391,9 +744,9 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   descCard: {
-    borderRadius: RADIUS.lg,
+    borderRadius: RADIUS.md,
     padding: SPACING.lg,
-    borderWidth: StyleSheet.hairlineWidth,
+    borderWidth: 1,
     marginBottom: SPACING.md,
   },
   descBody: {
@@ -403,15 +756,15 @@ const styles = StyleSheet.create({
   sellerCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderRadius: RADIUS.lg,
+    borderRadius: RADIUS.md,
     padding: SPACING.lg,
-    borderWidth: StyleSheet.hairlineWidth,
+    borderWidth: 1,
     marginBottom: SPACING.lg,
   },
   sellerAvatar: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
+    width: 40,
+    height: 40,
+    borderRadius: RADIUS.sm,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -481,6 +834,98 @@ const styles = StyleSheet.create({
   },
   alreadySoldText: {
     fontSize: FONT_SIZE.sm,
+    fontWeight: '600',
+  },
+  sellerActionCol: {
+    gap: 10,
+  },
+  reportLinkBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    borderWidth: 1,
+    borderRadius: RADIUS.md,
+    paddingVertical: 14,
+  },
+  reportLinkText: {
+    fontSize: FONT_SIZE.xs,
+    fontWeight: '600',
+  },
+  modalOverlay: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(0,0,0,0.45)',
+  },
+  modalSheet: {
+    borderTopLeftRadius: RADIUS.lg,
+    borderTopRightRadius: RADIUS.lg,
+    borderTopWidth: 1,
+    maxHeight: '85%',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: SPACING.lg,
+    paddingVertical: SPACING.md,
+    borderBottomWidth: 1,
+  },
+  modalTitle: {
+    fontSize: FONT_SIZE.md,
+    fontWeight: '800',
+  },
+  modalScroll: {
+    padding: SPACING.lg,
+    paddingBottom: SPACING.xxl,
+  },
+  photoRowBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    borderWidth: 1,
+    borderRadius: RADIUS.sm,
+    padding: 10,
+    marginBottom: 8,
+  },
+  modalThumb: {
+    width: 44,
+    height: 44,
+    borderRadius: RADIUS.xs,
+  },
+  photoRowText: {
+    fontSize: FONT_SIZE.xs,
+    fontWeight: '700',
+  },
+  editLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    marginTop: 8,
+    marginBottom: 4,
+  },
+  editInput: {
+    borderRadius: RADIUS.sm,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: FONT_SIZE.sm,
+  },
+  editArea: {
+    height: 76,
+    textAlignVertical: 'top',
+  },
+  condRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+    marginTop: 2,
+  },
+  condChip: {
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    borderRadius: RADIUS.sm,
+  },
+  condChipText: {
+    fontSize: 11,
     fontWeight: '600',
   },
 });

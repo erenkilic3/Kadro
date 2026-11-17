@@ -80,7 +80,7 @@ export interface AiMatchPrediction {
   insights: string[];
 }
 
-export type JoinRequestStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
+export type JoinRequestStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'CANCELLED';
 
 export interface JoinRequest {
   id: string;
@@ -154,11 +154,15 @@ export interface User {
   correctPredictions?: number;
   badges?: PlayerBadge[];
   evaluationsCount?: number;
+  expoPushToken?: string;
+  pushEnabled?: boolean;
 }
 
 export interface RosterSlot {
   id: string;
   position: PlayerPosition;
+  teamSide?: 1 | 2;
+  slotOrder?: number;
   isFilled: boolean;
   assignedPlayer?: {
     id: string;
@@ -169,6 +173,8 @@ export interface RosterSlot {
   };
   isOrganizer?: boolean;
 }
+
+export type MatchStatus = 'OPEN' | 'FULL' | 'COMPLETED' | 'CANCELLED';
 
 export interface Match {
   id: string;
@@ -189,12 +195,42 @@ export interface Match {
   roster: RosterSlot[];
   missingPositions: PlayerPosition[];
   notes?: string;
+  status?: MatchStatus;
   isJoined?: boolean;
   isCompleted?: boolean;
   finalScore?: { team1: number; team2: number };
   createdAt: string;
   prediction?: MatchPrediction;
   matchupStats?: MatchupStats;
+}
+
+export interface CreateMatchInput {
+  title: string;
+  venueName: string;
+  address: string;
+  city?: string;
+  district: string;
+  date: string;
+  time: string;
+  format: MatchFormat;
+  pitchType: 'Açık Saha' | 'Kapalı Saha';
+  feePerPlayer: number;
+  missingPositions: PlayerPosition[];
+  notes?: string;
+}
+
+export interface UpdateMatchInput {
+  title?: string;
+  venueName?: string;
+  address?: string;
+  city?: string;
+  district?: string;
+  date?: string;
+  time?: string;
+  pitchType?: 'Açık Saha' | 'Kapalı Saha';
+  feePerPlayer?: number;
+  notes?: string;
+  status?: MatchStatus;
 }
 
 export type GearCategory = 'Boots' | 'Jerseys' | 'Gloves' | 'Equipment';
@@ -212,16 +248,82 @@ export interface GearItem {
   size: string;
   price: number;
   condition: GearCondition;
+  city?: string;
+  district?: string;
   location: string;
+  imageUrl?: string;
   status: 'Available' | 'Sold';
   createdAt: string;
   iconName?: string;
+}
+
+export interface CreateGearInput {
+  title: string;
+  description: string;
+  category: GearCategory;
+  brand: string;
+  size: string;
+  price: number;
+  condition: GearCondition;
+  city?: string;
+  district?: string;
+  location: string;
+  imageUrl?: string;
+}
+
+export interface UpdateGearInput {
+  title?: string;
+  description?: string;
+  category?: GearCategory;
+  brand?: string;
+  size?: string;
+  price?: number;
+  condition?: GearCondition;
+  city?: string;
+  district?: string;
+  location?: string;
+  imageUrl?: string;
+}
+
+export interface TeamMember {
+  id: string;
+  teamId: string;
+  playerId: string;
+  playerName: string;
+  playerPosition?: PlayerPosition;
+  playerRating?: number;
+  role: 'CAPTAIN' | 'PLAYER';
+  joinedAt: string;
+}
+
+export interface Team {
+  id: string;
+  name: string;
+  logoEmoji: string;
+  captainId: string;
+  city: string;
+  district: string;
+  format: MatchFormat;
+  bio?: string;
+  members: TeamMember[];
+  createdAt: string;
+}
+
+export interface CreateTeamInput {
+  name: string;
+  city: string;
+  district: string;
+  format: MatchFormat;
+  bio?: string;
+  logoEmoji?: string;
 }
 
 export type LeagueStatus = 'REGISTRATION_OPEN' | 'IN_PROGRESS' | 'COMPLETED';
 
 export interface LeagueTeam {
   id: string;
+  teamId?: string;
+  captainId?: string;
   name: string;
   logoEmoji: string;
   captainName: string;
@@ -240,6 +342,8 @@ export interface LeagueTeam {
 export interface LeagueFixture {
   id: string;
   week: number;
+  homeTeamId?: string;
+  awayTeamId?: string;
   homeTeamName: string;
   awayTeamName: string;
   homeScore?: number;
@@ -263,6 +367,7 @@ export interface RegionalLeague {
   registeredTeamsCount: number;
   entryFee: number;
   prize: string;
+  organizerId?: string;
   organizerName: string;
   organizerPhone: string;
   description: string;
@@ -286,5 +391,55 @@ export interface CreateLeagueInput {
   rules: string[];
   description: string;
   themeColor?: string;
+}
+
+export interface UpdateLeagueInput {
+  title?: string;
+  season?: string;
+  city?: string;
+  district?: string;
+  venueName?: string;
+  entryFee?: number;
+  prize?: string;
+  status?: LeagueStatus;
+  rules?: string[];
+  description?: string;
+  themeColor?: string;
+}
+
+export type NotificationType =
+  | 'JOIN_REQUEST_RECEIVED'
+  | 'JOIN_REQUEST_APPROVED'
+  | 'JOIN_REQUEST_REJECTED'
+  | 'MATCH_UPDATED'
+  | 'LEAGUE_UPDATED'
+  | 'GEAR_UPDATED';
+
+export type NotificationEntityType =
+  | 'MATCH'
+  | 'JOIN_REQUEST'
+  | 'LEAGUE'
+  | 'GEAR'
+  | 'EVALUATION';
+
+export interface AppNotification {
+  id: string;
+  userId: string;
+  type: NotificationType;
+  title: string;
+  body: string;
+  entityType?: NotificationEntityType;
+  entityId?: string;
+  isRead: boolean;
+  createdAt: string;
+}
+
+export type ReportTargetType = 'PLAYER' | 'MATCH' | 'GEAR' | 'LEAGUE';
+
+export interface ReportInput {
+  targetType: ReportTargetType;
+  targetId: string;
+  reason: string;
+  details?: string;
 }
 

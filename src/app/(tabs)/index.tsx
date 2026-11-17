@@ -17,7 +17,7 @@ import { useTheme } from '../../context/ThemeContext';
 import { MatchCard } from '../../components/MatchCard';
 import { MatchPredictionCard } from '../../components/MatchPredictionCard';
 import { EmptyState } from '../../components/EmptyState';
-import { FONT_SIZE, RADIUS, SPACING } from '../../constants/theme';
+import { FONT_SIZE, NUMERIC_STYLE, RADIUS, SPACING } from '../../constants/theme';
 import { PlayerPosition } from '../../types';
 import { getInitials } from '../../utils/formatters';
 
@@ -40,7 +40,15 @@ const FEED_FILTERS: { key: FeedFilter; label: string }[] = [
 ];
 
 export default function MatchFeedScreen() {
-  const { matches, currentUser, refreshData, votePrediction } = useApp();
+  const {
+    matches,
+    currentUser,
+    refreshData,
+    votePrediction,
+    unreadNotificationsCount,
+    errorMessage,
+    clearError,
+  } = useApp();
   const { colors, isDark, toggleTheme } = useTheme();
 
   const [searchQuery, setSearchQuery] = useState('');
@@ -106,22 +114,55 @@ export default function MatchFeedScreen() {
 
         <View style={styles.headerRight}>
           <TouchableOpacity
-            style={[styles.iconButton, { backgroundColor: colors.surfaceLight }]}
+            style={[
+              styles.iconButton,
+              {
+                backgroundColor: colors.surface,
+                borderColor: colors.surfaceBorder,
+              },
+            ]}
+            onPress={() => router.push('/notifications')}
+            activeOpacity={0.75}
+            hitSlop={14}
+            accessibilityLabel="Bildirimler"
+          >
+            <Ionicons name="notifications-outline" size={17} color={colors.text} />
+            {unreadNotificationsCount > 0 && (
+              <View style={[styles.notifDot, { backgroundColor: colors.primary }]} />
+            )}
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[
+              styles.iconButton,
+              {
+                backgroundColor: colors.surface,
+                borderColor: colors.surfaceBorder,
+              },
+            ]}
             onPress={toggleTheme}
             activeOpacity={0.75}
+            hitSlop={14}
             accessibilityLabel="Tema Değiştir"
           >
             <Ionicons
               name={isDark ? 'sunny-outline' : 'moon-outline'}
-              size={18}
+              size={17}
               color={colors.text}
             />
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[styles.avatarPill, { backgroundColor: colors.surfaceLight }]}
+            style={[
+              styles.avatarPill,
+              {
+                backgroundColor: colors.surface,
+                borderColor: colors.surfaceBorder,
+              },
+            ]}
             onPress={() => router.push('/(tabs)/profile')}
             activeOpacity={0.8}
+            hitSlop={14}
           >
             <Text style={[styles.avatarText, { color: colors.text }]}>
               {getInitials(currentUser.name || 'EK')}
@@ -212,6 +253,29 @@ export default function MatchFeedScreen() {
         }
         ListHeaderComponent={
           <>
+            {errorMessage && (
+              <View
+                style={[
+                  styles.errorBanner,
+                  {
+                    backgroundColor: `${colors.danger}12`,
+                    borderColor: `${colors.danger}35`,
+                  },
+                ]}
+              >
+                <Ionicons name="alert-circle-outline" size={16} color={colors.danger} />
+                <Text style={[styles.errorBannerText, { color: colors.danger }]} numberOfLines={2}>
+                  {errorMessage}
+                </Text>
+                <TouchableOpacity onPress={() => void refreshData()} hitSlop={14}>
+                  <Text style={[styles.errorRetryText, { color: colors.danger }]}>Yenile</Text>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={clearError} hitSlop={14}>
+                  <Ionicons name="close" size={16} color={colors.danger} />
+                </TouchableOpacity>
+              </View>
+            )}
+
             {/* Compact Status & Leagues Bar */}
             <View
               style={[
@@ -232,24 +296,38 @@ export default function MatchFeedScreen() {
                 </Text>
               </View>
 
-              <TouchableOpacity
-                style={styles.leaguesShortcut}
-                onPress={() => router.push('/(tabs)/leagues' as any)}
-                activeOpacity={0.75}
-              >
-                <Text style={[styles.leaguesShortcutText, { color: colors.primary }]}>
-                  Ligler
-                </Text>
-                <Ionicons name="chevron-forward" size={14} color={colors.primary} />
-              </TouchableOpacity>
+              <View style={styles.quickBarLinks}>
+                <TouchableOpacity
+                  style={styles.leaguesShortcut}
+                  onPress={() => router.push('/teams')}
+                  activeOpacity={0.75}
+                  hitSlop={14}
+                >
+                  <Text style={[styles.leaguesShortcutText, { color: colors.textSecondary }]}>
+                    Takımlar
+                  </Text>
+                </TouchableOpacity>
+                <View style={[styles.quickBarSep, { backgroundColor: colors.surfaceBorder }]} />
+                <TouchableOpacity
+                  style={styles.leaguesShortcut}
+                  onPress={() => router.push('/(tabs)/leagues' as any)}
+                  activeOpacity={0.75}
+                  hitSlop={14}
+                >
+                  <Text style={[styles.leaguesShortcutText, { color: colors.primary }]}>
+                    Ligler
+                  </Text>
+                  <Ionicons name="chevron-forward" size={14} color={colors.primary} />
+                </TouchableOpacity>
+              </View>
             </View>
 
             {/* Featured Match Poll */}
             {selectedFilter !== 'PREDICTIONS' && featuredPredictionMatch?.prediction && (
               <View style={styles.featuredSection}>
                 <View style={styles.featuredHeaderRow}>
-                  <Text style={[styles.featuredSectionTitle, { color: colors.text }]}>
-                    Günün Maç Anketi
+                  <Text style={[styles.featuredSectionTitle, { color: colors.textTertiary }]}>
+                    HAFTANIN ANKETİ
                   </Text>
                   <Text style={[styles.featuredSectionSub, { color: colors.textTertiary }]}>
                     {featuredPredictionMatch.district}
@@ -260,6 +338,7 @@ export default function MatchFeedScreen() {
                   prediction={featuredPredictionMatch.prediction}
                   matchId={featuredPredictionMatch.id}
                   onVote={(choice) => votePrediction(featuredPredictionMatch.id, choice)}
+                  compact
                 />
               </View>
             )}
@@ -270,6 +349,8 @@ export default function MatchFeedScreen() {
             icon="football-outline"
             title="Eşleşen maç bulunamadı"
             description="Arama filtresini temizleyebilir veya yeni bir maç ilanı oluşturabilirsiniz."
+            buttonText="Maç İlanı Aç"
+            onPress={() => router.push('/(tabs)/create' as any)}
           />
         }
       />
@@ -290,7 +371,7 @@ const styles = StyleSheet.create({
     paddingBottom: SPACING.md,
   },
   brandTitle: {
-    fontSize: 26,
+    fontSize: 24,
     fontWeight: '800',
     letterSpacing: -0.6,
   },
@@ -305,31 +386,33 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   iconButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 34,
+    height: 34,
+    borderRadius: RADIUS.sm,
+    borderWidth: 1,
     justifyContent: 'center',
     alignItems: 'center',
   },
   avatarPill: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 34,
+    height: 34,
+    borderRadius: RADIUS.sm,
+    borderWidth: 1,
     justifyContent: 'center',
     alignItems: 'center',
   },
   avatarText: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '800',
   },
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderRadius: RADIUS.md,
+    borderRadius: RADIUS.sm,
     marginHorizontal: SPACING.lg,
     paddingHorizontal: SPACING.md,
-    height: 42,
-    borderWidth: StyleSheet.hairlineWidth,
+    height: 40,
+    borderWidth: 1,
     marginBottom: SPACING.sm,
   },
   searchIcon: {
@@ -346,14 +429,14 @@ const styles = StyleSheet.create({
   },
   filterScroll: {
     paddingHorizontal: SPACING.lg,
-    gap: 8,
+    gap: 6,
     paddingVertical: 4,
   },
   filterChip: {
-    paddingHorizontal: 13,
-    paddingVertical: 7,
-    borderRadius: RADIUS.pill,
-    borderWidth: StyleSheet.hairlineWidth,
+    paddingHorizontal: 11,
+    paddingVertical: 6,
+    borderRadius: RADIUS.sm,
+    borderWidth: 1,
   },
   filterChipText: {
     fontSize: FONT_SIZE.xs,
@@ -368,10 +451,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    borderWidth: StyleSheet.hairlineWidth,
-    borderRadius: RADIUS.md,
+    borderWidth: 1,
+    borderRadius: RADIUS.sm,
     paddingHorizontal: SPACING.md,
-    paddingVertical: 11,
+    paddingVertical: 9,
     marginBottom: SPACING.md,
   },
   quickBarLeft: {
@@ -381,12 +464,13 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   statusDot: {
-    width: 7,
-    height: 7,
-    borderRadius: 3.5,
+    width: 6,
+    height: 6,
+    borderRadius: 2,
   },
   quickBarText: {
     fontSize: FONT_SIZE.xs,
+    ...NUMERIC_STYLE,
   },
   leaguesShortcut: {
     flexDirection: 'row',
@@ -404,14 +488,51 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'baseline',
-    marginBottom: 8,
+    marginBottom: 6,
   },
   featuredSectionTitle: {
-    fontSize: FONT_SIZE.sm,
+    fontSize: 10.5,
     fontWeight: '700',
+    letterSpacing: 0.7,
   },
   featuredSectionSub: {
     fontSize: 11,
     fontWeight: '600',
+  },
+  notifDot: {
+    position: 'absolute',
+    top: 7,
+    right: 7,
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+  },
+  errorBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    borderWidth: 1,
+    borderRadius: RADIUS.sm,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: 10,
+    marginBottom: SPACING.sm,
+  },
+  errorBannerText: {
+    flex: 1,
+    fontSize: FONT_SIZE.xs,
+    fontWeight: '600',
+  },
+  errorRetryText: {
+    fontSize: FONT_SIZE.xs,
+    fontWeight: '800',
+  },
+  quickBarLinks: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  quickBarSep: {
+    width: 1,
+    height: 12,
   },
 });

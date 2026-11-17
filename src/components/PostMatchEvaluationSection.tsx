@@ -31,7 +31,7 @@ export const PostMatchEvaluationSection: React.FC<PostMatchEvaluationSectionProp
   const matchPlayers = useMemo(() => {
     return match.roster
       .map((slot, index) => {
-        if (!slot.isFilled || !slot.assignedPlayer) return null;
+        if (!slot.isFilled || !slot.assignedPlayer || !slot.assignedPlayer.id) return null;
         if (slot.assignedPlayer.id === currentUserId) return null;
 
         const isHome = index < half;

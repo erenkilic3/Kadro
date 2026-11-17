@@ -9,34 +9,26 @@ import {
   Alert,
   KeyboardAvoidingView,
   Platform,
+  Image,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useApp } from '../../context/AppContext';
 import { useTheme } from '../../context/ThemeContext';
+import { LeagueForm } from '../../components/LeagueForm';
 import { FONT_SIZE, RADIUS, SPACING } from '../../constants/theme';
 import { PlayerPosition, MatchFormat, GearCategory, GearCondition } from '../../types';
-
-const LEAGUE_RULES_OPTIONS = [
-  'TFF Lisanslı Hakem & Gözlemci',
-  'Maçlar 25 x 2 = 50 Dakika',
-  'HD Video Özetleri & Gol Kayıtları',
-  'Fair-Play & Centilmenlik Puanı',
-  'Kart Ceza Takibi',
-  'Halı Saha / AG Krampon Zorunlu',
-];
-
-const LEAGUE_COLOR_OPTIONS = [
-  { hex: '#16A34A', name: 'Çim Yeşili' },
-  { hex: '#2563EB', name: 'Mavi' },
-  { hex: '#D97706', name: 'Altın' },
-  { hex: '#DC2626', name: 'Kırmızı' },
-  { hex: '#52525B', name: 'Antrasit' },
-];
+import {
+  PickedImageAsset,
+  pickImageFromLibrary,
+  uploadImageToBucket,
+} from '../../services/mediaService';
+import { validateGearInput, validateMatchInput } from '../../utils/validators';
 
 export default function CreateScreen() {
-  const { createMatch, createGearItem, createLeague } = useApp();
+  const { createMatch, createGearItem, createLeague, currentUser } = useApp();
   const { colors } = useTheme();
   const params = useLocalSearchParams<{ tab?: string }>();
 
@@ -58,8 +50,9 @@ export default function CreateScreen() {
   // Match Form State
   const [matchTitle, setMatchTitle] = useState('');
   const [venueName, setVenueName] = useState('');
-  const [district, setDistrict] = useState('Kadıköy');
-  const [address] = useState('');
+  const [matchCity, setMatchCity] = useState(currentUser.city || 'İstanbul');
+  const [district, setDistrict] = useState(currentUser.district || 'Kadıköy');
+  const [address, setAddress] = useState('');
   const [date, setDate] = useState('18 Ekim Cumartesi');
   const [time, setTime] = useState('21:00 - 22:00');
   const [format, setFormat] = useState<MatchFormat>('7v7');
@@ -68,24 +61,6 @@ export default function CreateScreen() {
   const [missingPositions, setMissingPositions] = useState<PlayerPosition[]>(['GK', 'DEF']);
   const [notes, setNotes] = useState('');
 
-  // League Form State
-  const [leagueTitle, setLeagueTitle] = useState('');
-  const [leagueSeason, setLeagueSeason] = useState('2026 Bahar Sezonu');
-  const [leagueCity, setLeagueCity] = useState('İstanbul');
-  const [leagueDistrict, setLeagueDistrict] = useState('Kadıköy');
-  const [leagueVenue, setLeagueVenue] = useState('');
-  const [leagueFormat, setLeagueFormat] = useState<MatchFormat>('7v7');
-  const [maxTeams, setMaxTeams] = useState<number>(8);
-  const [prize, setPrize] = useState('15.000₺ Şampiyonluk Kupası & Forma Seti');
-  const [leagueEntryFee, setLeagueEntryFee] = useState('1200');
-  const [themeColor, setThemeColor] = useState('#16A34A');
-  const [leagueDescription, setLeagueDescription] = useState('');
-  const [selectedRules, setSelectedRules] = useState<string[]>([
-    'TFF Lisanslı Hakem & Gözlemci',
-    'Maçlar 25 x 2 = 50 Dakika',
-    'Fair-Play & Centilmenlik Puanı',
-  ]);
-
   // Gear Form State
   const [gearTitle, setGearTitle] = useState('');
   const [category, setCategory] = useState<GearCategory>('Boots');
@@ -93,8 +68,10 @@ export default function CreateScreen() {
   const [size, setSize] = useState('42.5 EU');
   const [price, setPrice] = useState('1500');
   const [condition, setCondition] = useState<GearCondition>('Çok İyi (Az Kullanılmış)');
-  const [gearLocation, setGearLocation] = useState('İstanbul / Kadıköy');
+  const [gearCity, setGearCity] = useState(currentUser.city || 'İstanbul');
+  const [gearDistrict, setGearDistrict] = useState(currentUser.district || 'Kadıköy');
   const [gearDescription, setGearDescription] = useState('');
+  const [pickedGearAsset, setPickedGearAsset] = useState<PickedImageAsset | null>(null);
 
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -105,21 +82,33 @@ export default function CreateScreen() {
     );
   };
 
-  const toggleRule = (rule: string) => {
-    setSelectedRules((prev) =>
-      prev.includes(rule) ? prev.filter((r) => r !== rule) : [...prev, rule]
-    );
+  const handlePickGearImage = async () => {
+    const res = await pickImageFromLibrary();
+    if (res.error) {
+      Alert.alert('Galeri Hatası', res.error);
+      return;
+    }
+    if (res.asset) {
+      setPickedGearAsset(res.asset);
+    }
   };
 
   const handleCreateMatch = async () => {
     setErrorMessage(null);
-    if (!matchTitle.trim()) return setErrorMessage('Lütfen maç başlığını giriniz.');
-    if (!venueName.trim()) return setErrorMessage('Lütfen halı saha tesis adını giriniz.');
-    if (!fee.trim() || isNaN(Number(fee)) || Number(fee) <= 0) {
-      return setErrorMessage('Lütfen geçerli bir kişi başı ücret giriniz.');
-    }
-    if (missingPositions.length === 0) {
-      return setErrorMessage('Lütfen en az bir aranan eksik mevki seçiniz.');
+    const parsedFee = Number(fee);
+    const validation = validateMatchInput({
+      title: matchTitle,
+      venueName,
+      district,
+      city: matchCity,
+      date,
+      time,
+      format,
+      feePerPlayer: parsedFee,
+      missingPositions,
+    });
+    if (!validation.valid) {
+      return setErrorMessage(validation.error || 'Lütfen tüm zorunlu alanları kontrol edin.');
     }
 
     try {
@@ -127,13 +116,14 @@ export default function CreateScreen() {
       await createMatch({
         title: matchTitle.trim(),
         venueName: venueName.trim(),
-        address: address.trim() || `${district}, İstanbul`,
+        city: matchCity.trim() || 'İstanbul',
+        address: address.trim() || `${district.trim()}, ${matchCity.trim() || 'İstanbul'}`,
         district: district.trim(),
-        date,
-        time,
+        date: date.trim(),
+        time: time.trim(),
         format,
         pitchType,
-        feePerPlayer: Number(fee),
+        feePerPlayer: parsedFee,
         missingPositions,
         notes: notes.trim(),
       });
@@ -144,55 +134,16 @@ export default function CreateScreen() {
           onPress: () => {
             setMatchTitle('');
             setVenueName('');
+            setAddress('');
             setNotes('');
             router.push('/(tabs)');
           },
         },
       ]);
-    } catch {
-      setErrorMessage('Maç kaydedilirken bir hata oluştu.');
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  const handleCreateLeague = async () => {
-    setErrorMessage(null);
-    if (!leagueTitle.trim()) return setErrorMessage('Lütfen lig adını giriniz.');
-    if (!leagueVenue.trim()) return setErrorMessage('Lütfen tesis adını giriniz.');
-    if (!prize.trim()) return setErrorMessage('Lütfen şampiyonluk ödülünü belirtiniz.');
-
-    try {
-      setIsSubmitting(true);
-      const newLeague = await createLeague({
-        title: leagueTitle.trim(),
-        season: leagueSeason.trim(),
-        city: leagueCity.trim(),
-        district: leagueDistrict.trim(),
-        venueName: leagueVenue.trim(),
-        format: leagueFormat,
-        maxTeams,
-        entryFee: Number(leagueEntryFee) || 0,
-        prize: prize.trim(),
-        rules: selectedRules,
-        description:
-          leagueDescription.trim() ||
-          `${leagueDistrict} bölgesinde ${leagueFormat} formatında amatör halı saha ligi.`,
-        themeColor,
-      });
-
-      Alert.alert('Lig Kuruldu', `"${newLeague.title}" oluşturuldu.`, [
-        {
-          text: 'Lige Git',
-          onPress: () => {
-            setLeagueTitle('');
-            setLeagueVenue('');
-            router.push(`/league/${newLeague.id}` as any);
-          },
-        },
-      ]);
-    } catch {
-      setErrorMessage('Lig oluşturulurken bir hata oluştu.');
+    } catch (err) {
+      setErrorMessage(
+        err instanceof Error ? err.message : 'Maç kaydedilirken bir hata oluştu.'
+      );
     } finally {
       setIsSubmitting(false);
     }
@@ -200,27 +151,46 @@ export default function CreateScreen() {
 
   const handleCreateGear = async () => {
     setErrorMessage(null);
-    if (!gearTitle.trim()) return setErrorMessage('Lütfen ürün başlığını giriniz.');
-    if (!brand.trim()) return setErrorMessage('Lütfen marka bilgisini giriniz.');
-    if (!size.trim()) return setErrorMessage('Lütfen beden veya numara bilgisini giriniz.');
-    if (!price.trim() || isNaN(Number(price)) || Number(price) <= 0) {
-      return setErrorMessage('Lütfen geçerli bir satış fiyatı giriniz.');
+    const parsedPrice = Number(price);
+    const validation = validateGearInput({
+      title: gearTitle,
+      brand,
+      size,
+      price: parsedPrice,
+      description: gearDescription,
+      category,
+      condition,
+    });
+    if (!validation.valid) {
+      return setErrorMessage(validation.error || 'Lütfen ilan alanlarını kontrol edin.');
     }
-    if (!gearDescription.trim()) {
-      return setErrorMessage('Lütfen ürün açıklaması giriniz.');
-    }
+
+    const cityVal = gearCity.trim() || currentUser.city || 'İstanbul';
+    const districtVal = gearDistrict.trim() || currentUser.district || 'Kadıköy';
 
     try {
       setIsSubmitting(true);
+      let uploadedImageUrl: string | undefined;
+      if (pickedGearAsset) {
+        uploadedImageUrl = await uploadImageToBucket(
+          'gear-images',
+          currentUser.id,
+          pickedGearAsset
+        );
+      }
+
       await createGearItem({
         title: gearTitle.trim(),
         category,
         brand: brand.trim(),
         size: size.trim(),
-        price: Number(price),
+        price: parsedPrice,
         condition,
-        location: gearLocation.trim(),
+        city: cityVal,
+        district: districtVal,
+        location: `${cityVal} / ${districtVal}`,
         description: gearDescription.trim(),
+        imageUrl: uploadedImageUrl,
       });
 
       Alert.alert('İlan Yayınlandı', 'İkinci el ekipman ilanınız pazara eklendi.', [
@@ -229,12 +199,15 @@ export default function CreateScreen() {
           onPress: () => {
             setGearTitle('');
             setGearDescription('');
+            setPickedGearAsset(null);
             router.push('/(tabs)/market');
           },
         },
       ]);
-    } catch {
-      setErrorMessage('İlan oluşturulurken bir hata oluştu.');
+    } catch (err) {
+      setErrorMessage(
+        err instanceof Error ? err.message : 'İlan oluşturulurken bir hata oluştu.'
+      );
     } finally {
       setIsSubmitting(false);
     }
@@ -304,197 +277,22 @@ export default function CreateScreen() {
 
           {/* LEAGUE FORM */}
           {activeTab === 'LEAGUE' && (
-            <View
-              style={[
-                styles.formCard,
-                { backgroundColor: colors.surface, borderColor: colors.surfaceBorder },
-              ]}
-            >
-              <Text style={[styles.sectionHeader, { color: colors.text }]}>Lig Bilgileri</Text>
-
-              <Text style={[styles.label, { color: colors.textSecondary }]}>Lig Adı *</Text>
-              <TextInput
-                style={inputStyle}
-                placeholder="Örn: Kadıköy Halı Saha Ligi"
-                placeholderTextColor={colors.textTertiary}
-                value={leagueTitle}
-                onChangeText={setLeagueTitle}
-              />
-
-              <Text style={[styles.label, { color: colors.textSecondary }]}>Sezon</Text>
-              <TextInput
-                style={inputStyle}
-                placeholder="2026 Bahar Sezonu"
-                placeholderTextColor={colors.textTertiary}
-                value={leagueSeason}
-                onChangeText={setLeagueSeason}
-              />
-
-              <View style={styles.row}>
-                <View style={{ flex: 1, marginRight: 8 }}>
-                  <Text style={[styles.label, { color: colors.textSecondary }]}>Şehir</Text>
-                  <TextInput
-                    style={inputStyle}
-                    placeholder="İstanbul"
-                    placeholderTextColor={colors.textTertiary}
-                    value={leagueCity}
-                    onChangeText={setLeagueCity}
-                  />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={[styles.label, { color: colors.textSecondary }]}>İlçe *</Text>
-                  <TextInput
-                    style={inputStyle}
-                    placeholder="Kadıköy"
-                    placeholderTextColor={colors.textTertiary}
-                    value={leagueDistrict}
-                    onChangeText={setLeagueDistrict}
-                  />
-                </View>
-              </View>
-
-              <Text style={[styles.label, { color: colors.textSecondary }]}>Tesis Adı *</Text>
-              <TextInput
-                style={inputStyle}
-                placeholder="Kalamış Sahil Spor Tesisleri"
-                placeholderTextColor={colors.textTertiary}
-                value={leagueVenue}
-                onChangeText={setLeagueVenue}
-              />
-
-              <Text style={[styles.label, { color: colors.textSecondary }]}>Format</Text>
-              <View style={styles.chipRow}>
-                {(['5v5', '6v6', '7v7', '8v8'] as MatchFormat[]).map((f) => (
-                  <TouchableOpacity
-                    key={f}
-                    style={[
-                      styles.choiceChip,
-                      {
-                        backgroundColor: leagueFormat === f ? colors.primary : colors.surfaceLight,
-                      },
-                    ]}
-                    onPress={() => setLeagueFormat(f)}
-                  >
-                    <Text
-                      style={[
-                        styles.choiceChipText,
-                        { color: leagueFormat === f ? '#FFFFFF' : colors.textSecondary },
-                      ]}
-                    >
-                      {f}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-
-              <Text style={[styles.label, { color: colors.textSecondary }]}>Takım Sayısı</Text>
-              <View style={styles.chipRow}>
-                {[6, 8, 10, 12, 16].map((num) => (
-                  <TouchableOpacity
-                    key={num}
-                    style={[
-                      styles.choiceChip,
-                      {
-                        backgroundColor: maxTeams === num ? colors.primary : colors.surfaceLight,
-                      },
-                    ]}
-                    onPress={() => setMaxTeams(num)}
-                  >
-                    <Text
-                      style={[
-                        styles.choiceChipText,
-                        { color: maxTeams === num ? '#FFFFFF' : colors.textSecondary },
-                      ]}
-                    >
-                      {num} Takım
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-
-              <Text style={[styles.label, { color: colors.textSecondary }]}>Ödül *</Text>
-              <TextInput
-                style={inputStyle}
-                placeholder="15.000₺ Kupa & Forma Seti"
-                placeholderTextColor={colors.textTertiary}
-                value={prize}
-                onChangeText={setPrize}
-              />
-
-              <Text style={[styles.label, { color: colors.textSecondary }]}>
-                Takım Katılım Ücreti (₺)
-              </Text>
-              <TextInput
-                style={inputStyle}
-                placeholder="1200"
-                placeholderTextColor={colors.textTertiary}
-                keyboardType="numeric"
-                value={leagueEntryFee}
-                onChangeText={setLeagueEntryFee}
-              />
-
-              <Text style={[styles.label, { color: colors.textSecondary }]}>Kurallar</Text>
-              <View style={styles.rulesPicker}>
-                {LEAGUE_RULES_OPTIONS.map((rule) => {
-                  const isChecked = selectedRules.includes(rule);
-                  return (
-                    <TouchableOpacity
-                      key={rule}
-                      style={[styles.ruleCheckbox, { backgroundColor: colors.surfaceLight }]}
-                      onPress={() => toggleRule(rule)}
-                    >
-                      <Ionicons
-                        name={isChecked ? 'checkbox' : 'square-outline'}
-                        size={18}
-                        color={isChecked ? colors.primary : colors.textTertiary}
-                      />
-                      <Text style={[styles.ruleCheckboxText, { color: colors.text }]}>{rule}</Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
-
-              <Text style={[styles.label, { color: colors.textSecondary }]}>Lig Rengi</Text>
-              <View style={styles.colorRow}>
-                {LEAGUE_COLOR_OPTIONS.map((c) => (
-                  <TouchableOpacity
-                    key={c.hex}
-                    style={[
-                      styles.colorCircle,
-                      { backgroundColor: c.hex },
-                      themeColor === c.hex && styles.colorCircleActive,
-                    ]}
-                    onPress={() => setThemeColor(c.hex)}
-                  >
-                    {themeColor === c.hex && (
-                      <Ionicons name="checkmark" size={16} color="#FFFFFF" />
-                    )}
-                  </TouchableOpacity>
-                ))}
-              </View>
-
-              <Text style={[styles.label, { color: colors.textSecondary }]}>Açıklama</Text>
-              <TextInput
-                style={[inputStyle, styles.textArea]}
-                placeholder="Maç saatleri ve katılım detayları..."
-                placeholderTextColor={colors.textTertiary}
-                multiline
-                numberOfLines={3}
-                value={leagueDescription}
-                onChangeText={setLeagueDescription}
-              />
-
-              <TouchableOpacity
-                style={[styles.submitButton, { backgroundColor: colors.primary }]}
-                onPress={handleCreateLeague}
-                disabled={isSubmitting}
-                activeOpacity={0.85}
-              >
-                <Text style={styles.submitButtonText}>
-                  {isSubmitting ? 'Oluşturuluyor...' : 'Ligi Yayınla'}
-                </Text>
-              </TouchableOpacity>
-            </View>
+            <LeagueForm
+              initialValues={{
+                city: currentUser.city || 'İstanbul',
+                district: currentUser.district || 'Kadıköy',
+              }}
+              submitLabel="Ligi Yayınla"
+              onSubmit={async (values) => {
+                const newLeague = await createLeague(values);
+                Alert.alert('Lig Kuruldu', `"${newLeague.title}" oluşturuldu.`, [
+                  {
+                    text: 'Lige Git',
+                    onPress: () => router.push(`/league/${newLeague.id}` as any),
+                  },
+                ]);
+              }}
+            />
           )}
 
           {/* MATCH FORM */}
@@ -527,7 +325,17 @@ export default function CreateScreen() {
 
               <View style={styles.row}>
                 <View style={{ flex: 1, marginRight: 8 }}>
-                  <Text style={[styles.label, { color: colors.textSecondary }]}>İlçe</Text>
+                  <Text style={[styles.label, { color: colors.textSecondary }]}>Şehir</Text>
+                  <TextInput
+                    style={inputStyle}
+                    placeholder="İstanbul"
+                    placeholderTextColor={colors.textTertiary}
+                    value={matchCity}
+                    onChangeText={setMatchCity}
+                  />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.label, { color: colors.textSecondary }]}>İlçe *</Text>
                   <TextInput
                     style={inputStyle}
                     placeholder="Kadıköy"
@@ -536,7 +344,10 @@ export default function CreateScreen() {
                     onChangeText={setDistrict}
                   />
                 </View>
-                <View style={{ flex: 1 }}>
+              </View>
+
+              <View style={styles.row}>
+                <View style={{ flex: 1, marginRight: 8 }}>
                   <Text style={[styles.label, { color: colors.textSecondary }]}>Kişi Başı (₺) *</Text>
                   <TextInput
                     style={inputStyle}
@@ -545,6 +356,16 @@ export default function CreateScreen() {
                     keyboardType="numeric"
                     value={fee}
                     onChangeText={setFee}
+                  />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.label, { color: colors.textSecondary }]}>Açık Adres</Text>
+                  <TextInput
+                    style={inputStyle}
+                    placeholder="Cadde / Mahalle"
+                    placeholderTextColor={colors.textTertiary}
+                    value={address}
+                    onChangeText={setAddress}
                   />
                 </View>
               </View>
@@ -667,14 +488,19 @@ export default function CreateScreen() {
               />
 
               <TouchableOpacity
-                style={[styles.submitButton, { backgroundColor: colors.primary }]}
+                style={[
+                  styles.submitButton,
+                  { backgroundColor: colors.primary, opacity: isSubmitting ? 0.7 : 1 },
+                ]}
                 onPress={handleCreateMatch}
                 disabled={isSubmitting}
                 activeOpacity={0.85}
               >
-                <Text style={styles.submitButtonText}>
-                  {isSubmitting ? 'Yayınlanıyor...' : 'Maçı Yayınla'}
-                </Text>
+                {isSubmitting ? (
+                  <ActivityIndicator color="#FFFFFF" size="small" />
+                ) : (
+                  <Text style={styles.submitButtonText}>Maçı Yayınla</Text>
+                )}
               </TouchableOpacity>
             </View>
           )}
@@ -688,6 +514,43 @@ export default function CreateScreen() {
               ]}
             >
               <Text style={[styles.sectionHeader, { color: colors.text }]}>Ekipman Bilgileri</Text>
+
+              <Text style={[styles.label, { color: colors.textSecondary }]}>Ürün Fotoğrafı</Text>
+              <View style={styles.gearPhotoRow}>
+                {pickedGearAsset ? (
+                  <Image source={{ uri: pickedGearAsset.uri }} style={styles.gearPreviewImg} />
+                ) : (
+                  <View
+                    style={[
+                      styles.gearPreviewPlaceholder,
+                      { backgroundColor: colors.surfaceLight, borderColor: colors.surfaceBorder },
+                    ]}
+                  >
+                    <Ionicons name="image-outline" size={22} color={colors.textTertiary} />
+                  </View>
+                )}
+                <View style={{ flex: 1, gap: 6 }}>
+                  <TouchableOpacity
+                    style={[
+                      styles.photoPickBtn,
+                      { backgroundColor: colors.surfaceLight, borderColor: colors.surfaceBorder },
+                    ]}
+                    onPress={handlePickGearImage}
+                  >
+                    <Ionicons name="camera-outline" size={16} color={colors.text} />
+                    <Text style={[styles.photoPickBtnText, { color: colors.text }]}>
+                      {pickedGearAsset ? 'Fotoğrafı Değiştir' : 'Galeriden Fotoğraf Seç'}
+                    </Text>
+                  </TouchableOpacity>
+                  {pickedGearAsset && (
+                    <TouchableOpacity onPress={() => setPickedGearAsset(null)}>
+                      <Text style={[styles.photoRemoveText, { color: colors.danger }]}>
+                        Fotoğrafı Kaldır
+                      </Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+              </View>
 
               <Text style={[styles.label, { color: colors.textSecondary }]}>Ürün Başlığı *</Text>
               <TextInput
@@ -753,27 +616,36 @@ export default function CreateScreen() {
 
               <View style={styles.row}>
                 <View style={{ flex: 1, marginRight: 8 }}>
-                  <Text style={[styles.label, { color: colors.textSecondary }]}>Fiyat (₺) *</Text>
+                  <Text style={[styles.label, { color: colors.textSecondary }]}>Şehir</Text>
                   <TextInput
                     style={inputStyle}
-                    placeholder="1500"
+                    placeholder="İstanbul"
                     placeholderTextColor={colors.textTertiary}
-                    keyboardType="numeric"
-                    value={price}
-                    onChangeText={setPrice}
+                    value={gearCity}
+                    onChangeText={setGearCity}
                   />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={[styles.label, { color: colors.textSecondary }]}>Konum</Text>
+                  <Text style={[styles.label, { color: colors.textSecondary }]}>İlçe</Text>
                   <TextInput
                     style={inputStyle}
                     placeholder="Kadıköy"
                     placeholderTextColor={colors.textTertiary}
-                    value={gearLocation}
-                    onChangeText={setGearLocation}
+                    value={gearDistrict}
+                    onChangeText={setGearDistrict}
                   />
                 </View>
               </View>
+
+              <Text style={[styles.label, { color: colors.textSecondary }]}>Fiyat (₺) *</Text>
+              <TextInput
+                style={inputStyle}
+                placeholder="1500"
+                placeholderTextColor={colors.textTertiary}
+                keyboardType="numeric"
+                value={price}
+                onChangeText={setPrice}
+              />
 
               <Text style={[styles.label, { color: colors.textSecondary }]}>Durum</Text>
               <View style={styles.chipRow}>
@@ -817,14 +689,19 @@ export default function CreateScreen() {
               />
 
               <TouchableOpacity
-                style={[styles.submitButton, { backgroundColor: colors.primary }]}
+                style={[
+                  styles.submitButton,
+                  { backgroundColor: colors.primary, opacity: isSubmitting ? 0.7 : 1 },
+                ]}
                 onPress={handleCreateGear}
                 disabled={isSubmitting}
                 activeOpacity={0.85}
               >
-                <Text style={styles.submitButtonText}>
-                  {isSubmitting ? 'Yayınlanıyor...' : 'İlanı Yayınla'}
-                </Text>
+                {isSubmitting ? (
+                  <ActivityIndicator color="#FFFFFF" size="small" />
+                ) : (
+                  <Text style={styles.submitButtonText}>İlanı Yayınla</Text>
+                )}
               </TouchableOpacity>
             </View>
           )}
@@ -843,7 +720,7 @@ const styles = StyleSheet.create({
     paddingBottom: SPACING.xxxl,
   },
   screenTitle: {
-    fontSize: 26,
+    fontSize: 24,
     fontWeight: '800',
     letterSpacing: -0.6,
   },
@@ -883,13 +760,14 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   formCard: {
-    borderRadius: RADIUS.lg,
+    borderRadius: RADIUS.md,
     padding: SPACING.lg,
-    borderWidth: StyleSheet.hairlineWidth,
+    borderWidth: 1,
   },
   sectionHeader: {
     fontSize: FONT_SIZE.md,
     fontWeight: '700',
+    letterSpacing: -0.2,
     marginBottom: 4,
   },
   label: {
@@ -902,7 +780,7 @@ const styles = StyleSheet.create({
     borderRadius: RADIUS.sm,
     fontSize: FONT_SIZE.sm,
     paddingHorizontal: 12,
-    paddingVertical: 10,
+    paddingVertical: 11,
   },
   textArea: {
     height: 76,
@@ -968,6 +846,43 @@ const styles = StyleSheet.create({
   submitButtonText: {
     color: '#FFFFFF',
     fontSize: FONT_SIZE.sm,
+    fontWeight: '700',
+  },
+  gearPhotoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: 4,
+  },
+  gearPreviewImg: {
+    width: 68,
+    height: 68,
+    borderRadius: RADIUS.sm,
+  },
+  gearPreviewPlaceholder: {
+    width: 68,
+    height: 68,
+    borderRadius: RADIUS.sm,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  photoPickBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    borderWidth: 1,
+    borderRadius: RADIUS.sm,
+    paddingVertical: 14,
+    paddingHorizontal: 12,
+  },
+  photoPickBtnText: {
+    fontSize: FONT_SIZE.xs,
+    fontWeight: '700',
+  },
+  photoRemoveText: {
+    fontSize: 12,
     fontWeight: '700',
   },
 });

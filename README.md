@@ -52,48 +52,45 @@ In amateur football and local mini-pitch matches, players and organizers encount
 
 | Category | Feature | Description |
 | :--- | :--- | :--- |
-| **Auth & Security** | **🔐 Supabase Auth & Protected Routes** | Email/password authentication (`signInWithPassword`, `signUp`, `signOut`) backed by `AuthContext`, Expo Router `Stack.Protected` navigation guards, `on_auth_user_created` profile auto-provisioning, Row Level Security (`RLS`), and seamless local Demo Auth fallback when `.env` is unset. |
-| **Matchmaking** | **🏟️ Match Discovery Feed** | Search and filter upcoming matches by district (`Kadıköy`, `Beşiktaş`), missing positions (`GK`, `DEF`, `MID`, `FWD`), or prediction status with a live vacant-slot counter. |
-| **Matchmaking** | **📋 Interactive Tactical Pitch** | Visual green pitch showing squad formation (`5v5`, `6v6`, `7v7`, `8v8`). Tap vacant positions to apply or manage your active lineup slot. |
-| **Squad Requests** | **🛡️ Join Requests & Captain Approval** | Players send position-specific join requests with optional notes via `JoinRequestModal`; squad captains review, approve, or reject applicants via `CaptainRequestsSection` and the Profile **İstekler** tab, backed by the atomic `approve_join_request` PostgreSQL RPC. |
-| **Analytics** | **📊 Pre-Match Opponent Statistics** | Side-by-side comparison of matched teams' previous matches (played, won, drawn, lost, goals for/against, goal difference, goals per match, last 5 form `G/B/M`, Head-to-Head history, and recent match logs) in both Match Detail and League Fixtures. |
-| **AI Assistant** | **🤖 KadroAI Prediction Robot** | On-device statistical AI robot (`KadroAI`) that analyzes team attack/defense averages, recent form, H2H history, format pace, and squad ratings to predict match scores, `1 - X - 2` outcomes, win probabilities, Over/Under lines, and BTTS (`KG Var/Yok`) with natural-language reasoning. |
-| **Community** | **🏆 Match Predictions (`1 - X - 2`)** | Interactive pre-match voting with live community percentage distribution bars and `+25` Kadro point rewards. |
-| **Leagues** | **🥇 Regional Leagues & Standings** | Browse regional leagues, inspect full standings tables (`O`, `G`, `B`, `M`, `AV`, `P`, `FORM`), weekly fixtures, team rosters, and rules, register your team, or create a new league. |
-| **Reputation** | **⭐ Post-Match Player & Fair-Play Rating** | Rate opponents and teammates on Skill (`1–5`) and Fair-Play (`1–5`), gift community badges (*MVP*, *Centilmen Rakip*, *Oyun Kurucu*, etc.), leave comments, and earn `+15` Kadro points. |
-| **Marketplace** | **🛒 Second-Hand Gear Bazaar** | 2-column catalog to browse, search, filter by category (`Boots`, `Jerseys`, `Gloves`, `Equipment`), and sort pre-owned gear by price or recency. |
-| **Marketplace** | **🏷️ Sell Gear & Direct Contact** | Publish gear listings with condition grades, call sellers or open WhatsApp templates, and mark listings as sold (`Satıldı`). |
-| **Experience** | **🎨 Editorial Sports UI & Accessible Targets** | Clean *Floodlight Charcoal* (`DARK_COLORS`) and *Matchday Paper* (`LIGHT_COLORS`) themes, uniform `14px` button touch padding (`paddingVertical: 14`) and `14px` icon `hitSlop`, plus instant theme toggles. |
-| **Database & Sync** | **🐘 Supabase PostgreSQL + Offline Fallback** | Full Supabase PostgreSQL backend (`supabase/schema.sql`, `supabaseService.ts`) with automatic `AsyncStorage` offline/demo fallback and live backend status display in Profile Settings. |
+| **Auth & Security** | **🔐 Supabase Auth, Recovery & Protected Routes** | Email/password sign-in, registration, and password reset recovery (`login.tsx`, `register.tsx`, `forgot-password.tsx`, `reset-password.tsx`) backed by `AuthContext`, Expo Router `Stack.Protected` guards, `on_auth_user_created` profile auto-provisioning, private `profile_contacts` separation, and strict Row Level Security (`RLS`). |
+| **Matchmaking** | **🏟️ Match Discovery, Lifecycle & Tactical Pitch** | Search/filter matches by district, missing positions (`GK`, `DEF`, `MID`, `FWD`), or polls; inspect interactive pitch slots (`5v5`–`8v8`), send/cancel join requests, approve/reject as captain (`approve_join_request` / `reject_join_request`), edit/delete owned matches, or record final scores (`complete_match_atomic`). |
+| **Teams & Leagues** | **🥇 Teams, Regional Leagues & Standings** | Create permanent squads with player search and captain transfer (`teams/index.tsx`), launch or edit regional leagues (`LeagueForm.tsx`), auto-generate round-robin fixtures, and record fixture scores with atomic standings/points recalculation (`record_league_fixture_result`). |
+| **Reputation** | **⭐ Completed-Match Player Evaluations** | Rate teammates and opponents on Skill (`1–5`), Fair-Play (`1–5`), and badges strictly after matches are marked completed, backed by Postgres triggers preventing self-evaluation/duplicates and recalculating aggregate player profiles. |
+| **Marketplace** | **🛒 Second-Hand Gear Bazaar & Uploads** | 2-column catalog displaying only `Available` listings filtered by category and district, Supabase Storage photo uploads (`avatars` & `gear-images` buckets via `mediaService.ts`), seller edit/delete/sold actions, and buyer moderation reporting. |
+| **Realtime Alerts** | **🔔 Live Notifications & Expo Push** | Dedicated notifications inbox (`notifications.tsx`), Postgres trigger-backed notifications synced over Supabase Realtime, and Expo Push Notifications token registration (`notificationService.ts`). |
+| **Analytics & AI** | **📊 Pre-Match Stats & KadroAI Robot** | Live H2H comparisons, league form analytics, and Poisson-based on-device score/outcome predictions (`aiPredictor.ts`, `matchupStats.ts`). |
+| **Database & Tests** | **🐘 15-Table UUID Schema, Jest & EAS** | Versioned migrations in [`supabase/migrations/`](supabase/migrations/), `jest-expo` unit/service tests ([`src/__tests__/`](src/__tests__/)), and production EAS Build/Submit configuration ([`app.json`](app.json), [`eas.json`](eas.json)). |
 
 ---
 
 ## 📱 App Screens & Navigation Flow
 
-The application uses **Expo Router** file-based routing with **declarative `Stack.Protected` authentication guards** and **11 navigable screens** (2 unauthenticated auth routes + 5 protected bottom tabs + 4 protected stack detail/creation routes):
+The application uses **Expo Router** file-based routing with **declarative `Stack.Protected` authentication guards**:
 
 ```
                        [Root Layout (Auth Guard)]
                                     │
           ┌─────────────────────────┴─────────────────────────┐
-          ▼ (!isAuthenticated)                                ▼ (isAuthenticated)
- [Public Auth Screens]                              [Protected App Screens]
+          ▼ (!isAuthenticated || isPasswordRecovery)          ▼ (isAuthenticated && !isPasswordRecovery)
+ [Public / Recovery Routes]                          [Protected App Screens]
  ├─ 🔐 login                                         ├─ [Main Tabs Navigator]
- └─ 📝 register                                      │   ├─ ⚽ Maçlar (index)
-                                                     │   ├─ 🏆 Ligler (leagues)
-                                                     │   ├─ ➕ Oluştur (create)
+ ├─ 📝 register                                      │   ├─ ⚽ Maçlar (index)
+ ├─ 🔑 forgot-password                               │   ├─ 🏆 Ligler (leagues)
+ └─ 🔄 reset-password                                │   ├─ ➕ Oluştur (create)
                                                      │   ├─ 🛍️ Pazar (market)
                                                      │   └─ 👤 Profil (profile)
-                                                     └─ [Stack Detail & Creation]
+                                                     └─ [Protected Stack Screens]
                                                          ├─ 📋 match/[id]
                                                          ├─ 📦 gear/[id]
                                                          ├─ 🥇 league/[id]
-                                                         └─ 🏆 league/create
+                                                         ├─ 🏆 league/create
+                                                         ├─ 🛡️ teams/index
+                                                         └─ 🔔 notifications
 ```
 
-### 0. Authentication Screens (`src/app/login.tsx`, `src/app/register.tsx`)
-* **Login (`login.tsx`):** Email & password sign-in powered by Supabase Auth, inline validation and Turkish error messages, password visibility toggle, and a **Demo Hesabıyla Devam Et** option when `.env` keys are not configured.
-* **Register (`register.tsx`):** Player sign-up capturing Full Name, Email, Password, Preferred Position (`GK`, `DEF`, `MID`, `FWD`), and Istanbul District, automatically creating a matching row in `public.profiles` via Postgres trigger.
+### 0. Authentication & Recovery Screens (`login.tsx`, `register.tsx`, `forgot-password.tsx`, `reset-password.tsx`)
+* **Login & Register:** Live Supabase email/password authentication capturing Name, Position, City, and District, triggering automatic provisioning in `public.profiles` and `public.profile_contacts`.
+* **Password Reset:** Deep-link recovery flow (`kadro://reset-password`) verified through `Linking` URL parsing and gated with `Stack.Protected`.
 
 ### 1. Match Discovery Feed (`src/app/(tabs)/index.tsx`)
 * Live search by match title, venue, or district.
@@ -142,74 +139,88 @@ The application uses **Expo Router** file-based routing with **declarative `Stac
 * **Framework:** [React Native](https://reactnative.dev) (`0.88.1`) with [Expo](https://expo.dev) (**SDK 58** / `~58.0.23`) and **React** (`19.3.0`)
 * **Language:** [TypeScript](https://www.typescriptlang.org) (`~6.0.3`, `strict: true`)
 * **Routing & Protected Guards:** [Expo Router](https://docs.expo.dev/router/introduction/) (`~58.0.30`, `Stack.Protected` declarative auth guards)
-* **Backend & Auth:** [Supabase](https://supabase.com) (`@supabase/supabase-js` `^2.119.0`, `react-native-url-polyfill` `^4.0.0`) — PostgreSQL, Supabase Auth, Row Level Security (`RLS`), and PL/pgSQL RPCs/Triggers
+* **Backend, Auth, Storage & Realtime:** [Supabase](https://supabase.com) (`@supabase/supabase-js` `^2.119.0`, `react-native-url-polyfill` `^4.0.0`) — PostgreSQL, Supabase Auth, Storage (`avatars`, `gear-images`), Realtime channels, Row Level Security (`RLS`), and PL/pgSQL RPCs/Triggers
+* **Native Capabilities:** `expo-image-picker` (`~58.0.10`), `expo-notifications` (`~58.1.9`), `expo-device` (`~58.0.5`), `expo-linking`, `expo-constants`
+* **Testing & Build:** `jest` (`~30.5.2`), `jest-expo` (`~58.0.15`), `@types/jest`, and **EAS Build / Submit** (`eas.json`)
 * **Web & Tunneling Support:** `react-dom` (`19.3.0`), `react-native-web` (`~0.21.4`), `@expo/metro-runtime` (`~58.0.17`), `@expo/ngrok` (`^4.1.3`)
 * **State Management:** React Context API ([`AuthContext`](src/context/AuthContext.tsx), [`AppContext`](src/context/AppContext.tsx), [`ThemeContext`](src/context/ThemeContext.tsx)) + custom hooks (`useAuth`, `useApp`, `useTheme`)
-* **Local Storage & Session Persistence:** `@react-native-async-storage/async-storage` (`2.2.0`)
+* **Local Preferences & Session Storage:** `@react-native-async-storage/async-storage` (`2.2.0`)
 * **UI & Layout:** `@expo/vector-icons` (`^15.0.2`), `react-native-safe-area-context` (`~5.11.1`), `react-native-screens` (`~4.30.1`), `expo-status-bar`
 * **Linting & Quality:** ESLint (`^9.0.0`) with `eslint-config-expo` (`~58.0.4`, configured in `eslint.config.js`)
 
 ### Project Directory Organization
 ```
 src/
+├── __tests__/                        # Jest unit & service integration tests
 ├── app/                              # Expo Router file-based screens
 │   ├── (tabs)/                       # Protected 5-tab bottom navigator
-│   │   ├── index.tsx                 # Match Discovery Feed & Featured Prediction
-│   │   ├── leagues.tsx               # Regional Leagues Discovery & Filters
-│   │   ├── create.tsx                # Unified Match / League / Gear Creation
-│   │   ├── market.tsx                # Second-Hand Football Gear Bazaar
-│   │   ├── profile.tsx               # Profile, Join Requests, Reviews, Settings & Sign Out
+│   │   ├── index.tsx                 # Match Discovery Feed, Notifications & Error Banner
+│   │   ├── leagues.tsx               # Regional Leagues Discovery & Teams Link
+│   │   ├── create.tsx                # Unified Match / League / Gear Creation + Photo Picker
+│   │   ├── market.tsx                # Available Gear Bazaar (Category + District Filters)
+│   │   ├── profile.tsx               # Profile, Avatar Upload, Requests, Reviews & Settings
 │   │   └── _layout.tsx               # Bottom Tabs navigator configuration
-│   ├── login.tsx                     # Public Supabase Auth / Demo Sign-In Screen
-│   ├── register.tsx                  # Public Player Registration Screen
-│   ├── match/[id].tsx                # Match Detail, Join Requests, Pre-Match Stats & Pitch
-│   ├── gear/[id].tsx                 # Gear Item Detail & Seller Contact
-│   ├── league/[id].tsx               # League Standings, Fixtures (with Stats Modal) & Rules
-│   ├── league/create.tsx             # Dedicated Regional League Creation Screen
-│   └── _layout.tsx                   # Root Stack with Stack.Protected Auth Guards
+│   ├── teams/index.tsx               # Permanent Squads, Player Search & Captain Transfer
+│   ├── notifications.tsx             # Realtime Notifications Inbox
+│   ├── login.tsx                     # Supabase Auth Sign-In Screen
+│   ├── register.tsx                  # Player Registration Screen
+│   ├── forgot-password.tsx           # Password Reset Request Screen
+│   ├── reset-password.tsx            # Deep-Link Password Recovery Screen
+│   ├── match/[id].tsx                # Match Detail, Organizer Controls, Requests & Evaluations
+│   ├── gear/[id].tsx                 # Gear Detail, Photo Preview, Edit/Delete & Report
+│   ├── league/[id].tsx               # Standings, Fixtures, Score Entry, Edit & Report
+│   ├── league/create.tsx             # Standalone Regional League Creation (uses LeagueForm)
+│   └── _layout.tsx                   # Root Stack with Stack.Protected Auth/Recovery Guards
 ├── components/                       # Reusable UI components
+│   ├── LeagueForm.tsx                # Shared regional league create/edit form
+│   ├── ReportModal.tsx               # Content moderation report modal
 │   ├── AiPredictionBotCard.tsx       # KadroAI score, outcome & probability robot card
 │   ├── CaptainRequestsSection.tsx    # Captain review/approve/reject squad requests card
 │   ├── JoinRequestModal.tsx          # Position-based squad join request modal
 │   ├── PreMatchStatsCard.tsx         # Pre-match opponent comparison, H2H & recent matches
 │   ├── MatchPredictionCard.tsx       # 1-X-2 prediction voting card with live bars
-│   ├── PostMatchEvaluationSection.tsx# Post-match opponent/teammate rating list
+│   ├── PostMatchEvaluationSection.tsx# Completed-match opponent/teammate rating list
 │   ├── PlayerEvaluationModal.tsx     # Skill, Fair-Play & badge evaluation modal
 │   ├── LeagueCard.tsx                # Regional league summary card
 │   ├── PitchLineup.tsx               # Interactive tactical pitch formation view
 │   ├── MatchCard.tsx                 # Match card with quick vote & missing positions
-│   ├── GearCard.tsx                  # Second-hand gear product card
+│   ├── GearCard.tsx                  # Second-hand gear product card (photo + icon fallback)
 │   ├── PositionBadge.tsx             # GK, DEF, MID, FWD color-coded badges
-│   └── EmptyState.tsx                # Edge-case fallback view
+│   └── EmptyState.tsx                # Empty-state fallback view with optional CTA
 ├── constants/
-│   ├── theme.ts                      # Floodlight Charcoal & Matchday Paper tokens
-│   └── mockData.ts                   # Seed data for matches, requests, leagues & gear
+│   └── theme.ts                      # Floodlight Charcoal & Matchday Paper tokens
 ├── context/
-│   ├── AuthContext.tsx               # Supabase Auth session, AppState refresh & Demo Auth
-│   ├── AppContext.tsx                # Global state routing to Supabase or AsyncStorage
+│   ├── AuthContext.tsx               # Supabase Auth session, recovery & AppState refresh
+│   ├── AppContext.tsx                # Live Supabase state, Realtime listeners & actions
 │   └── ThemeContext.tsx              # Persistent Dark/Light theme provider
 ├── lib/
-│   └── supabase.ts                   # SSR-safe Supabase client & EXPO_PUBLIC env guard
+│   └── supabase.ts                   # Typed Supabase client & EXPO_PUBLIC env guard
 ├── services/
-│   ├── supabaseService.ts            # Typed PostgreSQL CRUD, seeding & RPC service
-│   └── storageService.ts             # AsyncStorage offline CRUD & demo reset service
+│   ├── supabaseService.ts            # Typed PostgreSQL CRUD, RPCs & Realtime subscriptions
+│   ├── mediaService.ts               # Expo ImagePicker + Supabase Storage bucket uploads
+│   ├── notificationService.ts        # Expo push token registration & local notifications
+│   └── storageService.ts             # AsyncStorage UI preferences helper
 ├── utils/
+│   ├── validators.ts                 # Centralized auth, match, league, gear & rating validators
 │   ├── aiPredictor.ts                # Poisson-based on-device AI score & outcome predictor
 │   ├── formatters.ts                 # UI formatting helpers & symbol/initial formatters
 │   └── matchupStats.ts               # Resolves pre-match & league fixture matchup statistics
 └── types/
+    ├── database.ts                   # Generated Supabase TypeScript schema definitions
     └── index.ts                      # Domain models & TypeScript interfaces
 supabase/
-└── schema.sql                        # 9 Postgres tables, auth trigger, RLS & approve_join_request RPC
+├── migrations/                       # Versioned SQL migrations (tables, RPCs, RLS, hardening)
+└── schema.sql                        # Migration index reference
 ```
 
 ---
 
 ## 💾 Data Management, Auth & Persistence
 
-Kadro supports a dual-layer persistence architecture:
-1. **Supabase PostgreSQL (Primary Cloud Backend):** Configured via [`src/lib/supabase.ts`](src/lib/supabase.ts), [`src/services/supabaseService.ts`](src/services/supabaseService.ts), and [`supabase/schema.sql`](supabase/schema.sql) across 9 normalized tables (`profiles`, `matches`, `roster_slots`, `join_requests`, `leagues`, `league_teams`, `league_fixtures`, `player_evaluations`, `gear_items`). Includes an `on_auth_user_created` trigger (`handle_new_user`), `TO authenticated` Row Level Security (`RLS`) policies, and an atomic `approve_join_request` PL/pgSQL RPC that locks rows (`FOR UPDATE`) to prevent double-booking slots.
-2. **AsyncStorage Offline / Demo Fallback:** Whenever `.env` keys are omitted or offline testing is active, Kadro seamlessly persists all domain entities and theme/auth preferences locally via `@react-native-async-storage/async-storage`.
+Kadro runs directly on **Supabase PostgreSQL**, **Supabase Auth**, **Supabase Storage**, and **Supabase Realtime** via [`src/lib/supabase.ts`](src/lib/supabase.ts) and [`src/services/supabaseService.ts`](src/services/supabaseService.ts):
+1. **15 Normalized Tables with UUID Primary Keys:** `profiles`, `profile_contacts` (private phone/email/push token separation), `matches`, `roster_slots`, `join_requests`, `match_prediction_votes`, `teams`, `team_members`, `leagues`, `league_teams`, `league_fixtures`, `gear_items`, `evaluations`, `notifications`, and `reports`.
+2. **Atomic Server-Side RPCs & Triggers:** Includes `approve_join_request`, `reject_join_request`, `join_match_slot_atomic`, `leave_match_atomic`, `complete_match_atomic`, `cast_match_prediction_vote`, `register_team_to_league`, `record_league_fixture_result`, plus triggers preventing self-evaluation/non-completed match ratings, auto-adding captains to teams, recalculating player ratings, and emitting Realtime notifications.
+3. **Storage & Realtime:** Image uploads write user-scoped objects to `avatars` and `gear-images` buckets (`(storage.foldername(name))[1] = auth.uid()`); live updates subscribe to `notifications`, `matches`, `roster_slots`, and `join_requests`. `AsyncStorage` is reserved strictly for Auth session persistence and UI preferences.
 
 ### Key Data Entities (`src/types/index.ts`)
 * **`User`:** `id`, `name`, `email`, `phone`, `position`, `rating`, `fairPlayRating`, `matchesPlayed`, `preferredFoot`, `city`, `district`, `bio`, `predictionScore`, `totalPredictions`, `correctPredictions`, `badges`, `evaluationsCount`
@@ -248,16 +259,24 @@ Kadro supports a dual-layer persistence architecture:
    npm install
    ```
 
-3. **(Optional) Configure Supabase PostgreSQL & Auth:**
-   * Copy `.env.example` to `.env` and fill in `EXPO_PUBLIC_SUPABASE_URL` and `EXPO_PUBLIC_SUPABASE_ANON_KEY`.
-   * Run [`supabase/schema.sql`](supabase/schema.sql) in your Supabase project's **SQL Editor** to create tables, auth profile trigger, `approve_join_request` RPC, and RLS policies.
-   * *(If skipped, the app runs automatically with Demo Auth & local AsyncStorage persistence.)*
+3. **Configure Supabase PostgreSQL, Auth, Storage & Realtime:**
+   * Copy `.env.example` to `.env` and fill in `EXPO_PUBLIC_SUPABASE_URL` and `EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY`.
+   * Apply all SQL migrations under [`supabase/migrations/`](supabase/migrations/) to your Supabase project (via Supabase CLI or SQL Editor).
+   * In Supabase Dashboard -> Authentication -> URL Configuration, add `kadro://**` to Redirect URLs for password reset deep links.
 
-4. **Verify project health, TypeScript, and ESLint:**
+4. **Verify tests, project health, TypeScript, and ESLint:**
    ```bash
+   npm test -- --watchAll=false
    npx expo-doctor
    npx tsc --noEmit
    npx expo lint
+   ```
+
+5. **Production Builds with EAS (`eas.json` & `app.json`):**
+   ```bash
+   npx eas-cli@latest init
+   npx eas-cli@latest build --platform android --profile production
+   npx eas-cli@latest build --platform ios --profile production
    ```
 
 5. **Start the development server:**

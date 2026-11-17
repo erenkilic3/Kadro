@@ -161,8 +161,8 @@ export const CaptainRequestsSection: React.FC<CaptainRequestsSectionProps> = ({
 
 const styles = StyleSheet.create({
   container: {
-    borderRadius: RADIUS.lg,
-    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: RADIUS.md,
+    borderWidth: 1,
     padding: SPACING.lg,
     marginBottom: SPACING.md,
   },
@@ -181,9 +181,9 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   countBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+    borderRadius: 4,
   },
   countText: {
     fontSize: 11,
@@ -194,7 +194,7 @@ const styles = StyleSheet.create({
     marginTop: SPACING.md,
   },
   requestCard: {
-    borderRadius: RADIUS.md,
+    borderRadius: RADIUS.sm,
     padding: SPACING.md,
   },
   requesterRow: {
@@ -203,9 +203,9 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   avatar: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
+    width: 36,
+    height: 36,
+    borderRadius: RADIUS.sm,
     alignItems: 'center',
     justifyContent: 'center',
   },

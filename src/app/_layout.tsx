@@ -9,7 +9,7 @@ import { AppProvider } from '../context/AppContext';
 
 function RootStack() {
   const { colors, isDark } = useTheme();
-  const { isAuthenticated, isAuthLoading } = useAuth();
+  const { isAuthenticated, isAuthLoading, isPasswordRecovery } = useAuth();
 
   if (isAuthLoading) {
     return (
@@ -59,9 +59,24 @@ function RootStack() {
               headerShown: false,
             }}
           />
+          <Stack.Screen
+            name="forgot-password"
+            options={{
+              headerShown: false,
+            }}
+          />
         </Stack.Protected>
 
-        <Stack.Protected guard={isAuthenticated}>
+        <Stack.Protected guard={isAuthenticated && isPasswordRecovery}>
+          <Stack.Screen
+            name="reset-password"
+            options={{
+              headerShown: false,
+            }}
+          />
+        </Stack.Protected>
+
+        <Stack.Protected guard={isAuthenticated && !isPasswordRecovery}>
           <Stack.Screen
             name="(tabs)"
             options={{
@@ -93,6 +108,20 @@ function RootStack() {
             name="league/create"
             options={{
               title: 'Yeni Lig',
+              headerBackTitle: 'Geri',
+            }}
+          />
+          <Stack.Screen
+            name="notifications"
+            options={{
+              title: 'Bildirimler',
+              headerBackTitle: 'Geri',
+            }}
+          />
+          <Stack.Screen
+            name="teams/index"
+            options={{
+              title: 'Takımlarım',
               headerBackTitle: 'Geri',
             }}
           />

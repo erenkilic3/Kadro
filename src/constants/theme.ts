@@ -1,21 +1,21 @@
 export const DARK_COLORS = {
-  // Floodlight Charcoal palette
-  background: '#0D1011',
-  surface: '#15191B',
-  surfaceLight: '#1E2326',
-  surfaceBorder: 'rgba(255, 255, 255, 0.08)',
-  surfaceHover: '#262C30',
+  // Precision Slate & Turf palette
+  background: '#0B0D0F',
+  surface: '#111418',
+  surfaceLight: '#171B20',
+  surfaceBorder: '#232830',
+  surfaceHover: '#1E232A',
 
   // Turf & Matchday Accents
   primary: '#16A34A',
   primaryLight: '#22C55E',
   primaryDark: '#15803D',
-  accent: '#22C55E',
+  accent: '#16A34A',
 
   // Text Hierarchy
-  text: '#F4F4F5',
-  textSecondary: '#A1A1AA',
-  textTertiary: '#71717A',
+  text: '#F3F4F6',
+  textSecondary: '#9CA3AF',
+  textTertiary: '#6B7280',
 
   // Player Position Colors
   positionGK: '#D97706',
@@ -36,12 +36,12 @@ export const DARK_COLORS = {
 };
 
 export const LIGHT_COLORS = {
-  // Matchday Paper palette
-  background: '#F5F5F3',
+  // Editorial Paper & Crisp Slate palette
+  background: '#F6F7F9',
   surface: '#FFFFFF',
-  surfaceLight: '#EEEEEC',
-  surfaceBorder: 'rgba(17, 24, 39, 0.08)',
-  surfaceHover: '#E5E5E0',
+  surfaceLight: '#F0F2F5',
+  surfaceBorder: '#DFE3EA',
+  surfaceHover: '#E6E9F0',
 
   // Turf & Matchday Accents
   primary: '#15803D',
@@ -50,9 +50,9 @@ export const LIGHT_COLORS = {
   accent: '#15803D',
 
   // Text Hierarchy
-  text: '#111315',
-  textSecondary: '#52525B',
-  textTertiary: '#8E8E93',
+  text: '#111827',
+  textSecondary: '#4B5563',
+  textTertiary: '#6B7280',
 
   // Player Position Colors
   positionGK: '#B45309',
@@ -85,10 +85,15 @@ export const SPACING = {
 };
 
 export const RADIUS = {
-  sm: 8,
-  md: 12,
-  lg: 16,
+  xs: 4,
+  sm: 6,
+  md: 8,
+  lg: 10,
   pill: 999,
+};
+
+export const NUMERIC_STYLE = {
+  fontVariant: ['tabular-nums'] as ('tabular-nums')[],
 };
 
 export const FONT_SIZE = {
