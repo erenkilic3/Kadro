@@ -459,7 +459,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 10,
+    paddingVertical: 14,
     borderRadius: RADIUS.sm,
     gap: 6,
   },
@@ -471,7 +471,7 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 10,
+    paddingVertical: 14,
     borderRadius: RADIUS.sm,
   },
   applyBtnText: {

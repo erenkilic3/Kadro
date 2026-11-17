@@ -215,8 +215,8 @@ const styles = StyleSheet.create({
   createBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 13,
-    paddingVertical: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 14,
     borderRadius: RADIUS.pill,
     gap: 4,
   },

@@ -212,7 +212,7 @@ const styles = StyleSheet.create({
   voteBtn: {
     flex: 1,
     alignItems: 'center',
-    paddingVertical: 9,
+    paddingVertical: 14,
     paddingHorizontal: 4,
     borderRadius: RADIUS.sm,
     borderWidth: 1,

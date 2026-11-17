@@ -65,7 +65,7 @@ export const JoinRequestModal: React.FC<JoinRequestModalProps> = ({
                 {matchTitle}
               </Text>
             </View>
-            <TouchableOpacity onPress={onClose} hitSlop={8}>
+            <TouchableOpacity onPress={onClose} hitSlop={14}>
               <Ionicons name="close" size={24} color={colors.textSecondary} />
             </TouchableOpacity>
           </View>
@@ -209,7 +209,7 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 13,
+    paddingVertical: 14,
     borderRadius: RADIUS.md,
   },
   cancelText: {
@@ -220,7 +220,7 @@ const styles = StyleSheet.create({
     flex: 2,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 13,
+    paddingVertical: 14,
     borderRadius: RADIUS.md,
   },
   submitText: {

@@ -154,7 +154,7 @@ export const PlayerEvaluationModal: React.FC<PlayerEvaluationModalProps> = ({
               </Text>
             </View>
 
-            <TouchableOpacity onPress={onClose} hitSlop={8}>
+            <TouchableOpacity onPress={onClose} hitSlop={14}>
               <Ionicons name="close" size={24} color={colors.textSecondary} />
             </TouchableOpacity>
           </View>

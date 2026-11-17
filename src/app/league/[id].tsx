@@ -1096,7 +1096,7 @@ const styles = StyleSheet.create({
   },
   joinButton: {
     paddingHorizontal: 18,
-    paddingVertical: 11,
+    paddingVertical: 14,
     borderRadius: RADIUS.sm,
   },
   joinButtonText: {

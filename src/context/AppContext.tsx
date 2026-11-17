@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useCallback, useContext, useState, useEffect } from 'react';
 import {
   Match,
   GearItem,
@@ -17,6 +17,9 @@ import {
   JoinRequest,
 } from '../types';
 import { storageService } from '../services/storageService';
+import { supabaseService } from '../services/supabaseService';
+import { isSupabaseConfigured } from '../lib/supabase';
+import { useAuth } from './AuthContext';
 
 function recalculateMissingPositions(
   roster: RosterSlot[],
@@ -66,6 +69,7 @@ interface AppContextType {
   joinRequests: JoinRequest[];
   currentUser: User;
   isLoading: boolean;
+  isSupabaseActive: boolean;
   createMatch: (data: CreateMatchInput) => Promise<void>;
   joinMatchSlot: (matchId: string, slotId: string) => Promise<boolean>;
   leaveMatch: (matchId: string) => Promise<boolean>;
@@ -98,25 +102,71 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [joinRequests, setJoinRequests] = useState<JoinRequest[]>([]);
   const [currentUser, setCurrentUser] = useState<User>({} as User);
   const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [isSupabaseActive, setIsSupabaseActive] = useState<boolean>(false);
+  const { authUser, isAuthenticated, isAuthLoading, isDemoSession } = useAuth();
+
+  const fetchAllData = useCallback(async () => {
+    if (isSupabaseConfigured && authUser && !isDemoSession) {
+      try {
+        const storedUser = await supabaseService.getUser({
+          id: authUser.id,
+          email: authUser.email,
+          user_metadata: authUser.user_metadata,
+        });
+        const [storedMatches, storedGear, storedLeagues, storedEvals, storedJoinReqs] =
+          await Promise.all([
+            supabaseService.getMatches(storedUser.id),
+            supabaseService.getGearItems(),
+            supabaseService.getLeagues(),
+            supabaseService.getEvaluations(),
+            supabaseService.getJoinRequests(),
+          ]);
+        return {
+          storedMatches,
+          storedGear,
+          storedUser,
+          storedLeagues,
+          storedEvals,
+          storedJoinReqs,
+          supabaseReady: true,
+        };
+      } catch (err) {
+        console.warn('Supabase fetch failed, falling back to local AsyncStorage:', err);
+      }
+    }
+
+    const [storedMatches, storedGear, storedUser, storedLeagues, storedEvals, storedJoinReqs] =
+      await Promise.all([
+        storageService.getMatches(),
+        storageService.getGearItems(),
+        storageService.getUser(),
+        storageService.getLeagues(),
+        storageService.getEvaluations(),
+        storageService.getJoinRequests(),
+      ]);
+
+    return {
+      storedMatches,
+      storedGear,
+      storedUser,
+      storedLeagues,
+      storedEvals,
+      storedJoinReqs,
+      supabaseReady: false,
+    };
+  }, [authUser, isDemoSession]);
 
   const refreshData = async () => {
     setIsLoading(true);
     try {
-      const [storedMatches, storedGear, storedUser, storedLeagues, storedEvals, storedJoinReqs] =
-        await Promise.all([
-          storageService.getMatches(),
-          storageService.getGearItems(),
-          storageService.getUser(),
-          storageService.getLeagues(),
-          storageService.getEvaluations(),
-          storageService.getJoinRequests(),
-        ]);
-      setMatches(storedMatches);
-      setGearItems(storedGear);
-      setCurrentUser(storedUser);
-      setLeagues(storedLeagues);
-      setEvaluations(storedEvals);
-      setJoinRequests(storedJoinReqs);
+      const data = await fetchAllData();
+      setMatches(data.storedMatches);
+      setGearItems(data.storedGear);
+      setCurrentUser(data.storedUser);
+      setLeagues(data.storedLeagues);
+      setEvaluations(data.storedEvals);
+      setJoinRequests(data.storedJoinReqs);
+      setIsSupabaseActive(data.supabaseReady);
     } catch (err) {
       console.error('Failed to load initial data', err);
     } finally {
@@ -125,25 +175,20 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   useEffect(() => {
+    if (isAuthLoading || !isAuthenticated) return;
+
     let isMounted = true;
     const initData = async () => {
       try {
-        const [storedMatches, storedGear, storedUser, storedLeagues, storedEvals, storedJoinReqs] =
-          await Promise.all([
-            storageService.getMatches(),
-            storageService.getGearItems(),
-            storageService.getUser(),
-            storageService.getLeagues(),
-            storageService.getEvaluations(),
-            storageService.getJoinRequests(),
-          ]);
+        const data = await fetchAllData();
         if (!isMounted) return;
-        setMatches(storedMatches);
-        setGearItems(storedGear);
-        setCurrentUser(storedUser);
-        setLeagues(storedLeagues);
-        setEvaluations(storedEvals);
-        setJoinRequests(storedJoinReqs);
+        setMatches(data.storedMatches);
+        setGearItems(data.storedGear);
+        setCurrentUser(data.storedUser);
+        setLeagues(data.storedLeagues);
+        setEvaluations(data.storedEvals);
+        setJoinRequests(data.storedJoinReqs);
+        setIsSupabaseActive(data.supabaseReady);
       } catch (err) {
         console.error('Failed to load initial data', err);
       } finally {
@@ -156,7 +201,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [fetchAllData, isAuthLoading, isAuthenticated]);
 
   const createMatch = async (data: CreateMatchInput) => {
     const totalSlots = data.format === '5v5' ? 10 : data.format === '6v6' ? 12 : 14;
@@ -255,12 +300,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     const updated = [newMatch, ...matches];
     setMatches(updated);
+    if (isSupabaseActive) {
+      await supabaseService.createMatch(newMatch);
+    }
     await storageService.saveMatches(updated);
   };
 
   const votePrediction = async (matchId: string, choice: PredictionChoice): Promise<boolean> => {
     let success = false;
     let isFirstTimeForMatch = false;
+    let nextPrediction: Match['prediction'];
 
     const updated = matches.map((m) => {
       if (m.id !== matchId) return m;
@@ -285,31 +334,33 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       let vx = pred.votesDraw;
       let v2 = pred.votesTeam2;
 
-      // Deduct old vote if exists
       if (oldVote === '1') v1 = Math.max(0, v1 - 1);
       else if (oldVote === 'X') vx = Math.max(0, vx - 1);
       else if (oldVote === '2') v2 = Math.max(0, v2 - 1);
 
-      // Add new vote
       if (choice === '1') v1 += 1;
       else if (choice === 'X') vx += 1;
       else if (choice === '2') v2 += 1;
 
       success = true;
+      nextPrediction = {
+        ...pred,
+        votesTeam1: v1,
+        votesDraw: vx,
+        votesTeam2: v2,
+        userVote: choice,
+      };
       return {
         ...m,
-        prediction: {
-          ...pred,
-          votesTeam1: v1,
-          votesDraw: vx,
-          votesTeam2: v2,
-          userVote: choice,
-        },
+        prediction: nextPrediction,
       };
     });
 
     if (success) {
       setMatches(updated);
+      if (isSupabaseActive && nextPrediction) {
+        await supabaseService.updateMatchPrediction(matchId, nextPrediction);
+      }
       await storageService.saveMatches(updated);
 
       if (isFirstTimeForMatch) {
@@ -321,6 +372,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           totalPredictions: newTotal,
         };
         setCurrentUser(updatedUser);
+        if (isSupabaseActive) {
+          await supabaseService.saveUser(updatedUser);
+        }
         await storageService.saveUser(updatedUser);
       }
     }
@@ -329,6 +383,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const joinMatchSlot = async (matchId: string, slotId: string): Promise<boolean> => {
     let success = false;
+    let nextRoster: RosterSlot[] = [];
+    let nextMissing: PlayerPosition[] = [];
+
     const updated = matches.map((m) => {
       if (m.id !== matchId) return m;
 
@@ -350,6 +407,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       });
 
       const remainingMissing = recalculateMissingPositions(updatedRoster, m.totalSlots);
+      if (success) {
+        nextRoster = updatedRoster;
+        nextMissing = remainingMissing;
+      }
 
       return {
         ...m,
@@ -361,6 +422,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     if (success) {
       setMatches(updated);
+      if (isSupabaseActive) {
+        await supabaseService.updateMatchRoster(matchId, nextRoster, nextMissing);
+      }
       await storageService.saveMatches(updated);
     }
     return success;
@@ -368,6 +432,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const leaveMatch = async (matchId: string): Promise<boolean> => {
     let success = false;
+    let nextRoster: RosterSlot[] = [];
+    let nextMissing: PlayerPosition[] = [];
+
     const updated = matches.map((m) => {
       if (m.id !== matchId) return m;
 
@@ -384,6 +451,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       });
 
       const remainingMissing = recalculateMissingPositions(updatedRoster, m.totalSlots);
+      if (success) {
+        nextRoster = updatedRoster;
+        nextMissing = remainingMissing;
+      }
 
       return {
         ...m,
@@ -395,6 +466,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     if (success) {
       setMatches(updated);
+      if (isSupabaseActive) {
+        await supabaseService.updateMatchRoster(matchId, nextRoster, nextMissing);
+      }
       await storageService.saveMatches(updated);
 
       const filteredRequests = joinRequests.filter(
@@ -454,6 +528,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       ),
     ];
     setJoinRequests(updatedRequests);
+    if (isSupabaseActive) {
+      await supabaseService.createJoinRequest(newRequest);
+    }
     await storageService.saveJoinRequests(updatedRequests);
     return true;
   };
@@ -466,6 +543,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     const updatedRequests = joinRequests.filter((r) => r.id !== requestId);
     setJoinRequests(updatedRequests);
+    if (isSupabaseActive) {
+      await supabaseService.cancelJoinRequest(requestId);
+    }
     await storageService.saveJoinRequests(updatedRequests);
     return true;
   };
@@ -489,6 +569,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       team1Slots.find((s) => s.position === req.position && !s.isFilled);
 
     if (!chosenSlot) return false;
+
+    if (isSupabaseActive) {
+      const rpcOk = await supabaseService.approveJoinRequest(requestId);
+      if (!rpcOk) return false;
+    }
 
     const updatedMatches = matches.map((m) => {
       if (m.id !== req.matchId) return m;
@@ -540,6 +625,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       r.id === requestId ? { ...r, status: 'REJECTED' as const, respondedAt: now } : r
     );
     setJoinRequests(updatedRequests);
+    if (isSupabaseActive) {
+      await supabaseService.rejectJoinRequest(requestId);
+    }
     await storageService.saveJoinRequests(updatedRequests);
     return true;
   };
@@ -575,6 +663,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     const updated = [newItem, ...gearItems];
     setGearItems(updated);
+    if (isSupabaseActive) {
+      await supabaseService.createGearItem(newItem);
+    }
     await storageService.saveGearItems(updated);
   };
 
@@ -583,12 +674,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       item.id === gearId ? { ...item, status: 'Sold' as const } : item
     );
     setGearItems(updated);
+    if (isSupabaseActive) {
+      await supabaseService.markGearSold(gearId);
+    }
     await storageService.saveGearItems(updated);
   };
 
   const updateUser = async (updates: Partial<User>) => {
     const updated = { ...currentUser, ...updates };
     setCurrentUser(updated);
+    if (isSupabaseActive) {
+      await supabaseService.saveUser(updated);
+    }
     await storageService.saveUser(updated);
   };
 
@@ -646,6 +743,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     const updated = [newLeague, ...leagues];
     setLeagues(updated);
+    if (isSupabaseActive) {
+      await supabaseService.createLeague(newLeague);
+    }
     await storageService.saveLeagues(updated);
     return newLeague;
   };
@@ -695,6 +795,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const updatedLeagues = [...leagues];
     updatedLeagues[leagueIndex] = updatedLeague;
     setLeagues(updatedLeagues);
+    if (isSupabaseActive) {
+      await supabaseService.addTeamToLeague(
+        leagueId,
+        newTeam,
+        newCount,
+        updatedLeague.status
+      );
+    }
     await storageService.saveLeagues(updatedLeagues);
     return true;
   };
@@ -730,6 +838,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     const updatedEvaluations = [newEvaluation, ...evaluations];
     setEvaluations(updatedEvaluations);
+    if (isSupabaseActive) {
+      await supabaseService.createEvaluation(newEvaluation);
+    }
     await storageService.saveEvaluations(updatedEvaluations);
 
     // Reward evaluator with +15 Kadro Fair-Play points for contributing to community ratings
@@ -756,6 +867,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const resetDemoData = async () => {
     setIsLoading(true);
+    if (isSupabaseActive) {
+      const res = await supabaseService.resetToDemoData(
+        authUser ? currentUser : undefined
+      );
+      setMatches(res.matches);
+      setGearItems(res.gear);
+      setCurrentUser(res.user);
+      setLeagues(res.leagues);
+      setEvaluations(res.evaluations);
+      setJoinRequests(res.joinRequests);
+      setIsLoading(false);
+      return;
+    }
     const res = await storageService.resetToDemoData();
     setMatches(res.matches);
     setGearItems(res.gear);
@@ -776,6 +900,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         joinRequests,
         currentUser,
         isLoading,
+        isSupabaseActive,
         createMatch,
         joinMatchSlot,
         leaveMatch,

@@ -155,7 +155,7 @@ export default function MatchFeedScreen() {
           clearButtonMode="while-editing"
         />
         {searchQuery.length > 0 && (
-          <TouchableOpacity onPress={() => setSearchQuery('')} hitSlop={10}>
+          <TouchableOpacity onPress={() => setSearchQuery('')} hitSlop={14}>
             <Ionicons name="close-circle" size={17} color={colors.textTertiary} />
           </TouchableOpacity>
         )}

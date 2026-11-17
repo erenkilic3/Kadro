@@ -72,7 +72,7 @@ const styles = StyleSheet.create({
   actionBtn: {
     marginTop: SPACING.lg,
     paddingHorizontal: 18,
-    paddingVertical: 10,
+    paddingVertical: 14,
     borderRadius: RADIUS.sm,
   },
   actionBtnText: {

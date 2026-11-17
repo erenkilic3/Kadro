@@ -675,7 +675,7 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 9,
+    paddingVertical: 14,
     borderRadius: RADIUS.sm,
   },
   cancelReqText: {
@@ -686,7 +686,7 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 9,
+    paddingVertical: 14,
     borderRadius: RADIUS.sm,
   },
   demoToggleText: {

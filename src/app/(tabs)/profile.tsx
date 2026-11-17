@@ -7,11 +7,13 @@ import {
   TouchableOpacity,
   Alert,
   TextInput,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useApp } from '../../context/AppContext';
+import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import { MatchCard } from '../../components/MatchCard';
 import { MatchPredictionCard } from '../../components/MatchPredictionCard';
@@ -38,7 +40,9 @@ export default function ProfileScreen() {
     resetDemoData,
     markGearSold,
     votePrediction,
+    isSupabaseActive,
   } = useApp();
+  const { authUser, isDemoSession, signOut } = useAuth();
   const { colors, isDark, setThemeMode } = useTheme();
 
   const [profileTab, setProfileTab] = useState<ProfileTab>('MATCHES');
@@ -146,7 +150,7 @@ export default function ProfileScreen() {
                 </Text>
                 <TouchableOpacity
                   onPress={() => setIsEditing(!isEditing)}
-                  hitSlop={8}
+                  hitSlop={14}
                   style={[styles.editIconBtn, { backgroundColor: colors.surfaceLight }]}
                 >
                   <Ionicons
@@ -706,6 +710,55 @@ export default function ProfileScreen() {
               </Text>
             </TouchableOpacity>
 
+            <TouchableOpacity
+              style={[
+                styles.resetBtn,
+                {
+                  backgroundColor: colors.surfaceLight,
+                  borderWidth: 1,
+                  borderColor: colors.surfaceBorder,
+                },
+              ]}
+              onPress={() => {
+                if (Platform.OS === 'web') {
+                  void signOut();
+                  return;
+                }
+                Alert.alert('Çıkış Yap', 'Hesabından çıkış yapmak istediğine emin misin?', [
+                  { text: 'Vazgeç', style: 'cancel' },
+                  {
+                    text: 'Çıkış Yap',
+                    style: 'destructive',
+                    onPress: () => {
+                      void signOut();
+                    },
+                  },
+                ]);
+              }}
+            >
+              <Ionicons name="log-out-outline" size={17} color={colors.text} />
+              <Text style={[styles.resetBtnText, { color: colors.text }]}>
+                Çıkış Yap
+              </Text>
+            </TouchableOpacity>
+
+            <View style={[styles.infoRow, { borderTopColor: colors.surfaceBorder }]}>
+              <Text style={[styles.infoKey, { color: colors.textTertiary }]}>Oturum</Text>
+              <Text style={[styles.infoVal, { color: colors.text }]}>
+                {authUser?.email || (isDemoSession ? 'Demo Oturumu' : currentUser.email || 'Aktif')}
+              </Text>
+            </View>
+            <View style={[styles.infoRow, { borderTopColor: colors.surfaceBorder }]}>
+              <Text style={[styles.infoKey, { color: colors.textTertiary }]}>Veritabanı</Text>
+              <Text
+                style={[
+                  styles.infoVal,
+                  { color: isSupabaseActive ? colors.success : colors.textSecondary },
+                ]}
+              >
+                {isSupabaseActive ? 'Supabase PostgreSQL (Aktif)' : 'Yerel Depolama (AsyncStorage)'}
+              </Text>
+            </View>
             <View style={[styles.infoRow, { borderTopColor: colors.surfaceBorder }]}>
               <Text style={[styles.infoKey, { color: colors.textTertiary }]}>Uygulama</Text>
               <Text style={[styles.infoVal, { color: colors.text }]}>Kadro</Text>
@@ -873,7 +926,7 @@ const styles = StyleSheet.create({
   },
   posButton: {
     flex: 1,
-    paddingVertical: 9,
+    paddingVertical: 14,
     alignItems: 'center',
     borderRadius: RADIUS.sm,
   },
@@ -883,7 +936,7 @@ const styles = StyleSheet.create({
   },
   saveBtn: {
     borderRadius: RADIUS.sm,
-    paddingVertical: 12,
+    paddingVertical: 14,
     alignItems: 'center',
     marginTop: 16,
   },
@@ -1005,7 +1058,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 11,
+    paddingVertical: 14,
     borderRadius: RADIUS.sm,
     borderWidth: 1,
     gap: 8,
@@ -1023,7 +1076,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: RADIUS.sm,
-    paddingVertical: 12,
+    paddingVertical: 14,
     gap: 6,
     marginBottom: SPACING.lg,
   },
@@ -1090,7 +1143,7 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 9,
+    paddingVertical: 14,
     borderRadius: RADIUS.sm,
   },
   reqRejectText: {
@@ -1101,7 +1154,7 @@ const styles = StyleSheet.create({
     flex: 2,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 9,
+    paddingVertical: 14,
     borderRadius: RADIUS.sm,
   },
   reqApproveText: {
