@@ -135,6 +135,50 @@ export interface SubmitEvaluationInput {
   comment?: string;
 }
 
+export interface Venue {
+  id: string;
+  name: string;
+  city: string;
+  district: string;
+  address?: string;
+  pitchType: 'Açık Saha' | 'Kapalı Saha';
+  overallRating: number;
+  turfRating: number;
+  lightingRating: number;
+  lockerRoomRating: number;
+  organizationRating: number;
+  evaluationsCount: number;
+  amenities: string[];
+  createdAt: string;
+}
+
+export interface VenueEvaluation {
+  id: string;
+  venueId: string;
+  matchId: string;
+  evaluatorId: string;
+  evaluatorName: string;
+  overallRating: number;
+  turfRating: number;
+  lightingRating: number;
+  lockerRoomRating: number;
+  organizationRating: number;
+  highlights: string[];
+  comment?: string;
+  createdAt: string;
+}
+
+export interface SubmitVenueEvaluationInput {
+  matchId: string;
+  venueId?: string;
+  turfRating: number;
+  lightingRating: number;
+  lockerRoomRating: number;
+  organizationRating: number;
+  highlights: string[];
+  comment?: string;
+}
+
 export interface User {
   id: string;
   name: string;
@@ -182,6 +226,7 @@ export interface Match {
   organizerId: string;
   organizerName: string;
   organizerPhone: string;
+  venueId?: string;
   venueName: string;
   address: string;
   city: string;

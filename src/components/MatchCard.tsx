@@ -17,7 +17,8 @@ interface MatchCardProps {
 
 export const MatchCard: React.FC<MatchCardProps> = ({ match, currentUserId }) => {
   const { colors } = useTheme();
-  const { leagues, joinRequests, votePrediction } = useApp();
+  const { leagues, joinRequests, votePrediction, getVenueByMatch } = useApp();
+  const venue = getVenueByMatch(match);
 
   const isJoined =
     match.isJoined || match.roster.some((s) => s.assignedPlayer?.id === currentUserId);
@@ -93,6 +94,14 @@ export const MatchCard: React.FC<MatchCardProps> = ({ match, currentUserId }) =>
         <Text style={[styles.venueText, { color: colors.textSecondary }]} numberOfLines={1}>
           {match.venueName} · {match.district}
         </Text>
+        {venue && venue.evaluationsCount > 0 && (
+          <View style={[styles.venueRatingBadge, { backgroundColor: `${colors.warning}18` }]}>
+            <Ionicons name="star" size={10} color={colors.warning} />
+            <Text style={[styles.venueRatingText, { color: colors.text }]}>
+              {venue.overallRating.toFixed(1)}
+            </Text>
+          </View>
+        )}
       </View>
 
       {/* Matchup & Quick Vote Strip */}
@@ -280,6 +289,19 @@ const styles = StyleSheet.create({
   venueText: {
     fontSize: FONT_SIZE.xs,
     flex: 1,
+  },
+  venueRatingBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  venueRatingText: {
+    fontSize: 10.5,
+    fontWeight: '700',
+    ...NUMERIC_STYLE,
   },
   matchupBox: {
     borderRadius: RADIUS.sm,

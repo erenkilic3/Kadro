@@ -4,5 +4,6 @@
 --   2. 202611180002_triggers_functions_and_rpcs.sql    (Auth trigger, evaluation aggregation, standings engine, atomic RPCs)
 --   3. 202611180003_rls_grants_storage_and_realtime.sql(Strict RLS policies, role grants, avatars/gear-images buckets, Realtime)
 --   4. 202611180004_harden_trigger_and_helper_functions.sql (Moves SECURITY DEFINER trigger functions into private schema)
+--   5. 202611190001_venue_evaluations.sql               (Normalized venues registry, matches.venue_id linking, venue_evaluations & RLS/triggers)
 --
 -- Apply migrations with Supabase CLI or Supabase MCP rather than editing tables manually.

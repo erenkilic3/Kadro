@@ -200,4 +200,72 @@ describe('supabaseService atomic RPCs & CRUD', () => {
       details: 'İlan tutarsız',
     });
   });
+
+  it('creates and deletes venue evaluations and maps venues cleanly', async () => {
+    const venuesQuery = createQueryChain({
+      data: [
+        {
+          id: 'venue-1',
+          name: 'Kalamış Halı Saha',
+          city: 'İstanbul',
+          district: 'Kadıköy',
+          address: 'Kalamış Cd.',
+          pitch_type: 'Açık Saha',
+          overall_rating: 4.5,
+          turf_rating: 5,
+          lighting_rating: 4,
+          locker_room_rating: 4,
+          organization_rating: 5,
+          evaluations_count: 3,
+          amenities: ['Yeni Suni Çim'],
+          created_at: '2026-11-19T08:00:00Z',
+          updated_at: '2026-11-19T08:00:00Z',
+        },
+      ],
+      error: null,
+    });
+    const insertVenueEval = createQueryChain({ data: null, error: null });
+    const deleteVenueEval = createQueryChain({ data: null, error: null });
+
+    mockFrom
+      .mockReturnValueOnce(venuesQuery)
+      .mockReturnValueOnce(insertVenueEval)
+      .mockReturnValueOnce(deleteVenueEval);
+
+    const venues = await supabaseService.getVenues();
+    expect(venues).toHaveLength(1);
+    expect(venues[0].overallRating).toBe(4.5);
+    expect(venues[0].evaluationsCount).toBe(3);
+
+    await supabaseService.createVenueEvaluation(
+      {
+        matchId: 'match-1',
+        venueId: 'venue-1',
+        turfRating: 5,
+        lightingRating: 4,
+        lockerRoomRating: 4,
+        organizationRating: 5,
+        highlights: ['Yeni Suni Çim'],
+        comment: 'Harika saha',
+      },
+      organizer
+    );
+    expect(insertVenueEval.insert).toHaveBeenCalledWith({
+      venue_id: 'venue-1',
+      match_id: 'match-1',
+      evaluator_id: 'user-1',
+      evaluator_name: 'Eren Kılıç',
+      overall_rating: 4.5,
+      turf_rating: 5,
+      lighting_rating: 4,
+      locker_room_rating: 4,
+      organization_rating: 5,
+      highlights: ['Yeni Suni Çim'],
+      comment: 'Harika saha',
+    });
+
+    await supabaseService.deleteVenueEvaluation('ve-1');
+    expect(deleteVenueEval.delete).toHaveBeenCalled();
+    expect(deleteVenueEval.eq).toHaveBeenCalledWith('id', 've-1');
+  });
 });

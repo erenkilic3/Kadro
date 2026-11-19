@@ -13,11 +13,14 @@ import {
   RegionalLeague,
   ReportInput,
   SubmitEvaluationInput,
+  SubmitVenueEvaluationInput,
   Team,
   UpdateGearInput,
   UpdateLeagueInput,
   UpdateMatchInput,
   User,
+  Venue,
+  VenueEvaluation,
 } from '../types';
 import { isSupabaseConfigured } from '../lib/supabase';
 import { supabaseService } from '../services/supabaseService';
@@ -34,6 +37,7 @@ import {
   validateMatchScores,
   validateReportReason,
   validateTeamName,
+  validateVenueEvaluationInput,
 } from '../utils/validators';
 
 interface AppContextType {
@@ -42,6 +46,8 @@ interface AppContextType {
   leagues: RegionalLeague[];
   teams: Team[];
   evaluations: PlayerEvaluation[];
+  venues: Venue[];
+  venueEvaluations: VenueEvaluation[];
   joinRequests: JoinRequest[];
   notifications: AppNotification[];
   unreadNotificationsCount: number;
@@ -92,6 +98,11 @@ interface AppContextType {
   submitPlayerEvaluation: (input: SubmitEvaluationInput) => Promise<boolean>;
   hasUserEvaluatedPlayer: (matchId: string, targetPlayerId: string) => boolean;
   getPlayerEvaluations: (playerId: string) => PlayerEvaluation[];
+  submitVenueEvaluation: (input: SubmitVenueEvaluationInput) => Promise<boolean>;
+  deleteVenueEvaluation: (evaluationId: string) => Promise<void>;
+  hasUserEvaluatedVenue: (matchId: string) => boolean;
+  getVenueByMatch: (match: Match) => Venue | undefined;
+  getVenueEvaluationsByVenue: (venueId: string) => VenueEvaluation[];
   markNotificationRead: (notificationId: string) => Promise<void>;
   markAllNotificationsRead: () => Promise<void>;
   submitReport: (input: ReportInput) => Promise<void>;
@@ -122,6 +133,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [leagues, setLeagues] = useState<RegionalLeague[]>([]);
   const [teams, setTeams] = useState<Team[]>([]);
   const [evaluations, setEvaluations] = useState<PlayerEvaluation[]>([]);
+  const [venues, setVenues] = useState<Venue[]>([]);
+  const [venueEvaluations, setVenueEvaluations] = useState<VenueEvaluation[]>([]);
   const [joinRequests, setJoinRequests] = useState<JoinRequest[]>([]);
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [currentUser, setCurrentUser] = useState<User>(EMPTY_USER);
@@ -149,6 +162,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       fetchedLeagues,
       fetchedTeams,
       fetchedEvaluations,
+      fetchedVenues,
+      fetchedVenueEvaluations,
       fetchedRequests,
       fetchedNotifications,
     ] = await Promise.all([
@@ -157,6 +172,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       supabaseService.getLeagues(),
       supabaseService.getTeams(),
       supabaseService.getEvaluations(),
+      supabaseService.getVenues(),
+      supabaseService.getVenueEvaluations(),
       supabaseService.getJoinRequests(),
       supabaseService.getNotifications(user.id),
     ]);
@@ -167,6 +184,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setLeagues(fetchedLeagues);
     setTeams(fetchedTeams);
     setEvaluations(fetchedEvaluations);
+    setVenues(fetchedVenues);
+    setVenueEvaluations(fetchedVenueEvaluations);
     setJoinRequests(fetchedRequests);
     setNotifications(fetchedNotifications);
     setErrorMessage(null);
@@ -501,6 +520,69 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const getPlayerEvaluations = (playerId: string): PlayerEvaluation[] =>
     evaluations.filter((e) => e.targetPlayerId === playerId);
 
+  const hasUserEvaluatedVenue = (matchId: string): boolean =>
+    venueEvaluations.some(
+      (e) => e.matchId === matchId && e.evaluatorId === currentUser.id
+    );
+
+  const getVenueByMatch = (match: Match): Venue | undefined => {
+    if (match.venueId) {
+      const exact = venues.find((v) => v.id === match.venueId);
+      if (exact) return exact;
+    }
+    const targetName = match.venueName.trim().toLowerCase();
+    const targetDist = match.district.trim().toLowerCase();
+    return venues.find(
+      (v) =>
+        v.name.trim().toLowerCase() === targetName &&
+        v.district.trim().toLowerCase() === targetDist
+    );
+  };
+
+  const getVenueEvaluationsByVenue = (venueId: string): VenueEvaluation[] =>
+    venueEvaluations.filter((e) => e.venueId === venueId);
+
+  const submitVenueEvaluation = async (
+    input: SubmitVenueEvaluationInput
+  ): Promise<boolean> => {
+    const targetMatch = matches.find((m) => m.id === input.matchId);
+    if (!targetMatch?.isCompleted) {
+      throw new Error('Tesis değerlendirmesi yalnızca tamamlanan maçlar için yapılabilir.');
+    }
+
+    const isParticipant =
+      targetMatch.organizerId === currentUser.id ||
+      targetMatch.roster.some(
+        (slot) => slot.isFilled && slot.assignedPlayer?.id === currentUser.id
+      );
+    if (!isParticipant) {
+      throw new Error('Bu tesisi yalnızca bu maçta oynayan oyuncular değerlendirebilir.');
+    }
+
+    const check = validateVenueEvaluationInput(input);
+    if (!check.valid) throw new Error(check.error);
+
+    if (hasUserEvaluatedVenue(input.matchId)) {
+      return false;
+    }
+
+    const resolvedVenue = getVenueByMatch(targetMatch);
+    await supabaseService.createVenueEvaluation(
+      {
+        ...input,
+        venueId: input.venueId || resolvedVenue?.id,
+      },
+      currentUser
+    );
+    await fetchAllData();
+    return true;
+  };
+
+  const deleteVenueEvaluation = async (evaluationId: string) => {
+    await supabaseService.deleteVenueEvaluation(evaluationId);
+    await fetchAllData();
+  };
+
   const markNotificationRead = async (notificationId: string) => {
     setNotifications((prev) =>
       prev.map((n) => (n.id === notificationId ? { ...n, isRead: true } : n))
@@ -535,6 +617,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         leagues,
         teams,
         evaluations,
+        venues,
+        venueEvaluations,
         joinRequests,
         notifications,
         unreadNotificationsCount,
@@ -575,6 +659,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         submitPlayerEvaluation,
         hasUserEvaluatedPlayer,
         getPlayerEvaluations,
+        submitVenueEvaluation,
+        deleteVenueEvaluation,
+        hasUserEvaluatedVenue,
+        getVenueByMatch,
+        getVenueEvaluationsByVenue,
         markNotificationRead,
         markAllNotificationsRead,
         submitReport,

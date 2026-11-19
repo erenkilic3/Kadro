@@ -125,6 +125,13 @@ function RootStack() {
               headerBackTitle: 'Geri',
             }}
           />
+          <Stack.Screen
+            name="venue/[id]"
+            options={{
+              title: 'Halı Saha Tesisi',
+              headerBackTitle: 'Geri',
+            }}
+          />
         </Stack.Protected>
       </Stack>
     </>

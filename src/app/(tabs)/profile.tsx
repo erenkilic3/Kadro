@@ -36,6 +36,8 @@ export default function ProfileScreen() {
     matches,
     gearItems,
     evaluations,
+    venues,
+    venueEvaluations,
     joinRequests,
     approveJoinRequest,
     rejectJoinRequest,
@@ -85,6 +87,7 @@ export default function ProfileScreen() {
   const myPredictions = matches.filter((m) => Boolean(m.prediction?.userVote));
   const myListings = gearItems.filter((g) => g.sellerId === currentUser.id);
   const myReviews = evaluations.filter((e) => e.targetPlayerId === currentUser.id);
+  const myVenueReviews = venueEvaluations.filter((e) => e.evaluatorId === currentUser.id);
 
   const captainMatchIds = new Set(
     matches.filter((m) => m.organizerId === currentUser.id).map((m) => m.id)
@@ -711,6 +714,9 @@ export default function ProfileScreen() {
         {/* TAB: REVIEWS */}
         {profileTab === 'REVIEWS' && (
           <View>
+            <Text style={[styles.requestsHeading, { color: colors.textSecondary }]}>
+              Oyuncu Değerlendirmeleri ({myReviews.length})
+            </Text>
             {myReviews.length > 0 ? (
               myReviews.map((rev) => (
                 <View
@@ -774,9 +780,64 @@ export default function ProfileScreen() {
             ) : (
               <EmptyState
                 icon="chatbubble-outline"
-                title="Henüz değerlendirme yok"
+                title="Henüz oyuncu değerlendirmesi yok"
                 description="Oynadığın maçlardan sonra yapılan değerlendirmeler burada listelenir."
               />
+            )}
+
+            <Text style={[styles.requestsHeading, { color: colors.textSecondary, marginTop: 14 }]}>
+              Tesis Değerlendirmelerim ({myVenueReviews.length})
+            </Text>
+            {myVenueReviews.length > 0 ? (
+              myVenueReviews.map((vRev) => {
+                const venueObj = venues.find((v) => v.id === vRev.venueId);
+                return (
+                  <TouchableOpacity
+                    key={vRev.id}
+                    style={[
+                      styles.reviewCard,
+                      {
+                        backgroundColor: colors.surface,
+                        borderColor: colors.surfaceBorder,
+                      },
+                    ]}
+                    onPress={() => router.push(`/venue/${vRev.venueId}` as any)}
+                    activeOpacity={0.8}
+                  >
+                    <View style={styles.reviewHeaderRow}>
+                      <View style={{ flex: 1, paddingRight: 8 }}>
+                        <Text style={[styles.reviewAuthorName, { color: colors.text }]}>
+                          {venueObj?.name || 'Halı Saha Tesisi'}
+                        </Text>
+                        <Text style={[styles.reviewMatchTitle, { color: colors.textSecondary }]}>
+                          {venueObj ? `${venueObj.district}, ${venueObj.city}` : ''} ·{' '}
+                          {new Date(vRev.createdAt).toLocaleDateString('tr-TR')}
+                        </Text>
+                      </View>
+                      <View style={styles.reviewScoresCol}>
+                        <Text style={[styles.reviewScoreVal, { color: colors.primary }]}>
+                          {vRev.overallRating.toFixed(1)} / 5
+                        </Text>
+                        <Text style={[styles.reviewMatchTitle, { color: colors.textTertiary }]}>
+                          Zemin {vRev.turfRating} · Işık {vRev.lightingRating}
+                        </Text>
+                      </View>
+                    </View>
+                    {vRev.comment ? (
+                      <Text style={[styles.reviewQuoteText, { color: colors.textSecondary }]}>
+                        {`"${vRev.comment}"`}
+                      </Text>
+                    ) : null}
+                  </TouchableOpacity>
+                );
+              })
+            ) : (
+              <View style={[styles.reqEmptyBox, { backgroundColor: colors.surface }]}>
+                <Text style={[styles.reqEmptyText, { color: colors.textTertiary }]}>
+                  Henüz bir halı saha tesisi değerlendirmedin. Tamamlanan maçların detayından
+                  tesisleri puanlayabilirsin.
+                </Text>
+              </View>
             )}
           </View>
         )}

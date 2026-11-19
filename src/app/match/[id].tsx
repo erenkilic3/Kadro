@@ -22,6 +22,7 @@ import { MatchPredictionCard } from '../../components/MatchPredictionCard';
 import { PreMatchStatsCard } from '../../components/PreMatchStatsCard';
 import { AiPredictionBotCard } from '../../components/AiPredictionBotCard';
 import { PostMatchEvaluationSection } from '../../components/PostMatchEvaluationSection';
+import { VenueEvaluationSection } from '../../components/VenueEvaluationSection';
 import { JoinRequestModal } from '../../components/JoinRequestModal';
 import { CaptainRequestsSection } from '../../components/CaptainRequestsSection';
 import { ReportModal } from '../../components/ReportModal';
@@ -47,6 +48,7 @@ export default function MatchDetailScreen() {
     rejectJoinRequest,
     getMatchJoinRequests,
     getUserMatchJoinRequest,
+    getVenueByMatch,
     votePrediction,
     updateMatch,
     completeMatch,
@@ -92,6 +94,7 @@ export default function MatchDetailScreen() {
 
   const isCaptain = match.organizerId === currentUser.id;
   const isCompleted = Boolean(match.isCompleted);
+  const resolvedVenue = getVenueByMatch(match);
   const isUserJoined = match.roster.some((s) => s.assignedPlayer?.id === currentUser.id);
   const vacantSlots = match.roster
     .slice(0, Math.ceil(match.totalSlots / 2))
@@ -383,12 +386,34 @@ export default function MatchDetailScreen() {
           </Text>
         </View>
 
-        <View style={styles.metaRow}>
+        <TouchableOpacity
+          style={styles.metaRow}
+          disabled={!resolvedVenue}
+          onPress={() => resolvedVenue && router.push(`/venue/${resolvedVenue.id}` as any)}
+          activeOpacity={0.75}
+        >
           <Ionicons name="location-outline" size={15} color={colors.textTertiary} />
-          <Text style={[styles.metaText, { color: colors.textSecondary }]}>
+          <Text
+            style={[
+              styles.metaText,
+              {
+                color: resolvedVenue ? colors.primary : colors.textSecondary,
+                flex: 1,
+                fontWeight: resolvedVenue ? '600' : '400',
+              },
+            ]}
+          >
             {match.venueName} ({match.address})
           </Text>
-        </View>
+          {resolvedVenue && resolvedVenue.evaluationsCount > 0 && (
+            <View style={[styles.venueScoreChip, { backgroundColor: `${colors.warning}1A` }]}>
+              <Ionicons name="star" size={12} color={colors.warning} />
+              <Text style={[styles.venueScoreChipText, { color: colors.text }]}>
+                {resolvedVenue.overallRating.toFixed(1)}
+              </Text>
+            </View>
+          )}
+        </TouchableOpacity>
 
         {isCompleted && match.finalScore && (
           <View style={[styles.scoreBanner, { backgroundColor: colors.surfaceLight }]}>
@@ -696,6 +721,9 @@ export default function MatchDetailScreen() {
           </Text>
         </View>
       )}
+
+      {/* Halı Saha Tesisi Değerlendirmesi */}
+      <VenueEvaluationSection match={match} currentUserId={currentUser.id} />
 
       {/* Bottom CTA */}
       <View style={styles.bottomBar}>
@@ -1463,6 +1491,19 @@ const styles = StyleSheet.create({
   scoreInput: {
     textAlign: 'center',
     fontSize: FONT_SIZE.xl,
+    fontWeight: '800',
+    ...NUMERIC_STYLE,
+  },
+  venueScoreChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+    borderRadius: RADIUS.xs,
+  },
+  venueScoreChipText: {
+    fontSize: 11,
     fontWeight: '800',
     ...NUMERIC_STYLE,
   },

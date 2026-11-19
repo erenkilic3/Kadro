@@ -29,12 +29,15 @@ import {
   ReportInput,
   RosterSlot,
   SubmitEvaluationInput,
+  SubmitVenueEvaluationInput,
   Team,
   TeamMember,
   UpdateGearInput,
   UpdateLeagueInput,
   UpdateMatchInput,
   User,
+  Venue,
+  VenueEvaluation,
 } from '../types';
 import { formatToTotalSlots } from '../utils/validators';
 
@@ -51,6 +54,8 @@ type LeagueTeamRow = Database['public']['Tables']['league_teams']['Row'];
 type LeagueFixtureRow = Database['public']['Tables']['league_fixtures']['Row'];
 type GearRow = Database['public']['Tables']['gear_items']['Row'];
 type EvaluationRow = Database['public']['Tables']['evaluations']['Row'];
+type VenueRow = Database['public']['Tables']['venues']['Row'];
+type VenueEvaluationRow = Database['public']['Tables']['venue_evaluations']['Row'];
 type NotificationRow = Database['public']['Tables']['notifications']['Row'];
 
 export interface AuthUserSeed {
@@ -269,6 +274,7 @@ function mapMatchRows(
       organizerId: row.organizer_id,
       organizerName: row.organizer_name,
       organizerPhone: row.organizer_phone || '',
+      venueId: row.venue_id || undefined,
       venueName: row.venue_name,
       address: row.address,
       city: row.city,
@@ -1151,6 +1157,99 @@ export const supabaseService = {
     if (error) throw error;
   },
 
+  async getVenues(): Promise<Venue[]> {
+    const client = getClient();
+    const { data, error } = await client
+      .from('venues')
+      .select('*')
+      .order('overall_rating', { ascending: false });
+
+    if (error) throw error;
+
+    return (data || []).map((row: VenueRow) => ({
+      id: row.id,
+      name: row.name,
+      city: row.city,
+      district: row.district,
+      address: row.address || undefined,
+      pitchType: row.pitch_type === 'Kapalı Saha' ? 'Kapalı Saha' : 'Açık Saha',
+      overallRating: Number(row.overall_rating),
+      turfRating: Number(row.turf_rating),
+      lightingRating: Number(row.lighting_rating),
+      lockerRoomRating: Number(row.locker_room_rating),
+      organizationRating: Number(row.organization_rating),
+      evaluationsCount: row.evaluations_count,
+      amenities: row.amenities || [],
+      createdAt: row.created_at,
+    }));
+  },
+
+  async getVenueEvaluations(): Promise<VenueEvaluation[]> {
+    const client = getClient();
+    const { data, error } = await client
+      .from('venue_evaluations')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+
+    return (data || []).map((row: VenueEvaluationRow) => ({
+      id: row.id,
+      venueId: row.venue_id,
+      matchId: row.match_id,
+      evaluatorId: row.evaluator_id,
+      evaluatorName: row.evaluator_name,
+      overallRating: Number(row.overall_rating),
+      turfRating: row.turf_rating,
+      lightingRating: row.lighting_rating,
+      lockerRoomRating: row.locker_room_rating,
+      organizationRating: row.organization_rating,
+      highlights: row.highlights || [],
+      comment: row.comment || undefined,
+      createdAt: row.created_at,
+    }));
+  },
+
+  async createVenueEvaluation(
+    input: SubmitVenueEvaluationInput,
+    evaluator: User
+  ): Promise<void> {
+    const client = getClient();
+    const overallRating = Number(
+      (
+        (input.turfRating +
+          input.lightingRating +
+          input.lockerRoomRating +
+          input.organizationRating) /
+        4
+      ).toFixed(2)
+    );
+
+    const { error } = await client.from('venue_evaluations').insert({
+      venue_id: input.venueId || '00000000-0000-0000-0000-000000000000',
+      match_id: input.matchId,
+      evaluator_id: evaluator.id,
+      evaluator_name: evaluator.name,
+      overall_rating: overallRating,
+      turf_rating: input.turfRating,
+      lighting_rating: input.lightingRating,
+      locker_room_rating: input.lockerRoomRating,
+      organization_rating: input.organizationRating,
+      highlights: input.highlights,
+      comment: input.comment?.trim() || null,
+    });
+    if (error) throw error;
+  },
+
+  async deleteVenueEvaluation(evaluationId: string): Promise<void> {
+    const client = getClient();
+    const { error } = await client
+      .from('venue_evaluations')
+      .delete()
+      .eq('id', evaluationId);
+    if (error) throw error;
+  },
+
   async getNotifications(userId: string): Promise<AppNotification[]> {
     const client = getClient();
     const { data, error } = await client
@@ -1236,6 +1335,16 @@ export const supabaseService = {
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'join_requests' },
+        onChange
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'venues' },
+        onChange
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'venue_evaluations' },
         onChange
       )
       .subscribe();

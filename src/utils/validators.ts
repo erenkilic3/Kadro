@@ -5,6 +5,7 @@ import {
   MatchFormat,
   PlayerPosition,
   SubmitEvaluationInput,
+  SubmitVenueEvaluationInput,
 } from '../types';
 
 export interface ValidationResult {
@@ -206,6 +207,34 @@ export function validateEvaluationInput(
 export function validateReportReason(reason: string): ValidationResult {
   if (reason.trim().length < 3) {
     return { valid: false, error: 'Bildirim nedeni en az 3 karakter olmalıdır.' };
+  }
+  return { valid: true };
+}
+
+function isValidStarRating(value: number): boolean {
+  return Number.isInteger(value) && value >= 1 && value <= 5;
+}
+
+export function validateVenueEvaluationInput(
+  input: SubmitVenueEvaluationInput
+): ValidationResult {
+  if (!input.matchId || !input.matchId.trim()) {
+    return { valid: false, error: 'Geçersiz maç referansı.' };
+  }
+  if (!isValidStarRating(input.turfRating)) {
+    return { valid: false, error: 'Zemin kalitesi puanı 1 ile 5 arasında olmalıdır.' };
+  }
+  if (!isValidStarRating(input.lightingRating)) {
+    return { valid: false, error: 'Işıklandırma puanı 1 ile 5 arasında olmalıdır.' };
+  }
+  if (!isValidStarRating(input.lockerRoomRating)) {
+    return { valid: false, error: 'Soyunma odası & duş puanı 1 ile 5 arasında olmalıdır.' };
+  }
+  if (!isValidStarRating(input.organizationRating)) {
+    return { valid: false, error: 'Tesis işletmesi puanı 1 ile 5 arasında olmalıdır.' };
+  }
+  if (input.comment && input.comment.trim().length > 500) {
+    return { valid: false, error: 'Yorum en fazla 500 karakter olabilir.' };
   }
   return { valid: true };
 }

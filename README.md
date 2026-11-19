@@ -55,11 +55,11 @@ In amateur football and local mini-pitch matches, players and organizers encount
 | **Auth & Security** | **🔐 Supabase Auth, Recovery & Protected Routes** | Email/password sign-in, registration, and password reset recovery (`login.tsx`, `register.tsx`, `forgot-password.tsx`, `reset-password.tsx`) backed by `AuthContext`, Expo Router `Stack.Protected` guards, `on_auth_user_created` profile auto-provisioning, private `profile_contacts` separation, and strict Row Level Security (`RLS`). |
 | **Matchmaking** | **🏟️ Match Discovery, Lifecycle & Tactical Pitch** | Search/filter matches by district, missing positions (`GK`, `DEF`, `MID`, `FWD`), or polls; inspect interactive pitch slots (`5v5`–`8v8`), send/cancel join requests, approve/reject as captain (`approve_join_request` / `reject_join_request`), edit/delete owned matches, or record final scores (`complete_match_atomic`). |
 | **Teams & Leagues** | **🥇 Teams, Regional Leagues & Standings** | Create permanent squads with player search and captain transfer (`teams/index.tsx`), launch or edit regional leagues (`LeagueForm.tsx`), auto-generate round-robin fixtures, and record fixture scores with atomic standings/points recalculation (`record_league_fixture_result`). |
-| **Reputation** | **⭐ Completed-Match Player Evaluations** | Rate teammates and opponents on Skill (`1–5`), Fair-Play (`1–5`), and badges strictly after matches are marked completed, backed by Postgres triggers preventing self-evaluation/duplicates and recalculating aggregate player profiles. |
+| **Reputation** | **⭐ Completed-Match Player & Venue Evaluations** | Rate teammates/opponents (`evaluations`) and halı saha facilities (`venues` & `venue_evaluations`: turf, lighting, locker rooms, management, highlight tags & comments) strictly after completed matches by verified participants, with automatic server-side average recalculation. |
 | **Marketplace** | **🛒 Second-Hand Gear Bazaar & Uploads** | 2-column catalog displaying only `Available` listings filtered by category and district, Supabase Storage photo uploads (`avatars` & `gear-images` buckets via `mediaService.ts`), seller edit/delete/sold actions, and buyer moderation reporting. |
 | **Realtime Alerts** | **🔔 Live Notifications & Expo Push** | Dedicated notifications inbox (`notifications.tsx`), Postgres trigger-backed notifications synced over Supabase Realtime, and Expo Push Notifications token registration (`notificationService.ts`). |
 | **Analytics & AI** | **📊 Pre-Match Stats & KadroAI Robot** | Live H2H comparisons, league form analytics, and Poisson-based on-device score/outcome predictions (`aiPredictor.ts`, `matchupStats.ts`). |
-| **Database & Tests** | **🐘 15-Table UUID Schema, Jest & EAS** | Versioned migrations in [`supabase/migrations/`](supabase/migrations/), `jest-expo` unit/service tests ([`src/__tests__/`](src/__tests__/)), and production EAS Build/Submit configuration ([`app.json`](app.json), [`eas.json`](eas.json)). |
+| **Database & Tests** | **🐘 17-Table UUID Schema, Jest & EAS** | Versioned migrations in [`supabase/migrations/`](supabase/migrations/), `jest-expo` unit/service tests ([`src/__tests__/`](src/__tests__/)), and production EAS Build/Submit configuration ([`app.json`](app.json), [`eas.json`](eas.json)). |
 
 ---
 
@@ -85,6 +85,7 @@ The application uses **Expo Router** file-based routing with **declarative `Stac
                                                          ├─ 🥇 league/[id]
                                                          ├─ 🏆 league/create
                                                          ├─ 🛡️ teams/index
+                                                         ├─ 🏟️ venue/[id]
                                                          └─ 🔔 notifications
 ```
 
@@ -170,6 +171,7 @@ src/
 │   ├── gear/[id].tsx                 # Gear Detail, Photo Preview, Edit/Delete & Report
 │   ├── league/[id].tsx               # Standings, Fixtures, Score Entry, Edit & Report
 │   ├── league/create.tsx             # Standalone Regional League Creation (uses LeagueForm)
+│   ├── venue/[id].tsx                # Facility Ratings Breakdown, Amenities & Reviews
 │   └── _layout.tsx                   # Root Stack with Stack.Protected Auth/Recovery Guards
 ├── components/                       # Reusable UI components
 │   ├── LeagueForm.tsx                # Shared regional league create/edit form
@@ -181,6 +183,8 @@ src/
 │   ├── MatchPredictionCard.tsx       # 1-X-2 prediction voting card with live bars
 │   ├── PostMatchEvaluationSection.tsx# Completed-match opponent/teammate rating list
 │   ├── PlayerEvaluationModal.tsx     # Skill, Fair-Play & badge evaluation modal
+│   ├── VenueEvaluationSection.tsx    # Match-level facility rating summary & action card
+│   ├── VenueEvaluationModal.tsx      # Multi-criteria halı saha facility rating modal
 │   ├── LeagueCard.tsx                # Regional league summary card
 │   ├── PitchLineup.tsx               # Interactive tactical pitch formation view
 │   ├── MatchCard.tsx                 # Match card with quick vote & missing positions
@@ -218,9 +222,9 @@ supabase/
 ## 💾 Data Management, Auth & Persistence
 
 Kadro runs directly on **Supabase PostgreSQL**, **Supabase Auth**, **Supabase Storage**, and **Supabase Realtime** via [`src/lib/supabase.ts`](src/lib/supabase.ts) and [`src/services/supabaseService.ts`](src/services/supabaseService.ts):
-1. **15 Normalized Tables with UUID Primary Keys:** `profiles`, `profile_contacts` (private phone/email/push token separation), `matches`, `roster_slots`, `join_requests`, `match_prediction_votes`, `teams`, `team_members`, `leagues`, `league_teams`, `league_fixtures`, `gear_items`, `evaluations`, `notifications`, and `reports`.
-2. **Atomic Server-Side RPCs & Triggers:** Includes `approve_join_request`, `reject_join_request`, `join_match_slot_atomic`, `leave_match_atomic`, `complete_match_atomic`, `cast_match_prediction_vote`, `register_team_to_league`, `record_league_fixture_result`, plus triggers preventing self-evaluation/non-completed match ratings, auto-adding captains to teams, recalculating player ratings, and emitting Realtime notifications.
-3. **Storage & Realtime:** Image uploads write user-scoped objects to `avatars` and `gear-images` buckets (`(storage.foldername(name))[1] = auth.uid()`); live updates subscribe to `notifications`, `matches`, `roster_slots`, and `join_requests`. `AsyncStorage` is reserved strictly for Auth session persistence and UI preferences.
+1. **17 Normalized Tables with UUID Primary Keys:** `profiles`, `profile_contacts` (private phone/email/push token separation), `venues`, `venue_evaluations`, `matches`, `roster_slots`, `join_requests`, `match_prediction_votes`, `teams`, `team_members`, `leagues`, `league_teams`, `league_fixtures`, `gear_items`, `evaluations`, `notifications`, and `reports`.
+2. **Atomic Server-Side RPCs & Triggers:** Includes `approve_join_request`, `reject_join_request`, `join_match_slot_atomic`, `leave_match_atomic`, `complete_match_atomic`, `cast_match_prediction_vote`, `register_team_to_league`, `record_league_fixture_result`, plus triggers preventing self-evaluation/non-completed match ratings, auto-linking matches to `venues`, enforcing participant-only facility reviews, recalculating player/venue aggregate ratings, and emitting Realtime notifications.
+3. **Storage & Realtime:** Image uploads write user-scoped objects to `avatars` and `gear-images` buckets (`(storage.foldername(name))[1] = auth.uid()`); live updates subscribe to `notifications`, `matches`, `roster_slots`, `join_requests`, `venues`, and `venue_evaluations`. `AsyncStorage` is reserved strictly for Auth session persistence and UI preferences.
 
 ### Key Data Entities (`src/types/index.ts`)
 * **`User`:** `id`, `name`, `email`, `phone`, `position`, `rating`, `fairPlayRating`, `matchesPlayed`, `preferredFoot`, `city`, `district`, `bio`, `predictionScore`, `totalPredictions`, `correctPredictions`, `badges`, `evaluationsCount`
@@ -230,6 +234,7 @@ Kadro runs directly on **Supabase PostgreSQL**, **Supabase Auth**, **Supabase St
 * **`AiMatchPrediction`:** `predictedScore1`, `predictedScore2`, `recommendedOutcome`, `recommendedLabel`, `probTeam1`, `probDraw`, `probTeam2`, `confidence`, `dataQuality`, `expectedTotalGoals`, `overUnderLine`, `overUnderPick`, `bttsYes`, `bttsProbability`, `insights`
 * **`RegionalLeague`, `LeagueTeam` & `LeagueFixture`:** Standings metrics (`played`, `won`, `drawn`, `lost`, `goalsFor`, `goalsAgainst`, `goalDifference`, `points`, `form`), fixtures, rules, prize, and registration capacity
 * **`PlayerEvaluation`:** `matchId`, `evaluatorId`, `targetPlayerId`, `isOpponent`, `skillRating`, `fairPlayRating`, `badges`, `comment`
+* **`Venue` & `VenueEvaluation`:** `name`, `city`, `district`, `pitchType`, `overallRating`, `turfRating`, `lightingRating`, `lockerRoomRating`, `organizationRating`, `evaluationsCount`, `amenities`, `highlights`, `comment`
 * **`GearItem`:** `id`, `sellerId`, `sellerName`, `sellerPhone`, `title`, `description`, `category`, `brand`, `size`, `price`, `condition`, `location`, `status`
 
 ### Edge-Case Handling & Reliability

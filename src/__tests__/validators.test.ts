@@ -11,6 +11,7 @@ import {
   validateProfileInput,
   validateReportReason,
   validateTeamName,
+  validateVenueEvaluationInput,
 } from '../utils/validators';
 
 describe('validators', () => {
@@ -118,5 +119,34 @@ describe('validators', () => {
     expect(validateEvaluationInput(evalInput, 'player-1').valid).toBe(true);
     expect(validateReportReason('No').valid).toBe(false);
     expect(validateReportReason('Yanıltıcı içerik').valid).toBe(true);
+  });
+
+  it('validates facility (venue) evaluation ratings and comment length', () => {
+    const validVenueEval = {
+      matchId: 'match-1',
+      venueId: 'venue-1',
+      turfRating: 5,
+      lightingRating: 4,
+      lockerRoomRating: 4,
+      organizationRating: 5,
+      highlights: ['Yeni Suni Çim', 'Temiz Duş & Soyunma'],
+      comment: 'Zemin çok iyiydi, ışıklandırma netti.',
+    };
+
+    expect(validateVenueEvaluationInput(validVenueEval).valid).toBe(true);
+    expect(validateVenueEvaluationInput({ ...validVenueEval, matchId: '' }).valid).toBe(false);
+    expect(validateVenueEvaluationInput({ ...validVenueEval, turfRating: 0 }).valid).toBe(false);
+    expect(validateVenueEvaluationInput({ ...validVenueEval, lightingRating: 6 }).valid).toBe(
+      false
+    );
+    expect(
+      validateVenueEvaluationInput({ ...validVenueEval, lockerRoomRating: 3.5 }).valid
+    ).toBe(false);
+    expect(
+      validateVenueEvaluationInput({
+        ...validVenueEval,
+        comment: 'a'.repeat(501),
+      }).valid
+    ).toBe(false);
   });
 });

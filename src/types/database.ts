@@ -542,6 +542,7 @@ export type Database = {
           title: string
           total_slots: number
           updated_at: string
+          venue_id: string | null
           venue_name: string
         }
         Insert: {
@@ -571,6 +572,7 @@ export type Database = {
           title: string
           total_slots: number
           updated_at?: string
+          venue_id?: string | null
           venue_name: string
         }
         Update: {
@@ -600,6 +602,7 @@ export type Database = {
           title?: string
           total_slots?: number
           updated_at?: string
+          venue_id?: string | null
           venue_name?: string
         }
         Relationships: [
@@ -608,6 +611,13 @@ export type Database = {
             columns: ["organizer_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "matches_venue_id_fkey"
+            columns: ["venue_id"]
+            isOneToOne: false
+            referencedRelation: "venues"
             referencedColumns: ["id"]
           },
         ]
@@ -949,6 +959,130 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      venue_evaluations: {
+        Row: {
+          comment: string | null
+          created_at: string
+          evaluator_id: string
+          evaluator_name: string
+          highlights: string[]
+          id: string
+          lighting_rating: number
+          locker_room_rating: number
+          match_id: string
+          organization_rating: number
+          overall_rating: number
+          turf_rating: number
+          venue_id: string
+        }
+        Insert: {
+          comment?: string | null
+          created_at?: string
+          evaluator_id: string
+          evaluator_name: string
+          highlights?: string[]
+          id?: string
+          lighting_rating: number
+          locker_room_rating: number
+          match_id: string
+          organization_rating: number
+          overall_rating: number
+          turf_rating: number
+          venue_id: string
+        }
+        Update: {
+          comment?: string | null
+          created_at?: string
+          evaluator_id?: string
+          evaluator_name?: string
+          highlights?: string[]
+          id?: string
+          lighting_rating?: number
+          locker_room_rating?: number
+          match_id?: string
+          organization_rating?: number
+          overall_rating?: number
+          turf_rating?: number
+          venue_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "venue_evaluations_evaluator_id_fkey"
+            columns: ["evaluator_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "venue_evaluations_match_id_fkey"
+            columns: ["match_id"]
+            isOneToOne: false
+            referencedRelation: "matches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "venue_evaluations_venue_id_fkey"
+            columns: ["venue_id"]
+            isOneToOne: false
+            referencedRelation: "venues"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      venues: {
+        Row: {
+          address: string | null
+          amenities: string[]
+          city: string
+          created_at: string
+          district: string
+          evaluations_count: number
+          id: string
+          lighting_rating: number
+          locker_room_rating: number
+          name: string
+          organization_rating: number
+          overall_rating: number
+          pitch_type: string
+          turf_rating: number
+          updated_at: string
+        }
+        Insert: {
+          address?: string | null
+          amenities?: string[]
+          city?: string
+          created_at?: string
+          district?: string
+          evaluations_count?: number
+          id?: string
+          lighting_rating?: number
+          locker_room_rating?: number
+          name: string
+          organization_rating?: number
+          overall_rating?: number
+          pitch_type?: string
+          turf_rating?: number
+          updated_at?: string
+        }
+        Update: {
+          address?: string | null
+          amenities?: string[]
+          city?: string
+          created_at?: string
+          district?: string
+          evaluations_count?: number
+          id?: string
+          lighting_rating?: number
+          locker_room_rating?: number
+          name?: string
+          organization_rating?: number
+          overall_rating?: number
+          pitch_type?: string
+          turf_rating?: number
+          updated_at?: string
+        }
+        Relationships: []
       }
     }
     Views: {
